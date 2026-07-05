@@ -87,8 +87,8 @@ class LoginDialog(QDialog):
         self._totp_label.hide()
         self._totp_layout.addWidget(self._totp_label)
         self._totp_edit = QLineEdit()
-        self._totp_edit.setPlaceholderText("000000")
-        self._totp_edit.setMaxLength(6)
+        self._totp_edit.setPlaceholderText("000000 " + I18n._("login.or_backup"))
+        self._totp_edit.setMaxLength(30)
         self._totp_edit.hide()
         self._totp_layout.addWidget(self._totp_edit)
         self._cl.addLayout(self._totp_layout)
@@ -149,7 +149,7 @@ class LoginDialog(QDialog):
             self._show_error(I18n._("login.error.empty"))
             return
         user = self.db.fetch_one(
-            "SELECT id, username, password_hash, salt, role, totp_secret "
+            "SELECT id, username, password_hash, salt, role, totp_secret, backup_codes "
             "FROM users WHERE username=?", (username,))
         if not user:
             self._rate_limiter.record_login(username)
@@ -184,13 +184,29 @@ class LoginDialog(QDialog):
             self._complete_login(user)
 
     def _do_totp_step(self) -> None:
+        import json
         code = self._totp_edit.text().strip()
-        totp_secret = (self._pending_user or {}).get("totp_secret", "") or ""
-        if not SecurityEngine.verify_totp(totp_secret, code):
-            self._show_error(I18n._("login.totp_invalid"))
-            self._shake()
+        pending = self._pending_user or {}
+        totp_secret = str(pending.get("totp_secret", "") or "")
+        if SecurityEngine.verify_totp(totp_secret, code):
+            self._complete_login(pending)
             return
-        self._complete_login(self._pending_user)
+        raw_bc = str(pending.get("backup_codes", "[]") or "[]")
+        try:
+            hashed_codes = json.loads(raw_bc)
+        except Exception:
+            hashed_codes = []
+        idx = SecurityEngine.verify_backup_code(hashed_codes, code)
+        if idx is not None:
+            hashed_codes.pop(idx)
+            self.db.execute(
+                "UPDATE users SET backup_codes=? WHERE id=?",
+                (json.dumps(hashed_codes), pending["id"]))
+            self.db.conn.commit()
+            self._complete_login(pending)
+            return
+        self._show_error(I18n._("login.totp_invalid"))
+        self._shake()
 
     def _complete_login(self, user: Any) -> None:
         self._authenticated_user = user

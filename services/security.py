@@ -62,6 +62,26 @@ class SecurityEngine:
                 f"&issuer={issuer}&algorithm=SHA1&digits={TOTP_DIGITS}&period={TOTP_INTERVAL}")
 
     @staticmethod
+    def generate_backup_codes(count: int = 10) -> list:
+        codes = []
+        for _ in range(count):
+            code = "-".join([secrets.token_hex(3).upper() for _ in range(3)])
+            codes.append(code)
+        return codes
+
+    @staticmethod
+    def hash_backup_codes(codes: list) -> list:
+        return [hashlib.sha256(c.encode()).hexdigest() for c in codes]
+
+    @staticmethod
+    def verify_backup_code(stored_hashes: list, code: str) -> Optional[int]:
+        ch = hashlib.sha256(code.strip().upper().encode()).hexdigest()
+        for i, h in enumerate(stored_hashes):
+            if hmac.compare_digest(h, ch):
+                return i
+        return None
+
+    @staticmethod
     def verify_totp(secret_b32: str, code: str) -> bool:
         try:
             padding = 8 - (len(secret_b32) % 8) if len(secret_b32) % 8 else 0

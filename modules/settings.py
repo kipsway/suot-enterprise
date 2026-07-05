@@ -516,14 +516,15 @@ class UsersDialog(QDialog):
         if uid is None:
             return
         user = self.db.fetch_one(
-            "SELECT username, totp_secret FROM users WHERE id=?", (uid,))
+            "SELECT username, totp_secret, backup_codes FROM users WHERE id=?", (uid,))
         if not user:
             return
         from services.security import SecurityEngine
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QTextEdit
+        from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton,
+                                     QHBoxLayout, QTextEdit, QFrame)
         dlg = QDialog(self)
         dlg.setWindowTitle(I18n._("user.totp_setup"))
-        dlg.setMinimumWidth(420)
+        dlg.setMinimumWidth(500)
         layout = QVBoxLayout(dlg)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
@@ -542,12 +543,39 @@ class UsersDialog(QDialog):
         uri_edit.setMaximumHeight(60)
         uri_edit.setReadOnly(True)
         layout.addWidget(uri_edit)
+
+        # Backup codes section
+        backup_frame = QFrame()
+        backup_frame.setStyleSheet("background: #FFF8E1; border: 1px solid #FFE082; border-radius: 8px;")
+        bl = QVBoxLayout(backup_frame)
+        bl.setContentsMargins(12, 10, 12, 10)
+        bl.setSpacing(6)
+        backup_heading = QLabel(I18n._("user.backup_codes_title"))
+        backup_heading.setStyleSheet("font-weight: 600; font-size: 14px; color: #F57F17;")
+        bl.addWidget(backup_heading)
+        backup_desc = QLabel(I18n._("user.backup_codes_desc"))
+        backup_desc.setStyleSheet("font-size: 11px; color: #795548;")
+        backup_desc.setWordWrap(True)
+        bl.addWidget(backup_desc)
+
+        backup_codes = SecurityEngine.generate_backup_codes(10)
+        codes_text = QTextEdit()
+        codes_text.setPlainText("\n".join(f"{i+1}. {c}" for i, c in enumerate(backup_codes)))
+        codes_text.setMaximumHeight(160)
+        codes_text.setReadOnly(True)
+        codes_text.setStyleSheet("font-family: monospace; font-size: 13px; padding: 6px;")
+        bl.addWidget(codes_text)
+        layout.addWidget(backup_frame)
+
         btn_layout = QHBoxLayout()
         save_btn = QPushButton(I18n._("common.save"))
         def _do_save():
-            self.db.execute("UPDATE users SET totp_secret=? WHERE id=?",
-                            (secret, uid))
-            self.db.log_event(f"TOTP set up for {user['username']}", "INFO")
+            hashed = SecurityEngine.hash_backup_codes(backup_codes)
+            import json
+            self.db.execute(
+                "UPDATE users SET totp_secret=?, backup_codes=? WHERE id=?",
+                (secret, json.dumps(hashed), uid))
+            self.db.log_event(f"TOTP + backup codes set up for {user['username']}", "INFO")
             dlg.accept()
             ToastNotification.notify(I18n._("user.totp_saved"), "success", 3000)
         save_btn.clicked.connect(_do_save)

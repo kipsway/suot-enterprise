@@ -910,6 +910,12 @@ class I18n:
         "login.totp_invalid": "Неверный код",
         "login.verify": "Подтвердить",
         "login.locked": "Слишком много попыток. Подождите {seconds} сек.",
+        "login.or_backup": "или код восстановления",
+
+        "user.backup_codes_title": "Резервные коды восстановления",
+        "user.backup_codes_desc": "Сохраните эти коды в безопасном месте. "
+                                   "Каждый код можно использовать только один раз "
+                                   "для входа при потере доступа к аутентификатору.",
 
         "user.totp_setup": "2FA настройка",
         "user.totp_instruction": "Отсканируйте QR-код в приложении (Google Authenticator) или введите ключ вручную:",
@@ -1167,6 +1173,12 @@ class I18n:
         "login.totp_invalid": "Invalid code",
         "login.verify": "Verify",
         "login.locked": "Too many attempts. Wait {seconds} sec.",
+        "login.or_backup": "or backup code",
+
+        "user.backup_codes_title": "Backup Recovery Codes",
+        "user.backup_codes_desc": "Save these codes in a secure location. "
+                                   "Each code can be used only once "
+                                   "to log in if you lose access to your authenticator.",
 
         "user.totp_setup": "2FA Setup",
         "user.totp_instruction": "Scan the QR code with your authenticator app or enter the key manually:",
