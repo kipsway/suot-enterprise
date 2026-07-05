@@ -87,6 +87,27 @@ def get_status_indicator_bg(status_str: Any, is_dark: bool):
     return None
 
 
+def apply_glass_style(widget: QWidget, intensity: str = "medium") -> None:
+    from app_core.theme_engine import ThemeEngine
+    is_dark = ThemeEngine._current_theme == "dark"
+    if intensity == "high":
+        bg = "rgba(255,255,255,0.12)" if not is_dark else "rgba(255,255,255,0.10)"
+        bg_to = "rgba(255,255,255,0.06)" if not is_dark else "rgba(255,255,255,0.04)"
+    elif intensity == "low":
+        bg = "rgba(255,255,255,0.55)" if not is_dark else "rgba(255,255,255,0.04)"
+        bg_to = "rgba(255,255,255,0.40)" if not is_dark else "rgba(255,255,255,0.02)"
+    else:
+        bg = "rgba(255,255,255,0.75)" if not is_dark else "rgba(255,255,255,0.07)"
+        bg_to = "rgba(255,255,255,0.55)" if not is_dark else "rgba(255,255,255,0.03)"
+    border = "rgba(255,255,255,0.35)" if not is_dark else "rgba(255,255,255,0.07)"
+    widget.setStyleSheet(f"""
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 {bg}, stop:1 {bg_to});
+        border: 1px solid {border};
+        border-radius: 14px;
+    """)
+
+
 def fade_in_widget(widget: QWidget, duration: int = 300) -> None:
     effect = QGraphicsOpacityEffect(widget)
     widget.setGraphicsEffect(effect)

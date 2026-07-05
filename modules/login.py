@@ -24,9 +24,19 @@ class LoginDialog(QDialog):
 
     def _build_ui(self) -> None:
         self.setWindowTitle(I18n._("login.title"))
-        self.setFixedSize(400, 460)
+        self.setFixedSize(420, 480)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
+
+        is_dark = ThemeEngine._current_theme == "dark"
+        glass_bg = (
+            "qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+            "  stop:0 rgba(255,255,255,0.82), stop:1 rgba(255,255,255,0.65))"
+        ) if not is_dark else (
+            "qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+            "  stop:0 rgba(255,255,255,0.09), stop:1 rgba(255,255,255,0.04))"
+        )
+        glass_border = "rgba(255,255,255,0.40)" if not is_dark else "rgba(255,255,255,0.08)"
 
         main = QVBoxLayout(self)
         main.setContentsMargins(0, 0, 0, 0)
@@ -35,22 +45,24 @@ class LoginDialog(QDialog):
         container.setObjectName("loginContainer")
         container.setStyleSheet(f"""
             QFrame#loginContainer {{
-                background: {"#FFFFFF" if ThemeEngine._current_theme == "light" else "#252640"};
-                border-radius: 16px; margin: 20px;
+                background: {glass_bg};
+                border: 1px solid {glass_border};
+                border-radius: 20px;
             }}
         """)
         cl = QVBoxLayout(container)
-        cl.setContentsMargins(32, 32, 32, 32)
+        cl.setContentsMargins(36, 36, 36, 36)
         cl.setSpacing(16)
 
         title = QLabel(I18n._("app.name"))
         title.setProperty("heading", True)
         title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("font-size: 26px; letter-spacing: -0.5px;")
         cl.addWidget(title)
 
         subtitle = QLabel(I18n._("login.title"))
         subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("font-size: 13px; margin-bottom: 8px;")
+        subtitle.setStyleSheet("font-size: 14px; margin-bottom: 4px; opacity: 0.7;")
         cl.addWidget(subtitle)
 
         cl.addSpacing(8)
@@ -77,6 +89,10 @@ class LoginDialog(QDialog):
         login_btn.setCursor(QCursor(Qt.PointingHandCursor))
         login_btn.clicked.connect(self._on_login)
         login_btn.setDefault(True)
+        login_btn.setMinimumHeight(44)
+        login_btn.setStyleSheet(
+            "font-size: 15px; font-weight: 700; letter-spacing: 0.3px;"
+        )
         cl.addWidget(login_btn)
 
         self._password_edit.returnPressed.connect(login_btn.click)
