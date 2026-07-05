@@ -20,6 +20,7 @@ from services.database import DatabaseManager
 from widgets.bulk_actions import build_bulk_toolbar, count_selected
 from widgets.toast import ToastNotification
 from widgets.photos import PhotoGalleryDialog
+from widgets.dropzone import DropZone
 from modules.textbook import TextbookLineEdit, DateAwareLineEdit
 
 from modules.print_engine import PrintEngine
@@ -94,15 +95,10 @@ class EmployeeEditDialog(QDialog):
             self._fields[name] = w
             form.addRow(f"{name}:", w)
 
-        photo_row = QHBoxLayout()
-        self._photo_btn = QPushButton("📷 " + I18n._("emp.photo"))
-        self._photo_btn.clicked.connect(self._select_photos)
-        self._photo_btn.setMinimumHeight(36)
-        photo_row.addWidget(self._photo_btn)
-        self._photo_label = QLabel()
-        self._update_photo_label()
-        photo_row.addWidget(self._photo_label, 1)
-        form.addRow("", photo_row)
+        self._dropzone = DropZone()
+        self._dropzone.set_photos(self._photo_paths)
+        self._dropzone.on_change(lambda paths: setattr(self, '_photo_paths', paths))
+        form.addRow("", self._dropzone)
 
         scroll.setWidget(container)
         layout.addWidget(scroll, 1)
@@ -112,18 +108,6 @@ class EmployeeEditDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-
-    def _select_photos(self) -> None:
-        files, _ = QFileDialog.getOpenFileNames(
-            self, I18n._("emp.photo"), "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All files (*.*)")
-        if files:
-            self._photo_paths.extend(files)
-            self._update_photo_label()
-
-    def _update_photo_label(self) -> None:
-        cnt = len(self._photo_paths)
-        self._photo_label.setText(f"{cnt} {I18n._('emp.photo').lower()}(s)" if cnt else "")
 
     def get_data(self) -> Dict[str, Any]:
         result = dict(self._data)

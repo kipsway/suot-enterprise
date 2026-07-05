@@ -801,6 +801,9 @@ class I18n:
         "calendar.reminder_added": "Напоминание добавлено",
         "tab.calendar": "Календарь",
 
+        "dropzone.hint": "📁 Перетащите изображения сюда",
+        "dropzone.browse": "Обзор",
+
         "bulk.delete_selected": "🗑 Удалить выбранные",
         "bulk.change_status": "📋 Сменить статус",
         "bulk.export_selected": "📤 Экспорт выбранных",
@@ -988,6 +991,9 @@ class I18n:
         "calendar.add_reminder": "Add reminder",
         "calendar.reminder_added": "Reminder added",
         "tab.calendar": "Calendar",
+
+        "dropzone.hint": "📁 Drop images here",
+        "dropzone.browse": "Browse",
 
         "bulk.delete_selected": "🗑 Delete selected",
         "bulk.change_status": "📋 Change status",
