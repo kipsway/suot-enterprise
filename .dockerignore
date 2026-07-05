@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+*.db
+*.db-shm
+*.db-wal
+backups/
+media/
+env/
+venv/
+.venv/
+.vscode/
+.idea/
+*.log

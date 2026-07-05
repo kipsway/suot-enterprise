@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  suot-enterprise:
+    build: .
+    container_name: suot-enterprise
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ./media:/app/media
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
