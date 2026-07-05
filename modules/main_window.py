@@ -40,6 +40,7 @@ from modules.reminders import RemindersDialog, ReminderEngine, ExpiringReminders
 from modules.print_engine import PrintEngine
 from modules.data_dialogs import ImportDialog, ExportDialog, GlobalSearchDialog, ReportDialog, QuickReportDialog
 from modules.ai import AIChatDialog, AIChatInlineWidget, AIEngine
+from modules.ai_insights import AIInsightsWidget
 from modules.settings import SettingsDialog, UsersDialog, AuditTab, HotkeyManager
 from modules.tools import FineKinneyCalculator, TextbookManagerDialog, PrintDialog
 from modules.print_editor import PrintTemplateEditor
@@ -163,6 +164,7 @@ class MainWindow(QMainWindow):
         self._audit_tab = AuditTab()
 
         self._ai_tab = AIChatInlineWidget()
+        self._ai_insights_tab = AIInsightsWidget()
 
         self._reminders_tab = ExpiringRemindersTab()
 
@@ -176,6 +178,7 @@ class MainWindow(QMainWindow):
             ("tab.audit", self._audit_tab),
             ("tab.reminders", self._reminders_tab),
             ("tab.ai", self._ai_tab),
+            ("tab.ai_insights", self._ai_insights_tab),
         ]
         for key, widget in tab_defs:
             label = self.db.get_setting(f"tab_{key.split('.')[1]}", I18n._(key))

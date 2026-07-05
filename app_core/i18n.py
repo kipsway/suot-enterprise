@@ -697,6 +697,10 @@ class I18n:
         "ai.mode_label": "Режим",
         "ai.temp_label": "Температура",
         "ai.empty_response": "Пустой ответ от ИИ",
+        "ai.generate_insights": "Сгенерировать аналитику",
+        "ai.insights": "Аналитика ИИ",
+        "ai.insights_hint": "Нажмите «Сгенерировать аналитику» для получения ИИ-анализа данных",
+        "tab.ai_insights": "AI Аналитика",
         "common.replace": "Заменить",
         "common.confirm_close": "Закрыть без сохранения?",
         "stat.document_stats": "Статистика документа",
@@ -800,6 +804,12 @@ class I18n:
         "common.description": "Description",
         "common.status": "Status",
         "common.actions": "Actions",
+
+        "tab.ai_insights": "AI Analytics",
+        "ai.generate_insights": "Generate Insights",
+        "ai.insights": "AI Analytics",
+        "ai.insights_hint": "Click Generate Insights for AI-powered data analysis",
+        "analytics.title": "Analytics",
     }
 
     @classmethod
