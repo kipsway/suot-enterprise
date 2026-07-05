@@ -17,6 +17,7 @@ from app_core.theme_engine import ThemeEngine
 from app_core.utils import (wrap_table_with_glow, get_date_indicator_bg,
                             get_status_indicator_bg, get_valid_until_bg)
 from services.database import DatabaseManager
+from widgets.bulk_actions import build_bulk_toolbar, count_selected
 from widgets.toast import ToastNotification
 from widgets.photos import PhotoGalleryDialog
 from modules.textbook import TextbookLineEdit, DateAwareLineEdit, TextbookDialog, auto_format_date
@@ -289,6 +290,23 @@ class ViolationsTableWidget(QWidget):
         toolbar.addWidget(self._refresh_btn)
 
         layout.addLayout(toolbar)
+
+        bulk_bar = QHBoxLayout()
+        sel_label = QLabel()
+        sel_label.setStyleSheet("font-size: 12px; padding: 2px 0;")
+        bulk_bar.addWidget(sel_label)
+        bulk_bar.addStretch()
+        bulk_bar_inner = build_bulk_toolbar(self._table, "violations",
+                                             on_refresh=self._load_data)
+        for i in range(bulk_bar_inner.count()):
+            w = bulk_bar_inner.itemAt(i).widget()
+            if w:
+                bulk_bar.addWidget(w)
+        # Update selection count
+        self._table.itemSelectionChanged.connect(
+            lambda: sel_label.setText(
+                f"{I18n._('bulk.selected')}: {count_selected(self._table)}"))
+        layout.addLayout(bulk_bar)
 
         self._table = QTableWidget()
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)

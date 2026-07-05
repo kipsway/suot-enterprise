@@ -801,6 +801,16 @@ class I18n:
         "calendar.reminder_added": "Напоминание добавлено",
         "tab.calendar": "Календарь",
 
+        "bulk.delete_selected": "🗑 Удалить выбранные",
+        "bulk.change_status": "📋 Сменить статус",
+        "bulk.export_selected": "📤 Экспорт выбранных",
+        "bulk.selected": "Выбрано",
+        "bulk.no_selection": "Нет выбранных записей",
+        "bulk.select_status": "Выберите новый статус",
+        "bulk.confirm_delete": "Удалить {count} записей?",
+        "bulk.deleted": "Удалено: {count}",
+        "bulk.status_updated": "Статус обновлён у {count} записей",
+
         "email.title": "Email",
         "email.enabled": "Включить Email уведомления",
         "email.smtp_host": "SMTP сервер",
@@ -978,6 +988,16 @@ class I18n:
         "calendar.add_reminder": "Add reminder",
         "calendar.reminder_added": "Reminder added",
         "tab.calendar": "Calendar",
+
+        "bulk.delete_selected": "🗑 Delete selected",
+        "bulk.change_status": "📋 Change status",
+        "bulk.export_selected": "📤 Export selected",
+        "bulk.selected": "Selected",
+        "bulk.no_selection": "No records selected",
+        "bulk.select_status": "Select new status",
+        "bulk.confirm_delete": "Delete {count} records?",
+        "bulk.deleted": "Deleted: {count}",
+        "bulk.status_updated": "Status updated for {count} records",
 
         "email.title": "Email",
         "email.enabled": "Enable Email notifications",
