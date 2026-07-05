@@ -11,7 +11,7 @@ class DatabaseManager:
     _instance: Optional["DatabaseManager"] = None
     _lock: Any = None
     _cache: Dict[str, tuple] = {}
-    JSON_TABLES = {"employees", "violations", "custom_ledger"}
+    JSON_TABLES = {"employees", "violations", "custom_ledger", "incidents"}
 
     def invalidate_cache(self, category: str = "") -> None:
         if category:
@@ -169,6 +169,12 @@ class DatabaseManager:
                 BEGIN
                     SELECT RAISE(ABORT, 'Audit log is immutable');
                 END;
+                CREATE TABLE IF NOT EXISTS incidents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    data_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
                 CREATE TABLE IF NOT EXISTS violation_types (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -197,7 +203,7 @@ class DatabaseManager:
             self.conn.rollback()
             raise
 
-        for tbl in ("employees", "violations", "custom_ledger"):
+        for tbl in ("employees", "violations", "custom_ledger", "incidents"):
             try:
                 self.conn.execute(f"ALTER TABLE {tbl} ADD COLUMN user_id INTEGER DEFAULT 0")
             except Exception:
@@ -207,7 +213,8 @@ class DatabaseManager:
     def _insert_or_ignore(self, table: str, values: Dict[str, Any]) -> None:
         if table not in {"settings", "users", "ai_settings", "columns_config",
                           "violation_types", "reminders", "notes", "audit_log",
-                          "employees", "violations", "custom_ledger", "companies"}:
+                          "employees", "violations", "custom_ledger", "companies",
+                          "incidents"}:
             raise ValueError(f"Invalid table: {table}")
         try:
             cols = ", ".join(values.keys())
@@ -312,6 +319,15 @@ class DatabaseManager:
                 ("Категория", "Текст", 2), ("Описание", "Текст", 3),
                 ("Ответственный", "Текст", 4), ("Статус", "Статус", 5),
                 ("Фото", "Медиа", 6), ("Примечание", "Текст", 7),
+            ],
+            "incidents": [
+                ("ID", "Число", 0), ("Дата происшествия", "Годен до", 1),
+                ("Время", "Текст", 2), ("Тип", "Текст", 3),
+                ("Тяжесть", "Статус", 4), ("Место", "Текст", 5),
+                ("Описание", "Текст", 6), ("Пострадавшие", "Текст", 7),
+                ("Причина", "Текст", 8), ("Корректирующие меры", "Текст", 9),
+                ("Срок устранения", "Годен до", 10), ("Статус", "Статус", 11),
+                ("Фото", "Медиа", 12),
             ],
         }
         for cat, cols in configs.items():
