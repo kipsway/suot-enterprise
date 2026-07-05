@@ -1,14 +1,14 @@
 import os, csv, json, re, tempfile, webbrowser
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import (QApplication, QDialog, QWidget, QFrame,
     QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QLineEdit,
     QPushButton, QComboBox, QCheckBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QTreeWidget, QTreeWidgetItem,
     QTextBrowser, QPlainTextEdit, QDialogButtonBox, QMessageBox,
-    QFileDialog, QMainWindow)
+    QFileDialog, QMainWindow, QProgressBar, QGroupBox, QRadioButton)
 
 from app_core.i18n import I18n
 from app_core.config import RUNTIME_PATHS, AppConfig
@@ -53,9 +53,7 @@ class ImportDialog(QDialog):
         table_layout = QHBoxLayout()
         table_layout.addWidget(QLabel(I18n._("common.table") + ":"))
         self._table_combo = QComboBox()
-        self._table_combo.addItem(I18n._("tab.employees"), "employees")
-        self._table_combo.addItem(I18n._("tab.violations"), "violations")
-        self._table_combo.addItem(I18n._("tab.custom_ledger"), "custom_ledger")
+        self._populate_table_combo()
         idx = self._table_combo.findData(self._target_table)
         if idx >= 0:
             self._table_combo.setCurrentIndex(idx)
@@ -65,6 +63,16 @@ class ImportDialog(QDialog):
         parse_btn.clicked.connect(self._parse_file)
         table_layout.addWidget(parse_btn)
         layout.addLayout(table_layout)
+
+        dup_layout = QHBoxLayout()
+        dup_layout.addWidget(QLabel(I18n._("import.dup_strategy") + ":"))
+        self._dup_strategy = QComboBox()
+        self._dup_strategy.addItem(I18n._("import.dup_skip"), "skip")
+        self._dup_strategy.addItem(I18n._("import.dup_update"), "update")
+        self._dup_strategy.addItem(I18n._("import.dup_create"), "create")
+        dup_layout.addWidget(self._dup_strategy)
+        dup_layout.addStretch()
+        layout.addLayout(dup_layout)
 
         self._preview_table = QTableWidget()
         self._preview_table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -81,6 +89,10 @@ class ImportDialog(QDialog):
 
         self._mapping_widgets: List[Tuple[QLabel, QComboBox]] = []
 
+        self._progress = QProgressBar()
+        self._progress.setVisible(False)
+        layout.addWidget(self._progress)
+
         btn_layout = QHBoxLayout()
         self._import_btn = QPushButton(I18n._("import.execute"))
         self._import_btn.setProperty("success", True)
@@ -92,6 +104,20 @@ class ImportDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
+
+    def _populate_table_combo(self) -> None:
+        self._table_combo.clear()
+        tables = [
+            ("employees", I18n._("tab.employees")),
+            ("violations", I18n._("tab.violations")),
+            ("custom_ledger", I18n._("tab.custom_ledger")),
+            ("incidents", I18n._("tab.incidents")),
+            ("ppe", I18n._("tab.ppe")),
+            ("training", I18n._("tab.training")),
+            ("permits", I18n._("tab.permits")),
+        ]
+        for key, label in tables:
+            self._table_combo.addItem(label, key)
 
     def _browse_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -261,10 +287,17 @@ class ImportDialog(QDialog):
                 self.db.conn.commit()
                 existing_names.add(dst)
 
+        dup_mode = self._dup_strategy.currentData()
         imported = 0
         updated = 0
         errors = 0
         import_log: List[str] = []
+        total = len(self._source_data)
+        self._progress.setVisible(True)
+        self._progress.setMaximum(total)
+        self._import_btn.setEnabled(False)
+        QApplication.processEvents()
+
         for row_idx, row_data in enumerate(self._source_data):
             try:
                 record: Dict[str, Any] = {}
@@ -286,9 +319,13 @@ class ImportDialog(QDialog):
 
                 action = "created"
                 target_id = 0
-                if self._target_table == "employees":
-                    existing = self.db.find_employee_duplicate(record)
+                if dup_mode != "create":
+                    existing = self.db.find_duplicate(self._target_table, record)
                     if existing:
+                        if dup_mode == "skip":
+                            import_log.append(f"Строка {row_idx+1}: пропущен (дубликат ID={existing['id']})")
+                            self._progress.setValue(row_idx + 1)
+                            continue
                         merged = dict(existing.get("data_json", {}))
                         for k, v in record.items():
                             if isinstance(v, list):
@@ -296,33 +333,23 @@ class ImportDialog(QDialog):
                                     merged[k] = v
                             elif str(v).strip() != "":
                                 merged[k] = v
-                        self.db.save_json_record("employees", existing["id"], merged)
+                        self.db.save_json_record(self._target_table, existing["id"], merged)
                         updated += 1
                         action = "updated"
                         target_id = existing["id"]
-                        continue
-                elif self._target_table == "violations":
-                    existing = self.db.find_violation_duplicate(record)
-                    if existing:
-                        merged = dict(existing.get("data_json", {}))
-                        for k, v in record.items():
-                            if isinstance(v, list):
-                                if v:
-                                    merged[k] = v
-                            elif str(v).strip() != "":
-                                merged[k] = v
-                        self.db.save_json_record("violations", existing["id"], merged)
-                        updated += 1
-                        action = "updated"
-                        target_id = existing["id"]
+                        import_log.append(f"Строка {row_idx+1}: обновлён ID={target_id} | {record.get('ФИО', record.get('Описание', record.get('Наименование', record.get('Наименование СИЗ', '?'))))[:60]}")
+                        self._progress.setValue(row_idx + 1)
                         continue
 
                 target_id = self.db.save_json_record(self._target_table, 0, record)
                 imported += 1
-                import_log.append(f"Строка {row_idx+1}: {action} ID={target_id} | {record.get('ФИО', record.get('Описание', record.get('Название', '?')))[:60]}")
+                name_field = next((c["name"] for c in self._columns if c["name"] in ("ФИО", "Описание", "Наименование", "Наименование СИЗ", "Сотрудник")), "?")
+                import_log.append(f"Строка {row_idx+1}: создан ID={target_id} | {record.get(name_field, '?')[:60]}")
             except Exception as e:
                 errors += 1
                 import_log.append(f"Строка {row_idx+1}: ОШИБКА — {e}")
+            self._progress.setValue(row_idx + 1)
+            QApplication.processEvents()
 
         self.db.log_event(f"Import: {imported} records, {updated} updated, {errors} errors",
                           "INFO", {"table": self._target_table})
@@ -378,6 +405,20 @@ class ExportDialog(QDialog):
         self.resize(450, 280)
         self._build_ui()
 
+    def _populate_export_tables(self) -> None:
+        self._table_combo.clear()
+        tables = [
+            ("employees", I18n._("tab.employees")),
+            ("violations", I18n._("tab.violations")),
+            ("custom_ledger", I18n._("tab.custom_ledger")),
+            ("incidents", I18n._("tab.incidents")),
+            ("ppe", I18n._("tab.ppe")),
+            ("training", I18n._("tab.training")),
+            ("permits", I18n._("tab.permits")),
+        ]
+        for key, label in tables:
+            self._table_combo.addItem(label, key)
+
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 20, 24, 20)
@@ -391,9 +432,7 @@ class ExportDialog(QDialog):
         form.setSpacing(10)
 
         self._table_combo = QComboBox()
-        self._table_combo.addItem(I18n._("tab.employees"), "employees")
-        self._table_combo.addItem(I18n._("tab.violations"), "violations")
-        self._table_combo.addItem(I18n._("tab.custom_ledger"), "custom_ledger")
+        self._populate_export_tables()
         form.addRow(I18n._("common.table") + ":", self._table_combo)
 
         self._format_combo = QComboBox()

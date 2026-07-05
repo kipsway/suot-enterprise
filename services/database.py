@@ -693,6 +693,33 @@ tr:nth-child(even){background:#f5f5f5}
             return rec
         return None
 
+    def find_duplicate(self, table: str, data: Dict[str, Any],
+                       exclude_id: int = 0,
+                       user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        self._validate_json_table(table)
+        cols = self.get_columns_config(table)
+        text_cols = {c["name"] for c in cols if c["type"] == "Текст"}
+        name_col = None
+        for n in ("ФИО", "Наименование", "Наименование СИЗ", "Номер наряда",
+                   "Описание", "Сотрудник"):
+            if n in text_cols:
+                name_col = n
+                break
+        if not name_col:
+            return None
+        val = str(data.get(name_col, "")).strip().lower()
+        if not val:
+            return None
+        for rec in self.get_json_records(table, user_id=user_id):
+            if exclude_id and int(rec.get("id", 0)) == int(exclude_id):
+                continue
+            rv = str(rec.get("data_json", {}).get(name_col, "")).strip().lower()
+            if rv == val:
+                return rec
+            if len(val) > 5 and (rv.startswith(val) or val.startswith(rv)):
+                return rec
+        return None
+
     def get_import_history(self, limit: int = 100) -> List[Dict[str, Any]]:
         rows = self.fetch_all(
             "SELECT * FROM import_history ORDER BY timestamp DESC LIMIT ?", (limit,))

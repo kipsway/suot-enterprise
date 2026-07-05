@@ -831,6 +831,11 @@ class I18n:
         "permits.edit": "Редактировать наряд",
         "permits.delete_confirm": "Удалить наряд-допуск?",
 
+        "import.dup_strategy": "При дубликатах",
+        "import.dup_skip": "Пропустить",
+        "import.dup_update": "Обновить",
+        "import.dup_create": "Создавать новые",
+
         "inc.id": "ID",
         "inc.date": "Дата происшествия",
         "inc.type": "Тип",
@@ -1067,6 +1072,11 @@ class I18n:
         "permits.add": "Issue permit",
         "permits.edit": "Edit permit",
         "permits.delete_confirm": "Delete this work permit?",
+
+        "import.dup_strategy": "On duplicates",
+        "import.dup_skip": "Skip",
+        "import.dup_update": "Update",
+        "import.dup_create": "Create new",
 
         "inc.id": "ID",
         "inc.date": "Date of incident",
