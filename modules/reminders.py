@@ -17,6 +17,7 @@ from app_core.utils import wrap_table_with_glow
 from services.database import DatabaseManager
 from services.email_service import EmailService
 from services.telegram_bot import TelegramBot
+from services.webhook_service import fire_event
 from widgets.toast import ToastNotification
 
 
@@ -207,6 +208,15 @@ class ReminderEngine(QObject):
                                     title,
                                     f"{I18n._('reminder.due_date')}: {r.get('due_date', '')}\n{r.get('description', '')}",
                                     "warning")
+                            except Exception:
+                                pass
+                            try:
+                                fire_event("reminder.due", {
+                                    "id": rid,
+                                    "title": title,
+                                    "due_date": r.get("due_date", ""),
+                                    "description": r.get("description", ""),
+                                })
                             except Exception:
                                 pass
                 except Exception:

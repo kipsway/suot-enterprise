@@ -21,6 +21,7 @@ from modules.reminders import ReminderEngine
 from modules.email_settings import EmailSettingsWidget
 from modules.rest_api_settings import RESTAPISettingsWidget
 from modules.telegram_settings import TelegramSettingsWidget
+from modules.webhook_settings import WebhookSettingsWidget
 from widgets.toast import ToastNotification
 
 from modules.employees import EmployeeEditDialog
@@ -143,6 +144,10 @@ class SettingsDialog(QDialog):
         # --- Email tab ---
         self._email_tab = EmailSettingsWidget()
         tabs.addTab(self._email_tab, I18n._("email.title"))
+
+        # --- Webhook tab ---
+        self._webhook_tab = WebhookSettingsWidget()
+        tabs.addTab(self._webhook_tab, I18n._("webhook.title"))
 
         # --- Customization tab ---
         custom = QFrame()

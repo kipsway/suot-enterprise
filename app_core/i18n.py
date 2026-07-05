@@ -844,6 +844,21 @@ class I18n:
         "import.dup_update": "Обновить",
         "import.dup_create": "Создавать новые",
 
+        "webhook.title": "Webhook-уведомления",
+        "webhook.desc": "HTTP-колбеки при наступлении событий в системе. "
+                        "Используется для интеграции со сторонними сервисами "
+                        "(Slack, Teams, корпоративные системы).",
+        "webhook.add": "Добавить цель",
+        "webhook.edit": "Редактировать цель",
+        "webhook.events": "События",
+        "webhook.enabled": "Включено",
+        "webhook.last_status": "Статус",
+        "webhook.all_events": "Все события (*)",
+        "webhook.test": "Тест",
+        "webhook.test_ok": "Webhook отправлен успешно",
+        "webhook.test_fail": "Ошибка отправки webhook",
+        "webhook.delete_confirm": "Удалить цель webhook?",
+
         "inc.id": "ID",
         "inc.date": "Дата происшествия",
         "inc.type": "Тип",
@@ -1085,6 +1100,21 @@ class I18n:
         "import.dup_skip": "Skip",
         "import.dup_update": "Update",
         "import.dup_create": "Create new",
+
+        "webhook.title": "Webhook Notifications",
+        "webhook.desc": "HTTP callbacks triggered by system events. "
+                        "Used for integration with third-party services "
+                        "(Slack, Teams, corporate systems).",
+        "webhook.add": "Add target",
+        "webhook.edit": "Edit target",
+        "webhook.events": "Events",
+        "webhook.enabled": "Enabled",
+        "webhook.last_status": "Status",
+        "webhook.all_events": "All events (*)",
+        "webhook.test": "Test",
+        "webhook.test_ok": "Webhook sent successfully",
+        "webhook.test_fail": "Webhook send failed",
+        "webhook.delete_confirm": "Delete this webhook target?",
 
         "inc.id": "ID",
         "inc.date": "Date of incident",

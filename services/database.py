@@ -199,6 +199,16 @@ class DatabaseManager:
                     risk_category TEXT NOT NULL DEFAULT 'Средняя',
                     description TEXT DEFAULT ''
                 );
+                CREATE TABLE IF NOT EXISTS webhooks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    events TEXT NOT NULL DEFAULT '*',
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    last_status TEXT NOT NULL DEFAULT '',
+                    last_error TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
                 CREATE TABLE IF NOT EXISTS import_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL DEFAULT (datetime('now')),
