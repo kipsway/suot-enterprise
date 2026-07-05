@@ -16,6 +16,7 @@ from app_core.theme_engine import ThemeEngine
 from app_core.utils import wrap_table_with_glow, get_status_indicator_bg
 from services.database import DatabaseManager
 from widgets.toast import ToastNotification
+from widgets.inline_edit_mixin import InlineEditMixin
 from modules.textbook import DateAwareLineEdit
 
 TABLE_NAME = "training"
@@ -111,7 +112,9 @@ class TrainingEditDialog(QDialog):
         return result
 
 
-class TrainingTableWidget(QWidget):
+class TrainingTableWidget(QWidget, InlineEditMixin):
+    TABLE_NAME = "training"
+
     def __init__(self, parent: Optional[QWidget] = None,
                  user_id: int = 0) -> None:
         super().__init__(parent)
@@ -181,8 +184,7 @@ class TrainingTableWidget(QWidget):
         self._table.horizontalHeader().setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.horizontalHeader().customContextMenuRequested.connect(self._on_header_context_menu)
         self._table.horizontalHeader().sectionDoubleClicked.connect(lambda idx: self._table.resizeColumnToContents(idx))
-        self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self._table.itemDoubleClicked.connect(lambda: self._edit_selected())
+        self._setup_inline_editing()
         self._table.setSortingEnabled(False)
         self._table.setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_table_context_menu)
@@ -242,13 +244,14 @@ class TrainingTableWidget(QWidget):
         self._table.setColumnCount(col_count)
         self._table.setHorizontalHeaderLabels([c["name"] for c in visible_cols])
         self._table.setRowCount(len(self._records))
+        self._table.blockSignals(True)
         for row, rec in enumerate(self._records):
             dj = rec.get("data_json", {})
             for col_idx, col in enumerate(visible_cols):
                 name = col["name"]
                 val = str(dj.get(name, ""))
                 item = QTableWidgetItem(val)
-                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
                 if name == "ID":
                     item.setText(str(rec.get("id", "")))
                 if name == "Статус":
@@ -258,6 +261,7 @@ class TrainingTableWidget(QWidget):
                 if expiry_col is not None and col_idx == expiry_col and val:
                     item.setForeground(QColor("#E74C3C"))
                 self._table.setItem(row, col_idx, item)
+        self._table.blockSignals(False)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._info_label.setText(f'{I18n._("common.count")}: {len(self._records)} / {len(self._all_records)}')
 
