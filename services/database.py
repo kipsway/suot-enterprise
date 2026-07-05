@@ -1415,6 +1415,48 @@ tr:nth-child(even){background:#f5f5f5}
             "overdue_permits": self.count_overdue("permits", "Дата окончания", "Статус", "Оформлен"),
         }
 
+    def get_health(self) -> Dict[str, Any]:
+        import os
+        info = {"tables": {}, "db_size_bytes": 0, "cache_entries": len(self._cache)}
+        try:
+            if os.path.exists(self.database_path):
+                info["db_size_bytes"] = os.path.getsize(self.database_path)
+        except Exception:
+            pass
+        for tbl in sorted(self.JSON_TABLES):
+            try:
+                info["tables"][tbl] = self.get_table_count(tbl)
+            except Exception:
+                info["tables"][tbl] = -1
+        try:
+            r = self.fetch_one("SELECT COUNT(*) as c FROM users")
+            info["users"] = r["c"] if r else 0
+        except Exception:
+            info["users"] = 0
+        try:
+            r = self.fetch_one("SELECT COUNT(*) as c FROM audit_log")
+            info["audit_entries"] = r["c"] if r else 0
+        except Exception:
+            info["audit_entries"] = 0
+        try:
+            r = self.fetch_one("SELECT COUNT(*) as c FROM reminders WHERE is_done=0")
+            info["active_reminders"] = r["c"] if r else 0
+        except Exception:
+            info["active_reminders"] = 0
+        try:
+            r = self.fetch_one("SELECT COUNT(*) as c FROM webhooks WHERE enabled=1")
+            info["active_webhooks"] = r["c"] if r else 0
+        except Exception:
+            info["active_webhooks"] = 0
+        try:
+            info["media_size_bytes"] = sum(
+                os.path.getsize(os.path.join(dirpath, f))
+                for dirpath, _, filenames in os.walk(RUNTIME_PATHS.media_dir)
+                for f in filenames) if os.path.isdir(RUNTIME_PATHS.media_dir) else 0
+        except Exception:
+            info["media_size_bytes"] = 0
+        return info
+
     def close(self) -> None:
         try:
             self.conn.close()

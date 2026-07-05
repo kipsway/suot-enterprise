@@ -22,6 +22,7 @@ from modules.email_settings import EmailSettingsWidget
 from modules.rest_api_settings import RESTAPISettingsWidget
 from modules.telegram_settings import TelegramSettingsWidget
 from modules.webhook_settings import WebhookSettingsWidget
+from modules.system_monitor import SystemMonitorWidget
 from widgets.toast import ToastNotification
 
 from modules.employees import EmployeeEditDialog
@@ -148,6 +149,10 @@ class SettingsDialog(QDialog):
         # --- Webhook tab ---
         self._webhook_tab = WebhookSettingsWidget()
         tabs.addTab(self._webhook_tab, I18n._("webhook.title"))
+
+        # --- System Monitor tab ---
+        self._monitor_tab = SystemMonitorWidget()
+        tabs.addTab(self._monitor_tab, I18n._("monitor.title"))
 
         # --- Customization tab ---
         custom = QFrame()
