@@ -1,15 +1,16 @@
 import math
 from typing import Optional, Dict, Any
 
-from PyQt5.QtCore import Qt, QRect, QPoint
+from PyQt5.QtCore import Qt, QRect, QPoint, QTimer
 from PyQt5.QtGui import (QFont, QColor, QPainter, QPen,
                          QFontMetrics, QCursor)
 from PyQt5.QtWidgets import (QWidget, QFrame, QVBoxLayout, QHBoxLayout,
-                             QLabel)
+                             QLabel, QGridLayout, QPushButton)
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
 from services.database import DatabaseManager
+from widgets.toast import ToastNotification
 
 
 class SafetyScoreGauge(QWidget):
@@ -27,25 +28,19 @@ class SafetyScoreGauge(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.TextAntialiasing)
-
-        w = self.width()
-        h = self.height()
+        w, h = self.width(), self.height()
         side = min(w, h)
         margin = 20
         gauge_rect = QRect((w - side) // 2 + margin, (h - side) // 2 + margin,
                            side - margin * 2, side - margin * 2)
-        cx = gauge_rect.center().x()
-        cy = gauge_rect.center().y() + gauge_rect.height() * 0.1
+        cx, cy = gauge_rect.center().x(), gauge_rect.center().y() + gauge_rect.height() * 0.1
         radius = min(gauge_rect.width(), gauge_rect.height()) * 0.42
-
-        pen_bg = QPen(QColor("#E8ECF1" if ThemeEngine._current_theme == "light"
-                              else "#333458"), radius * 0.18)
+        bg_color = QColor("#E8ECF1" if ThemeEngine._current_theme == "light" else "#333458")
+        pen_bg = QPen(bg_color, radius * 0.18)
         pen_bg.setCapStyle(Qt.RoundCap)
         painter.setPen(pen_bg)
         painter.drawArc(QRect(int(cx - radius), int(cy - radius),
-                              int(radius * 2), int(radius * 2)),
-                        180 * 16, 180 * 16)
-
+                              int(radius * 2), int(radius * 2)), 180 * 16, 180 * 16)
         angle = int(180.0 * self._score / 100.0)
         score_color = QColor("#27AE60") if self._score >= 70 else (
             QColor("#F39C12") if self._score >= 40 else QColor("#E74C3C"))
@@ -53,58 +48,18 @@ class SafetyScoreGauge(QWidget):
         pen_score.setCapStyle(Qt.RoundCap)
         painter.setPen(pen_score)
         painter.drawArc(QRect(int(cx - radius), int(cy - radius),
-                              int(radius * 2), int(radius * 2)),
-                        180 * 16, -angle * 16)
-
-        painter.setPen(QPen(QColor("#95A5A6" if ThemeEngine._current_theme == "light"
-                                   else "#8888A0"), 1))
-        font = QFont("Segoe UI", 9)
-        painter.setFont(font)
-        for i in range(0, 101, 10):
-            rad = math.radians(180 - 180.0 * i / 100.0)
-            inner_r = radius * 0.75
-            outer_r = radius * 0.85
-            tick_len = radius * 0.12 if i % 20 == 0 else radius * 0.07
-            x1 = cx + inner_r * math.cos(rad)
-            y1 = cy - inner_r * math.sin(rad)
-            x2 = cx + (inner_r + tick_len) * math.cos(rad)
-            y2 = cy - (inner_r + tick_len) * math.sin(rad)
-            painter.drawLine(QPoint(int(x1), int(y1)), QPoint(int(x2), int(y2)))
-
-            if i % 20 == 0:
-                label_r = radius * 0.58
-                lx = cx + label_r * math.cos(rad)
-                ly = cy - label_r * math.sin(rad)
-                painter.drawText(QRect(int(lx) - 15, int(ly) - 10, 30, 20),
-                                 Qt.AlignCenter, str(i))
-
-        needle_rad = math.radians(180 - 180.0 * self._score / 100.0)
-        needle_len = radius * 0.65
-        nx = cx + needle_len * math.cos(needle_rad)
-        ny = cy - needle_len * math.sin(needle_rad)
-        painter.setPen(QPen(score_color, 3, Qt.SolidLine, Qt.RoundCap))
-        painter.drawLine(int(cx), int(cy), int(nx), int(ny))
-
-        painter.setBrush(score_color)
-        painter.setPen(Qt.NoPen)
-        painter.drawEllipse(int(cx), int(cy), int(radius * 0.08), int(radius * 0.08))
-
-        font_big = QFont("Segoe UI", 28, QFont.Bold)
-        painter.setFont(font_big)
-        painter.setPen(QColor("#2C3E50" if ThemeEngine._current_theme == "light"
-                              else "#E0E0E8"))
-        score_text = f"{self._score:.0f}%"
-        painter.drawText(QRect(int(cx) - 60, int(cy) + int(radius * 0.35),
-                               120, 40), Qt.AlignCenter, score_text)
-
-        font_small = QFont("Segoe UI", 10)
-        painter.setFont(font_small)
-        painter.setPen(QColor("#95A5A6" if ThemeEngine._current_theme == "light"
-                              else "#8888A0"))
-        painter.drawText(QRect(int(cx) - 90, int(cy) + int(radius * 0.35) + 36,
-                               180, 22), Qt.AlignCenter, I18n._("stat.safety_score"))
-
-        painter.end()
+                              int(radius * 2), int(radius * 2)), 180 * 16, -angle * 16)
+        painter.setPen(QPen(QColor("#95A5A6" if ThemeEngine._current_theme == "light" else "#8888A0"), 1))
+        f = QFont("Segoe UI", round(radius * 0.35), QFont.Bold)
+        painter.setFont(f)
+        painter.drawText(QRect(int(cx - radius), int(cy - radius * 0.1),
+                               int(radius * 2), int(radius)),
+                         Qt.AlignCenter, f"{self._score:.0f}%")
+        f2 = QFont("Segoe UI", round(radius * 0.13))
+        painter.setFont(f2)
+        painter.drawText(QRect(int(cx - radius), int(cy + radius * 0.25),
+                               int(radius * 2), int(radius * 0.3)),
+                         Qt.AlignCenter, I18n._("stat.safety_score"))
 
 
 class KpiCard(QFrame):
@@ -117,22 +72,18 @@ class KpiCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(6)
-
         header = QHBoxLayout()
         if icon:
             icon_label = QLabel(icon)
             icon_label.setStyleSheet(f"font-size: 22px; color: {color};")
             header.addWidget(icon_label)
         header.addStretch()
-
         self._value_label = QLabel(str(value))
         self._value_label.setProperty("card_value", True)
         self._value_label.setStyleSheet(f"color: {color}; font-size: 30px; font-weight: 700;")
-
         self._title_label = QLabel(title)
         self._title_label.setProperty("card_label", True)
         self._title_label.setWordWrap(True)
-
         layout.addLayout(header)
         layout.addWidget(self._value_label)
         layout.addWidget(self._title_label)
@@ -148,21 +99,36 @@ class DashboardTab(QWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.db = DatabaseManager()
+        self._cards: Dict[str, KpiCard] = {}
         self._build_ui()
         self._refresh()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(20)
+        layout.setSpacing(16)
 
         heading = QLabel(I18n._("tab.dashboard"))
         heading.setProperty("heading", True)
         layout.addWidget(heading)
 
-        self._cards_layout = QHBoxLayout()
-        self._cards_layout.setSpacing(16)
-        layout.addLayout(self._cards_layout)
+        self._kpi_grid = QGridLayout()
+        self._kpi_grid.setSpacing(14)
+        kpi_defs = [
+            ("stat.employees_total", "employees_total", "👤", "#2196F3"),
+            ("stat.violations_total", "violations_total", "⚠", "#E74C3C"),
+            ("stat.companies_total", "companies_total", "🏢", "#27AE60"),
+            ("stat.fines_total", "fines_total", "💰", "#9C27B0"),
+            ("stat.incidents", "incidents_total", "🔍", "#FF5722"),
+            ("stat.ppe", "ppe_total", "🛡", "#00BCD4"),
+            ("stat.training", "training_total", "📜", "#4CAF50"),
+            ("stat.permits", "permits_total", "📋", "#FF9800"),
+        ]
+        for i, (key, stat_key, icon, color) in enumerate(kpi_defs):
+            card = KpiCard(I18n._(key), "—", color, icon)
+            self._kpi_grid.addWidget(card, i // 4, i % 4)
+            self._cards[stat_key] = card
+        layout.addLayout(self._kpi_grid)
 
         body = QHBoxLayout()
         body.setSpacing(20)
@@ -179,34 +145,33 @@ class DashboardTab(QWidget):
         stats_widget.setProperty("card", True)
         stats_layout = QVBoxLayout(stats_widget)
         stats_layout.setContentsMargins(16, 16, 16, 16)
-        stats_layout.setSpacing(12)
-        stats_heading = QLabel(I18n._("stat.title"))
+        stats_layout.setSpacing(10)
+        stats_heading = QLabel(I18n._("stat.overdue_summary"))
         stats_heading.setProperty("heading", True)
         stats_heading.setStyleSheet("font-size: 16px;")
         stats_layout.addWidget(stats_heading)
-        self._stats_labels: Dict[str, QLabel] = {}
-        stat_items = [
-            ("stat.employees_total", "👤", "#2196F3"),
-            ("stat.violations_total", "⚠", "#E74C3C"),
-            ("stat.companies_total", "🏢", "#27AE60"),
-            ("stat.overdue_total", "⏰", "#F39C12"),
-            ("stat.fines_total", "💰", "#9C27B0"),
+        self._overdue_labels: Dict[str, QLabel] = {}
+        overdue_defs = [
+            ("stat.overdue_total", "overdue_total", "⏰", "#F39C12"),
+            ("overdue_ppe", "overdue_ppe", "🛡", "#E74C3C"),
+            ("overdue_training", "overdue_training", "📜", "#E74C3C"),
+            ("overdue_permits", "overdue_permits", "📋", "#E74C3C"),
         ]
-        for key, icon, color in stat_items:
+        for key, stat_key, icon, color in overdue_defs:
             row = QHBoxLayout()
-            row.setSpacing(10)
+            row.setSpacing(8)
             icon_lbl = QLabel(icon)
-            icon_lbl.setStyleSheet(f"font-size: 18px;")
+            icon_lbl.setStyleSheet("font-size: 16px;")
             row.addWidget(icon_lbl)
             val = QLabel("—")
             val.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {color};")
             row.addWidget(val)
             lbl = QLabel(I18n._(key))
-            lbl.setStyleSheet("font-size: 13px;")
+            lbl.setStyleSheet("font-size: 12px;")
             row.addWidget(lbl)
             row.addStretch()
             stats_layout.addLayout(row)
-            self._stats_labels[key] = val
+            self._overdue_labels[stat_key] = val
         stats_layout.addStretch()
         body.addWidget(stats_widget, 3)
         layout.addLayout(body)
@@ -226,18 +191,27 @@ class DashboardTab(QWidget):
         recent_layout.addWidget(self._recent_label)
         layout.addWidget(recent_widget)
 
+        self._refresh_timer = QTimer()
+        self._refresh_timer.setInterval(60000)
+        self._refresh_timer.timeout.connect(self._refresh)
+        self._refresh_timer.start()
+
     def _refresh(self) -> None:
         try:
             stats = self.db.get_statistics()
-            self._stats_labels["stat.employees_total"].setText(str(stats["employees_total"]))
-            self._stats_labels["stat.violations_total"].setText(str(stats["violations_total"]))
-            self._stats_labels["stat.companies_total"].setText(str(stats["companies_total"]))
-            self._stats_labels["stat.overdue_total"].setText(str(stats["overdue_total"]))
-            fines = stats["fines_total"]
-            self._stats_labels["stat.fines_total"].setText(
-                f"{fines:,.0f} ₽".replace(",", " "))
-            total = stats["employees_total"] + stats["violations_total"]
-            overdue = stats["overdue_total"]
+            for stat_key, card in self._cards.items():
+                val = stats.get(stat_key, 0)
+                if stat_key == "fines_total":
+                    card.setText(f"{val:,.0f} ₽".replace(",", " "))
+                else:
+                    card.setText(str(val))
+
+            for stat_key, label in self._overdue_labels.items():
+                val = stats.get(stat_key, 0)
+                label.setText(str(val))
+
+            total = stats.get("employees_total", 0) + stats.get("violations_total", 0)
+            overdue = stats.get("overdue_total", 0)
             score = 100.0
             if total > 0:
                 score = max(0.0, 100.0 - (overdue / max(total, 1)) * 100.0)

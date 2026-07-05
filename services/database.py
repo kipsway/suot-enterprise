@@ -1348,39 +1348,60 @@ tr:nth-child(even){background:#f5f5f5}
         except Exception:
             pass
 
-    def get_statistics(self) -> Dict[str, Any]:
-        emp_count = self.fetch_one("SELECT COUNT(*) as c FROM employees")
-        viol_count = self.fetch_one("SELECT COUNT(*) as c FROM violations")
-        comp_count = self.fetch_one("SELECT COUNT(*) as c FROM companies")
+    def get_table_count(self, table: str) -> int:
+        self._validate_json_table(table)
+        r = self.fetch_one(f"SELECT COUNT(*) as c FROM {table}")
+        return r["c"] if r else 0
+
+    def count_overdue(self, table: str, date_col: str = "Срок устранения",
+                      status_col: str = "Статус",
+                      overdue_status: str = "Просрочено") -> int:
+        self._validate_json_table(table)
         now = datetime.now()
         overdue = 0
-        fines_total = 0.0
-        for v in self.get_json_records("violations"):
-            dj = v.get("data_json", {})
-            status = dj.get("Статус", "")
-            deadline_str = dj.get("Срок устранения", "")
-            if status == "Просрочено":
+        for rec in self.get_json_records(table):
+            dj = rec.get("data_json", {})
+            status = str(dj.get(status_col, ""))
+            dl_str = str(dj.get(date_col, ""))
+            if status == overdue_status:
                 overdue += 1
-            elif status == "Активно" and deadline_str:
+            elif dl_str:
                 try:
-                    parts = deadline_str.split(".")
+                    parts = dl_str.split(".")
                     if len(parts) == 3:
                         dl = datetime(int(parts[2]), int(parts[1]), int(parts[0]))
-                        if dl < now:
+                        if dl < now and status not in ("Закрыто", "Аннулирован", "Списано", "Архив"):
                             overdue += 1
                 except Exception:
                     pass
+        return overdue
+
+    def get_statistics(self) -> Dict[str, Any]:
+        emp_count = self.get_table_count("employees")
+        viol_count = self.get_table_count("violations")
+        comp_count = self.fetch_one("SELECT COUNT(*) as c FROM companies")
+        now = datetime.now()
+        fines_total = 0.0
+        for v in self.get_json_records("violations"):
+            dj = v.get("data_json", {})
             fine_str = str(dj.get("Штраф", "0")).replace(" ", "").replace(",", ".")
             try:
                 fines_total += float(fine_str)
             except Exception:
                 pass
         return {
-            "employees_total": emp_count["c"] if emp_count else 0,
-            "violations_total": viol_count["c"] if viol_count else 0,
+            "employees_total": emp_count,
+            "violations_total": viol_count,
             "companies_total": comp_count["c"] if comp_count else 0,
-            "overdue_total": overdue,
             "fines_total": fines_total,
+            "incidents_total": self.get_table_count("incidents"),
+            "ppe_total": self.get_table_count("ppe"),
+            "training_total": self.get_table_count("training"),
+            "permits_total": self.get_table_count("permits"),
+            "overdue_total": self.count_overdue("violations", "Срок устранения", "Статус", "Просрочено"),
+            "overdue_ppe": self.count_overdue("ppe", "Срок замены", "Статус", "Активно"),
+            "overdue_training": self.count_overdue("training", "Срок действия", "Статус", "Активно"),
+            "overdue_permits": self.count_overdue("permits", "Дата окончания", "Статус", "Оформлен"),
         }
 
     def close(self) -> None:
