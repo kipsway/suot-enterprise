@@ -47,6 +47,7 @@ from modules.calendar_tab import CalendarTab
 from modules.incidents import IncidentsTableWidget
 from modules.ppe import PPETableWidget
 from modules.training import TrainingTableWidget
+from modules.permits import PermitsTableWidget
 from modules.settings import SettingsDialog, UsersDialog, AuditTab, HotkeyManager
 from modules.tools import FineKinneyCalculator, TextbookManagerDialog, PrintDialog
 from modules.print_editor import PrintTemplateEditor
@@ -189,6 +190,7 @@ class MainWindow(QMainWindow):
         self._incidents_tab = IncidentsTableWidget(user_id=uid)
         self._ppe_tab = PPETableWidget(user_id=uid)
         self._training_tab = TrainingTableWidget(user_id=uid)
+        self._permits_tab = PermitsTableWidget(user_id=uid)
 
         tab_defs = [
             ("tab.dashboard", self.dashboard_tab),
@@ -203,6 +205,7 @@ class MainWindow(QMainWindow):
             ("tab.incidents", self._incidents_tab),
             ("tab.ppe", self._ppe_tab),
             ("tab.training", self._training_tab),
+            ("tab.permits", self._permits_tab),
             ("tab.ai", self._ai_tab),
             ("tab.ai_insights", self._ai_insights_tab),
         ]

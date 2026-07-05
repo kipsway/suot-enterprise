@@ -11,7 +11,7 @@ class DatabaseManager:
     _instance: Optional["DatabaseManager"] = None
     _lock: Any = None
     _cache: Dict[str, tuple] = {}
-    JSON_TABLES = {"employees", "violations", "custom_ledger", "incidents", "ppe", "training"}
+    JSON_TABLES = {"employees", "violations", "custom_ledger", "incidents", "ppe", "training", "permits"}
 
     def invalidate_cache(self, category: str = "") -> None:
         if category:
@@ -187,6 +187,12 @@ class DatabaseManager:
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );
+                CREATE TABLE IF NOT EXISTS permits (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    data_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
                 CREATE TABLE IF NOT EXISTS violation_types (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -215,7 +221,7 @@ class DatabaseManager:
             self.conn.rollback()
             raise
 
-        for tbl in ("employees", "violations", "custom_ledger", "incidents", "ppe", "training"):
+        for tbl in ("employees", "violations", "custom_ledger", "incidents", "ppe", "training", "permits"):
             try:
                 self.conn.execute(f"ALTER TABLE {tbl} ADD COLUMN user_id INTEGER DEFAULT 0")
             except Exception:
@@ -226,7 +232,7 @@ class DatabaseManager:
         if table not in {"settings", "users", "ai_settings", "columns_config",
                           "violation_types", "reminders", "notes", "audit_log",
                           "employees", "violations", "custom_ledger", "companies",
-                          "incidents", "ppe", "training"}:
+                          "incidents", "ppe", "training", "permits"}:
             raise ValueError(f"Invalid table: {table}")
         try:
             cols = ", ".join(values.keys())
@@ -357,6 +363,16 @@ class DatabaseManager:
                 ("Срок действия", "Годен до", 6),
                 ("Номер удостоверения", "Текст", 7),
                 ("Статус", "Статус", 8), ("Примечание", "Текст", 9),
+            ],
+            "permits": [
+                ("ID", "Число", 0), ("Номер наряда", "Текст", 1),
+                ("Тип работ", "Текст", 2), ("Описание работ", "Текст", 3),
+                ("Место проведения", "Текст", 4),
+                ("Ответственный", "Текст", 5), ("Состав бригады", "Текст", 6),
+                ("Дата начала", "Годен до", 7),
+                ("Дата окончания", "Годен до", 8),
+                ("Меры безопасности", "Текст", 9),
+                ("Статус", "Статус", 10), ("Примечание", "Текст", 11),
             ],
         }
         for cat, cols in configs.items():

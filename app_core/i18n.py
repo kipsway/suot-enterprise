@@ -804,6 +804,7 @@ class I18n:
         "tab.incidents": "Расследования",
         "tab.ppe": "СИЗ",
         "tab.training": "Обучение",
+        "tab.permits": "Наряды-допуски",
 
         "ppe.id": "ID",
         "ppe.employee": "Сотрудник",
@@ -825,6 +826,10 @@ class I18n:
         "training.delete_confirm": "Удалить запись об обучении?",
         "training.add": "Добавить обучение",
         "training.edit": "Редактировать обучение",
+
+        "permits.add": "Оформить наряд",
+        "permits.edit": "Редактировать наряд",
+        "permits.delete_confirm": "Удалить наряд-допуск?",
 
         "inc.id": "ID",
         "inc.date": "Дата происшествия",
@@ -1036,6 +1041,7 @@ class I18n:
         "tab.incidents": "Incidents",
         "tab.ppe": "PPE",
         "tab.training": "Training",
+        "tab.permits": "Work Permits",
 
         "ppe.id": "ID",
         "ppe.employee": "Employee",
@@ -1057,6 +1063,10 @@ class I18n:
         "training.delete_confirm": "Delete this training record?",
         "training.add": "Add training",
         "training.edit": "Edit training",
+
+        "permits.add": "Issue permit",
+        "permits.edit": "Edit permit",
+        "permits.delete_confirm": "Delete this work permit?",
 
         "inc.id": "ID",
         "inc.date": "Date of incident",
