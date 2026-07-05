@@ -1,14 +1,23 @@
+from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QTableWidget, QTableWidgetItem,
-                             QHeaderView, QAbstractItemView, QFrame)
+                             QHeaderView, QAbstractItemView, QFrame,
+                             QScrollArea, QSplitter)
 
 from app_core.i18n import I18n
 from services.database import DatabaseManager
 from modules.dashboard import KpiCard
+from widgets.charts import BarChart, PieChart, TrendChart
+
+
+CHART_PALETTE = [
+    "#2196F3", "#E74C3C", "#27AE60", "#F39C12", "#9C27B0",
+    "#00BCD4", "#FF5722", "#4CAF50", "#FF9800", "#3F51B5",
+]
 
 
 class StatisticsTab(QWidget):
@@ -19,7 +28,11 @@ class StatisticsTab(QWidget):
         self._refresh()
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(20)
 
@@ -27,6 +40,7 @@ class StatisticsTab(QWidget):
         heading.setProperty("heading", True)
         layout.addWidget(heading)
 
+        # KPI cards row
         cards = QHBoxLayout()
         cards.setSpacing(16)
         stats = self.db.get_statistics()
@@ -45,98 +59,108 @@ class StatisticsTab(QWidget):
             self._cards[skey] = card
         layout.addLayout(cards)
 
-        mid = QHBoxLayout()
-        mid.setSpacing(20)
+        # Charts row 1: Violations by company + Status distribution
+        charts_row1 = QHBoxLayout()
+        charts_row1.setSpacing(20)
 
-        by_company = QFrame()
-        by_company.setProperty("card", True)
-        by_company_layout = QVBoxLayout(by_company)
-        by_company_layout.setContentsMargins(16, 16, 16, 16)
+        self._company_chart = BarChart()
+        self._company_chart.setMinimumHeight(220)
+        company_frame = QFrame()
+        company_frame.setProperty("card", True)
+        company_cl = QVBoxLayout(company_frame)
+        company_cl.setContentsMargins(16, 16, 16, 16)
+        company_cl.addWidget(self._company_chart)
+        charts_row1.addWidget(company_frame, 1)
+
+        self._status_chart = PieChart()
+        self._status_chart.setMinimumHeight(220)
+        status_frame = QFrame()
+        status_frame.setProperty("card", True)
+        status_cl = QVBoxLayout(status_frame)
+        status_cl.setContentsMargins(16, 16, 16, 16)
+        status_cl.addWidget(self._status_chart)
+        charts_row1.addWidget(status_frame, 1)
+
+        layout.addLayout(charts_row1)
+
+        # Charts row 2: Risk categories + Violations trend
+        charts_row2 = QHBoxLayout()
+        charts_row2.setSpacing(20)
+
+        self._category_chart = BarChart()
+        self._category_chart.setMinimumHeight(220)
+        cat_frame = QFrame()
+        cat_frame.setProperty("card", True)
+        cat_cl = QVBoxLayout(cat_frame)
+        cat_cl.setContentsMargins(16, 16, 16, 16)
+        cat_cl.addWidget(self._category_chart)
+        charts_row2.addWidget(cat_frame, 1)
+
+        self._trend_chart = TrendChart()
+        self._trend_chart.setMinimumHeight(220)
+        trend_frame = QFrame()
+        trend_frame.setProperty("card", True)
+        trend_cl = QVBoxLayout(trend_frame)
+        trend_cl.setContentsMargins(16, 16, 16, 16)
+        trend_cl.addWidget(self._trend_chart)
+        charts_row2.addWidget(trend_frame, 1)
+
+        layout.addLayout(charts_row2)
+
+        # Tables row
+        tables_row = QHBoxLayout()
+        tables_row.setSpacing(20)
+
+        # Company detail table
+        co_frame = QFrame()
+        co_frame.setProperty("card", True)
+        co_layout = QVBoxLayout(co_frame)
+        co_layout.setContentsMargins(16, 16, 16, 16)
         co_heading = QLabel(I18n._("stat.by_company"))
         co_heading.setProperty("heading", True)
-        co_heading.setStyleSheet("font-size: 16px;")
-        by_company_layout.addWidget(co_heading)
+        co_heading.setStyleSheet("font-size: 14px;")
+        co_layout.addWidget(co_heading)
         self._company_table = QTableWidget()
         self._company_table.setColumnCount(4)
         self._company_table.setHorizontalHeaderLabels([
             I18n._("company.name"), I18n._("company.employees_count"),
             I18n._("company.violations_count"), I18n._("company.fines_total")])
-        self._company_table.resizeColumnsToContents()
-        self._company_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        self._company_table.horizontalHeader().setStretchLastSection(True)
+        self._company_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self._company_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._company_table.setAlternatingRowColors(True)
         self._company_table.verticalHeader().hide()
-        by_company_layout.addWidget(self._company_table)
-        mid.addWidget(by_company, 1)
+        self._company_table.setMaximumHeight(180)
+        co_layout.addWidget(self._company_table)
+        tables_row.addWidget(co_frame, 1)
 
-        by_category = QFrame()
-        by_category.setProperty("card", True)
-        by_category_layout = QVBoxLayout(by_category)
-        by_category_layout.setContentsMargins(16, 16, 16, 16)
-        cat_heading = QLabel(I18n._("stat.by_category"))
-        cat_heading.setProperty("heading", True)
-        cat_heading.setStyleSheet("font-size: 16px;")
-        by_category_layout.addWidget(cat_heading)
-        self._category_table = QTableWidget()
-        self._category_table.setColumnCount(2)
-        self._category_table.setHorizontalHeaderLabels([
-            I18n._("viol.risk_category"), I18n._("common.count")])
-        self._category_table.resizeColumnsToContents()
-        self._category_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        self._category_table.horizontalHeader().setStretchLastSection(True)
-        self._category_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self._category_table.setAlternatingRowColors(True)
-        self._category_table.verticalHeader().hide()
-        by_category_layout.addWidget(self._category_table)
-        mid.addWidget(by_category, 1)
-
-        layout.addLayout(mid)
-
-        bottom = QHBoxLayout()
-        bottom.setSpacing(20)
-
-        status_frame = QFrame()
-        status_frame.setProperty("card", True)
-        status_layout = QVBoxLayout(status_frame)
-        status_layout.setContentsMargins(16, 16, 16, 16)
-        st_heading = QLabel(I18n._("stat.status_distribution"))
-        st_heading.setProperty("heading", True)
-        st_heading.setStyleSheet("font-size: 16px;")
-        status_layout.addWidget(st_heading)
-        self._status_table = QTableWidget()
-        self._status_table.setColumnCount(2)
-        self._status_table.setHorizontalHeaderLabels([
-            I18n._("common.status"), I18n._("common.count")])
-        self._status_table.resizeColumnsToContents()
-        self._status_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        self._status_table.horizontalHeader().setStretchLastSection(True)
-        self._status_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self._status_table.setAlternatingRowColors(True)
-        self._status_table.verticalHeader().hide()
-        status_layout.addWidget(self._status_table)
-        bottom.addWidget(status_frame, 1)
-
+        # Overdue list
         overdue_frame = QFrame()
         overdue_frame.setProperty("card", True)
         overdue_layout = QVBoxLayout(overdue_frame)
         overdue_layout.setContentsMargins(16, 16, 16, 16)
         ov_heading = QLabel(I18n._("stat.overdue_trend"))
         ov_heading.setProperty("heading", True)
-        ov_heading.setStyleSheet("font-size: 16px;")
+        ov_heading.setStyleSheet("font-size: 14px;")
         overdue_layout.addWidget(ov_heading)
         self._overdue_label = QLabel()
         self._overdue_label.setWordWrap(True)
-        self._overdue_label.setStyleSheet("font-size: 13px; color: #E74C3C; padding: 8px;")
+        self._overdue_label.setStyleSheet("font-size: 12px; color: #E74C3C; padding: 4px;")
         overdue_layout.addWidget(self._overdue_label)
-        bottom.addWidget(overdue_frame, 1)
+        tables_row.addWidget(overdue_frame, 1)
 
-        layout.addLayout(bottom)
+        layout.addLayout(tables_row)
 
         self._refresh_btn = QPushButton(I18n._("common.refresh"))
         self._refresh_btn.setProperty("flat", True)
         self._refresh_btn.clicked.connect(self._refresh)
         layout.addWidget(self._refresh_btn, 0, Qt.AlignLeft)
+
+        layout.addStretch()
+        scroll.setWidget(inner)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
 
     def _refresh(self) -> None:
         stats = self.db.get_statistics()
@@ -148,8 +172,16 @@ class StatisticsTab(QWidget):
                 self._cards[skey].setText(str(stats.get(skey, 0)))
 
         companies = self.db.get_companies()
-        self._company_table.setRowCount(len(companies))
-        for i, c in enumerate(companies):
+        now = datetime.now()
+
+        # Company data
+        company_stats: List[Tuple[str, int, int, float]] = []
+        categories: Dict[str, int] = {}
+        statuses: Dict[str, int] = {}
+        monthly: Dict[str, int] = defaultdict(int)
+        overdue_list: List[Tuple[str, str, str]] = []
+
+        for c in companies:
             name = c.get("name", "")
             emp_count = 0
             viol_count = 0
@@ -166,23 +198,17 @@ class StatisticsTab(QWidget):
                                        .replace(" ", "").replace(",", "."))
                     except Exception:
                         pass
-            self._company_table.setItem(i, 0, QTableWidgetItem(name))
-            self._company_table.setItem(i, 1, QTableWidgetItem(str(emp_count)))
-            self._company_table.setItem(i, 2, QTableWidgetItem(str(viol_count)))
-            fine_item = QTableWidgetItem(f"{fines:,.0f} ₽".replace(",", " "))
-            fine_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self._company_table.setItem(i, 3, fine_item)
+            if viol_count > 0:
+                company_stats.append((name, emp_count, viol_count, fines))
 
-        categories: Dict[str, int] = {}
-        statuses: Dict[str, int] = {}
-        now = datetime.now()
-        overdue_list = []
+        # Violation analysis
         for viol in self.db.get_json_records("violations"):
             dj = viol.get("data_json", {})
             cat = dj.get("Категория риска", "Не указана")
             categories[cat] = categories.get(cat, 0) + 1
             status = dj.get("Статус", "Не указан")
             statuses[status] = statuses.get(status, 0) + 1
+
             deadline = dj.get("Срок устранения", "")
             try:
                 if deadline:
@@ -190,29 +216,52 @@ class StatisticsTab(QWidget):
                     if len(parts) == 3:
                         dt = datetime(int(parts[2]), int(parts[1]), int(parts[0]))
                         if dt < now and status != "Исполнено":
-                            overdue_list.append(f"- {dj.get('Описание', '?')[:40]} (до {deadline})")
+                            desc = str(dj.get("Описание", "?"))[:40]
+                            overdue_list.append((desc, deadline, dj.get("Фирма", "")))
             except Exception:
                 pass
 
-        self._category_table.setRowCount(len(categories))
-        for i, (cat, cnt) in enumerate(sorted(categories.items(),
-                                               key=lambda x: -x[1])):
-            self._category_table.setItem(i, 0, QTableWidgetItem(cat))
-            self._category_table.setItem(i, 1, QTableWidgetItem(str(cnt)))
+            created = viol.get("created_at", "")
+            if created and len(created) >= 7:
+                monthly[created[:7]] = monthly.get(created[:7], 0) + 1
 
-        self._status_table.setRowCount(len(statuses))
-        for i, (st, cnt) in enumerate(sorted(statuses.items(),
-                                              key=lambda x: -x[1])):
-            self._status_table.setItem(i, 0, QTableWidgetItem(st))
-            self._status_table.setItem(i, 1, QTableWidgetItem(str(cnt)))
+        # Update charts
+        company_sorted = sorted(company_stats, key=lambda x: -x[2])[:10]
+        if company_sorted:
+            bar_data = [(n, v) for n, _, v, _ in company_sorted]
+            self._company_chart.set_data(bar_data, I18n._("stat.by_company"), "#2196F3")
 
-        self._overdue_label.setText(
-            f"Просрочено: {len(overdue_list)}\n" + "\n".join(overdue_list[:10])
-            if overdue_list else "Нет просрочек")
+        if statuses:
+            sorted_statuses = sorted(statuses.items(), key=lambda x: -x[1])
+            self._status_chart.set_data(sorted_statuses, I18n._("stat.status_distribution"))
 
+        if categories:
+            sorted_cats = sorted(categories.items(), key=lambda x: -x[1])
+            self._category_chart.set_data(sorted_cats, I18n._("stat.by_category"), "#9C27B0")
+
+        if monthly:
+            sorted_months = sorted(monthly.items())
+            self._trend_chart.set_data(sorted_months, I18n._("stat.monthly_trend"), "#27AE60")
+
+        # Update company table
+        self._company_table.setRowCount(len(company_stats))
+        for i, (name, ec, vc, fines) in enumerate(company_stats):
+            self._company_table.setItem(i, 0, QTableWidgetItem(name))
+            self._company_table.setItem(i, 1, QTableWidgetItem(str(ec)))
+            self._company_table.setItem(i, 2, QTableWidgetItem(str(vc)))
+            fine_item = QTableWidgetItem(f"{fines:,.0f} ₽".replace(",", " "))
+            fine_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self._company_table.setItem(i, 3, fine_item)
         self._company_table.resizeColumnsToContents()
-        self._category_table.resizeColumnsToContents()
-        self._status_table.resizeColumnsToContents()
+
+        # Overdue list
+        if overdue_list:
+            lines = [f"<b>{I18n._('stat.overdue_total')}: {len(overdue_list)}</b>"]
+            for desc, deadline, company in overdue_list[:10]:
+                lines.append(f"• {desc} — {deadline} ({company})")
+            self._overdue_label.setText("<br>".join(lines))
+        else:
+            self._overdue_label.setText(I18n._("stat.no_overdue"))
 
     def refresh(self) -> None:
         self._refresh()

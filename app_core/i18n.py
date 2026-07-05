@@ -301,6 +301,8 @@ class I18n:
         "stat.by_status": "По статусам",
         "stat.status_distribution": "Распределение по статусам",
         "stat.overdue_trend": "Просроченные нарушения",
+        "stat.monthly_trend": "Динамика нарушений по месяцам",
+        "stat.no_overdue": "Просроченных нарушений нет",
 
         "audit.title": "Хронология аудита",
         "audit.timestamp": "Время",
@@ -978,6 +980,21 @@ class I18n:
         "user.totp_setup": "2FA Setup",
         "user.totp_instruction": "Scan the QR code with your authenticator app or enter the key manually:",
         "user.totp_saved": "2FA enabled",
+
+        "stat.title": "Statistics",
+        "stat.employees_total": "Total employees",
+        "stat.violations_total": "Total violations",
+        "stat.companies_total": "Total companies",
+        "stat.overdue_total": "Overdue",
+        "stat.fines_total": "Total fines",
+        "stat.safety_score": "Safety Score",
+        "stat.by_company": "By company",
+        "stat.by_category": "By category",
+        "stat.by_status": "By status",
+        "stat.status_distribution": "Status distribution",
+        "stat.overdue_trend": "Overdue violations",
+        "stat.monthly_trend": "Monthly violation trend",
+        "stat.no_overdue": "No overdue violations",
     }
 
     @classmethod
