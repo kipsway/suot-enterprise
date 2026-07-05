@@ -18,6 +18,7 @@ from app_core.utils import ACCENT_COLORS, JsonUtils
 from services.database import DatabaseManager
 from services.security import SecurityEngine
 from modules.reminders import ReminderEngine
+from modules.telegram_settings import TelegramSettingsWidget
 from widgets.toast import ToastNotification
 
 from modules.employees import EmployeeEditDialog
@@ -128,6 +129,10 @@ class SettingsDialog(QDialog):
         sl.addRow(I18n._("settings.browser") + ":", browser_layout)
 
         tabs.addTab(system, I18n._("common.system"))
+
+        # --- Telegram tab ---
+        self._telegram_tab = TelegramSettingsWidget()
+        tabs.addTab(self._telegram_tab, I18n._("telegram.title"))
 
         # --- Customization tab ---
         custom = QFrame()
@@ -277,6 +282,11 @@ class SettingsDialog(QDialog):
         self.db.upsert_setting("media_path", media_path)
         self.db.upsert_setting("print_browser_type", browser_type)
         self.db.upsert_setting("print_browser_path", browser_path)
+
+        try:
+            self._telegram_tab._save_values()
+        except Exception:
+            pass
 
         # Save custom button labels
         for key, field in self._btn_fields.items():
