@@ -647,6 +647,11 @@ class I18n:
         "backup.list": "Список резервных копий",
         "backup.none": "Нет резервных копий",
         "backup.restored": "База данных успешно восстановлена",
+        "backup.auto_enable": "Автоматическое резервное копирование",
+        "backup.auto_interval": "Интервал",
+        "backup.hours": " ч.",
+        "backup.keep": "Хранить копий",
+        "backup.keep_all": "Все",
 
         "analytics.title": "Аналитика",
         "analytics.contractor": "Сводный аудит подрядчиков",
@@ -1091,6 +1096,12 @@ class I18n:
         "tab.training": "Training",
         "tab.permits": "Work Permits",
         "tab.timeline": "Timeline",
+
+        "backup.auto_enable": "Auto backup",
+        "backup.auto_interval": "Interval",
+        "backup.hours": " h",
+        "backup.keep": "Keep backups",
+        "backup.keep_all": "All",
 
         "ppe.id": "ID",
         "ppe.employee": "Employee",

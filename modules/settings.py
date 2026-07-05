@@ -132,6 +132,38 @@ class SettingsDialog(QDialog):
         browser_layout.addWidget(self._browser_path_edit)
         sl.addRow(I18n._("settings.browser") + ":", browser_layout)
 
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet("border: none; border-top: 1px solid #ddd; margin: 8px 0;")
+        sl.addRow(sep)
+
+        self._auto_backup_cb = QCheckBox(I18n._("backup.auto_enable"))
+        self._auto_backup_cb.setChecked(
+            self.db.get_setting("auto_backup_enabled", "false") == "true")
+        sl.addRow("", self._auto_backup_cb)
+
+        backup_int_layout = QHBoxLayout()
+        self._backup_interval = QSpinBox()
+        self._backup_interval.setRange(1, 168)
+        self._backup_interval.setValue(
+            int(self.db.get_setting("auto_backup_interval_hours", "24")))
+        self._backup_interval.setSuffix(" " + I18n._("backup.hours"))
+        self._backup_interval.setMinimumHeight(36)
+        backup_int_layout.addWidget(self._backup_interval)
+        backup_int_layout.addStretch()
+        sl.addRow(I18n._("backup.auto_interval") + ":", backup_int_layout)
+
+        backup_max_layout = QHBoxLayout()
+        self._backup_max = QSpinBox()
+        self._backup_max.setRange(0, 100)
+        self._backup_max.setValue(
+            int(self.db.get_setting("auto_backup_max", "10")))
+        self._backup_max.setSpecialValueText(I18n._("backup.keep_all"))
+        self._backup_max.setMinimumHeight(36)
+        backup_max_layout.addWidget(self._backup_max)
+        backup_max_layout.addStretch()
+        sl.addRow(I18n._("backup.keep") + ":", backup_max_layout)
+
         tabs.addTab(system, I18n._("common.system"))
 
         # --- Telegram tab ---
@@ -302,6 +334,12 @@ class SettingsDialog(QDialog):
         self.db.upsert_setting("media_path", media_path)
         self.db.upsert_setting("print_browser_type", browser_type)
         self.db.upsert_setting("print_browser_path", browser_path)
+
+        self.db.upsert_setting("auto_backup_enabled",
+                                "true" if self._auto_backup_cb.isChecked() else "false")
+        self.db.upsert_setting("auto_backup_interval_hours",
+                                str(self._backup_interval.value()))
+        self.db.upsert_setting("auto_backup_max", str(self._backup_max.value()))
 
         try:
             self._telegram_tab._save_values()

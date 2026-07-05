@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: Any) -> None:
         try:
-            self._auto_save_timer.stop()
+            self._auto_backup_timer.stop()
         except Exception:
             pass
         try:
@@ -247,13 +247,38 @@ class MainWindow(QMainWindow):
         self.dashboard_tab._refresh()
 
     def _init_auto_save(self) -> None:
+        self._auto_backup_timer = QTimer(self)
+        self._auto_backup_timer.timeout.connect(self._do_auto_backup)
+        self._restart_auto_backup()
+
+    def _restart_auto_backup(self) -> None:
+        self._auto_backup_timer.stop()
+        enabled = self.db.get_setting("auto_backup_enabled", "false") == "true"
+        if not enabled:
+            return
         try:
-            interval = int(self.db.get_setting("auto_save_interval", "60"))
+            hours = int(self.db.get_setting("auto_backup_interval_hours", "24"))
         except Exception:
-            interval = 60
-        self._auto_save_timer = QTimer(self)
-        self._auto_save_timer.timeout.connect(lambda: self.db.create_backup())
-        self._auto_save_timer.start(max(10, interval) * 1000)
+            hours = 24
+        self._auto_backup_timer.start(max(1, hours) * 3600 * 1000)
+
+    def _do_auto_backup(self) -> None:
+        try:
+            path = self.db.create_backup()
+            try:
+                max_keep = int(self.db.get_setting("auto_backup_max", "10"))
+            except Exception:
+                max_keep = 10
+            if max_keep > 0:
+                backups = self.db.get_backups()
+                if len(backups) > max_keep:
+                    for b in backups[max_keep:]:
+                        self.db.delete_backup(b["id"])
+            from widgets.toast import ToastNotification
+            ToastNotification.notify(f"💾 {path.split(os.sep)[-1]}", "success", 3000)
+            self.db.log_event(f"Auto-backup: {path}", "INFO")
+        except Exception:
+            self.db.log_event("Auto-backup failed", "WARNING")
 
         self._reminder_refresh_timer = QTimer(self)
         self._reminder_refresh_timer.timeout.connect(self._refresh_reminders)
