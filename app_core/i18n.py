@@ -803,6 +803,7 @@ class I18n:
 
         "tab.incidents": "Расследования",
         "tab.ppe": "СИЗ",
+        "tab.training": "Обучение",
 
         "ppe.id": "ID",
         "ppe.employee": "Сотрудник",
@@ -820,6 +821,10 @@ class I18n:
         "ppe.edit": "Редактировать",
         "ppe.delete": "Удалить",
         "ppe.delete_confirm": "Удалить запись о выдаче СИЗ?",
+
+        "training.delete_confirm": "Удалить запись об обучении?",
+        "training.add": "Добавить обучение",
+        "training.edit": "Редактировать обучение",
 
         "inc.id": "ID",
         "inc.date": "Дата происшествия",
@@ -1030,6 +1035,7 @@ class I18n:
         "tab.calendar": "Calendar",
         "tab.incidents": "Incidents",
         "tab.ppe": "PPE",
+        "tab.training": "Training",
 
         "ppe.id": "ID",
         "ppe.employee": "Employee",
@@ -1047,6 +1053,10 @@ class I18n:
         "ppe.edit": "Edit",
         "ppe.delete": "Delete",
         "ppe.delete_confirm": "Delete this PPE record?",
+
+        "training.delete_confirm": "Delete this training record?",
+        "training.add": "Add training",
+        "training.edit": "Edit training",
 
         "inc.id": "ID",
         "inc.date": "Date of incident",

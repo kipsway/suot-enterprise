@@ -11,7 +11,7 @@ class DatabaseManager:
     _instance: Optional["DatabaseManager"] = None
     _lock: Any = None
     _cache: Dict[str, tuple] = {}
-    JSON_TABLES = {"employees", "violations", "custom_ledger", "incidents", "ppe"}
+    JSON_TABLES = {"employees", "violations", "custom_ledger", "incidents", "ppe", "training"}
 
     def invalidate_cache(self, category: str = "") -> None:
         if category:
@@ -181,6 +181,12 @@ class DatabaseManager:
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );
+                CREATE TABLE IF NOT EXISTS training (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    data_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
                 CREATE TABLE IF NOT EXISTS violation_types (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -209,7 +215,7 @@ class DatabaseManager:
             self.conn.rollback()
             raise
 
-        for tbl in ("employees", "violations", "custom_ledger", "incidents", "ppe"):
+        for tbl in ("employees", "violations", "custom_ledger", "incidents", "ppe", "training"):
             try:
                 self.conn.execute(f"ALTER TABLE {tbl} ADD COLUMN user_id INTEGER DEFAULT 0")
             except Exception:
@@ -220,7 +226,7 @@ class DatabaseManager:
         if table not in {"settings", "users", "ai_settings", "columns_config",
                           "violation_types", "reminders", "notes", "audit_log",
                           "employees", "violations", "custom_ledger", "companies",
-                          "incidents", "ppe"}:
+                          "incidents", "ppe", "training"}:
             raise ValueError(f"Invalid table: {table}")
         try:
             cols = ", ".join(values.keys())
@@ -342,6 +348,15 @@ class DatabaseManager:
                 ("Количество", "Число", 6), ("Норма на год", "Число", 7),
                 ("Дата выдачи", "Годен до", 8), ("Срок замены", "Годен до", 9),
                 ("Статус", "Статус", 10), ("Примечание", "Текст", 11),
+            ],
+            "training": [
+                ("ID", "Число", 0), ("Сотрудник", "Текст", 1),
+                ("Наименование", "Текст", 2), ("Тип обучения", "Текст", 3),
+                ("Обучающая организация", "Текст", 4),
+                ("Дата проведения", "Годен до", 5),
+                ("Срок действия", "Годен до", 6),
+                ("Номер удостоверения", "Текст", 7),
+                ("Статус", "Статус", 8), ("Примечание", "Текст", 9),
             ],
         }
         for cat, cols in configs.items():
