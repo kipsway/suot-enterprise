@@ -48,6 +48,7 @@ from modules.incidents import IncidentsTableWidget
 from modules.ppe import PPETableWidget
 from modules.training import TrainingTableWidget
 from modules.permits import PermitsTableWidget
+from modules.timeline import TimelineTab
 from modules.settings import SettingsDialog, UsersDialog, AuditTab, HotkeyManager
 from modules.tools import FineKinneyCalculator, TextbookManagerDialog, PrintDialog
 from modules.print_editor import PrintTemplateEditor
@@ -180,7 +181,7 @@ class MainWindow(QMainWindow):
         self._companies_tab = CompaniesTab()
         self._custom_ledger_tab = CustomLedgerTableWidget(user_id=uid)
         self._statistics_tab = StatisticsTab()
-        self._audit_tab = AuditTab()
+        self._timeline_tab = TimelineTab()
 
         self._ai_tab = AIChatInlineWidget()
         self._ai_insights_tab = AIInsightsWidget()
@@ -199,7 +200,7 @@ class MainWindow(QMainWindow):
             ("tab.companies", self._companies_tab),
             ("tab.custom_ledger", self._custom_ledger_tab),
             ("tab.statistics", self._statistics_tab),
-            ("tab.audit", self._audit_tab),
+            ("tab.timeline", self._timeline_tab),
             ("tab.reminders", self._reminders_tab),
             ("tab.calendar", self._calendar_tab),
             ("tab.incidents", self._incidents_tab),

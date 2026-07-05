@@ -813,6 +813,7 @@ class I18n:
         "tab.ppe": "СИЗ",
         "tab.training": "Обучение",
         "tab.permits": "Наряды-допуски",
+        "tab.timeline": "Хронология",
 
         "ppe.id": "ID",
         "ppe.employee": "Сотрудник",
@@ -1089,6 +1090,7 @@ class I18n:
         "tab.ppe": "PPE",
         "tab.training": "Training",
         "tab.permits": "Work Permits",
+        "tab.timeline": "Timeline",
 
         "ppe.id": "ID",
         "ppe.employee": "Employee",
