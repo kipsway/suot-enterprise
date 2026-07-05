@@ -43,6 +43,7 @@ from modules.print_engine import PrintEngine
 from modules.data_dialogs import ImportDialog, ExportDialog, GlobalSearchDialog, ReportDialog, QuickReportDialog
 from modules.ai import AIChatDialog, AIChatInlineWidget, AIEngine
 from modules.ai_insights import AIInsightsWidget
+from modules.calendar_tab import CalendarTab
 from modules.settings import SettingsDialog, UsersDialog, AuditTab, HotkeyManager
 from modules.tools import FineKinneyCalculator, TextbookManagerDialog, PrintDialog
 from modules.print_editor import PrintTemplateEditor
@@ -181,6 +182,7 @@ class MainWindow(QMainWindow):
         self._ai_insights_tab = AIInsightsWidget()
 
         self._reminders_tab = ExpiringRemindersTab()
+        self._calendar_tab = CalendarTab()
 
         tab_defs = [
             ("tab.dashboard", self.dashboard_tab),
@@ -191,6 +193,7 @@ class MainWindow(QMainWindow):
             ("tab.statistics", self._statistics_tab),
             ("tab.audit", self._audit_tab),
             ("tab.reminders", self._reminders_tab),
+            ("tab.calendar", self._calendar_tab),
             ("tab.ai", self._ai_tab),
             ("tab.ai_insights", self._ai_insights_tab),
         ]
