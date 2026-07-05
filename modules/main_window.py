@@ -313,19 +313,52 @@ class MainWindow(QMainWindow):
         if not hasattr(self, '_tabs_data'):
             return
         try:
-            emp_count = len(self.db.get_json_records("employees"))
-            viol_count = len(self.db.get_json_records("violations"))
+            emp_count = self.db.get_table_count("employees")
+            viol_count = self.db.get_table_count("violations")
+            comp_row = self.db.fetch_one("SELECT COUNT(*) as c FROM companies")
+            comp_count = comp_row["c"] if comp_row else 0
+            ledger_count = self.db.get_table_count("custom_ledger")
+            incident_count = self.db.get_table_count("incidents")
+            ppe_count = self.db.get_table_count("ppe")
+            training_count = self.db.get_table_count("training")
+            permit_count = self.db.get_table_count("permits")
             remind_count = self._reminders_tab.get_expiring_count() if hasattr(self, '_reminders_tab') else 0
+            open_incidents = self.db.count_overdue("incidents", "Срок устранения", "Статус", "Открыто")
+            overdue_ppe = self.db.count_overdue("ppe", "Срок замены", "Статус", "Просрочено")
+            expired_training = self.db.count_overdue("training", "Срок действия", "Статус", "Просрочено")
+            active_permits = self.db.count_overdue("permits", "Дата окончания", "Статус", "Активно")
         except Exception:
             return
         for key, (idx, widget) in self._tabs_data.items():
             label = self.db.get_setting(f"tab_{key.split('.')[1]}", I18n._(key))
-            if key == "tab.employees" and emp_count:
+            if key == "tab.dashboard":
+                self._tab_widget.setTabText(idx, label)
+            elif key == "tab.employees":
                 self._tab_widget.setTabText(idx, f"{label} ({emp_count})")
-            elif key == "tab.violations" and viol_count:
+            elif key == "tab.violations":
                 self._tab_widget.setTabText(idx, f"{label} ({viol_count})")
+            elif key == "tab.companies":
+                self._tab_widget.setTabText(idx, f"{label} ({comp_count})")
+            elif key == "tab.custom_ledger":
+                self._tab_widget.setTabText(idx, f"{label} ({ledger_count})")
             elif key == "tab.reminders" and remind_count:
                 self._tab_widget.setTabText(idx, f"{label} ({remind_count})")
+            elif key == "tab.incidents" and open_incidents:
+                self._tab_widget.setTabText(idx, f"{label} ({incident_count}⚠{open_incidents})")
+            elif key == "tab.incidents":
+                self._tab_widget.setTabText(idx, f"{label} ({incident_count})")
+            elif key == "tab.ppe" and overdue_ppe:
+                self._tab_widget.setTabText(idx, f"{label} ({ppe_count}⚠{overdue_ppe})")
+            elif key == "tab.ppe":
+                self._tab_widget.setTabText(idx, f"{label} ({ppe_count})")
+            elif key == "tab.training" and expired_training:
+                self._tab_widget.setTabText(idx, f"{label} ({training_count}⚠{expired_training})")
+            elif key == "tab.training":
+                self._tab_widget.setTabText(idx, f"{label} ({training_count})")
+            elif key == "tab.permits" and active_permits:
+                self._tab_widget.setTabText(idx, f"{label} ({permit_count}⚠{active_permits})")
+            elif key == "tab.permits":
+                self._tab_widget.setTabText(idx, f"{label} ({permit_count})")
             else:
                 self._tab_widget.setTabText(idx, label)
 
