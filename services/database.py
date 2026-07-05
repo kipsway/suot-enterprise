@@ -11,7 +11,7 @@ class DatabaseManager:
     _instance: Optional["DatabaseManager"] = None
     _lock: Any = None
     _cache: Dict[str, tuple] = {}
-    JSON_TABLES = {"employees", "violations", "custom_ledger", "incidents"}
+    JSON_TABLES = {"employees", "violations", "custom_ledger", "incidents", "ppe"}
 
     def invalidate_cache(self, category: str = "") -> None:
         if category:
@@ -175,6 +175,12 @@ class DatabaseManager:
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );
+                CREATE TABLE IF NOT EXISTS ppe (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    data_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
                 CREATE TABLE IF NOT EXISTS violation_types (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -203,7 +209,7 @@ class DatabaseManager:
             self.conn.rollback()
             raise
 
-        for tbl in ("employees", "violations", "custom_ledger", "incidents"):
+        for tbl in ("employees", "violations", "custom_ledger", "incidents", "ppe"):
             try:
                 self.conn.execute(f"ALTER TABLE {tbl} ADD COLUMN user_id INTEGER DEFAULT 0")
             except Exception:
@@ -214,7 +220,7 @@ class DatabaseManager:
         if table not in {"settings", "users", "ai_settings", "columns_config",
                           "violation_types", "reminders", "notes", "audit_log",
                           "employees", "violations", "custom_ledger", "companies",
-                          "incidents"}:
+                          "incidents", "ppe"}:
             raise ValueError(f"Invalid table: {table}")
         try:
             cols = ", ".join(values.keys())
@@ -328,6 +334,14 @@ class DatabaseManager:
                 ("Причина", "Текст", 8), ("Корректирующие меры", "Текст", 9),
                 ("Срок устранения", "Годен до", 10), ("Статус", "Статус", 11),
                 ("Фото", "Медиа", 12),
+            ],
+            "ppe": [
+                ("ID", "Число", 0), ("Сотрудник", "Текст", 1),
+                ("Наименование СИЗ", "Текст", 2), ("Тип", "Текст", 3),
+                ("ГОСТ/ТР", "Текст", 4), ("Ед.изм.", "Текст", 5),
+                ("Количество", "Число", 6), ("Норма на год", "Число", 7),
+                ("Дата выдачи", "Годен до", 8), ("Срок замены", "Годен до", 9),
+                ("Статус", "Статус", 10), ("Примечание", "Текст", 11),
             ],
         }
         for cat, cols in configs.items():

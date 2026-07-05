@@ -45,6 +45,7 @@ from modules.ai import AIChatDialog, AIChatInlineWidget, AIEngine
 from modules.ai_insights import AIInsightsWidget
 from modules.calendar_tab import CalendarTab
 from modules.incidents import IncidentsTableWidget
+from modules.ppe import PPETableWidget
 from modules.settings import SettingsDialog, UsersDialog, AuditTab, HotkeyManager
 from modules.tools import FineKinneyCalculator, TextbookManagerDialog, PrintDialog
 from modules.print_editor import PrintTemplateEditor
@@ -185,6 +186,7 @@ class MainWindow(QMainWindow):
         self._reminders_tab = ExpiringRemindersTab()
         self._calendar_tab = CalendarTab()
         self._incidents_tab = IncidentsTableWidget(user_id=uid)
+        self._ppe_tab = PPETableWidget(user_id=uid)
 
         tab_defs = [
             ("tab.dashboard", self.dashboard_tab),
@@ -197,6 +199,7 @@ class MainWindow(QMainWindow):
             ("tab.reminders", self._reminders_tab),
             ("tab.calendar", self._calendar_tab),
             ("tab.incidents", self._incidents_tab),
+            ("tab.ppe", self._ppe_tab),
             ("tab.ai", self._ai_tab),
             ("tab.ai_insights", self._ai_insights_tab),
         ]
