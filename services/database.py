@@ -62,7 +62,8 @@ class DatabaseManager:
                     salt TEXT NOT NULL,
                     role TEXT NOT NULL DEFAULT 'Inspector',
                     session_token TEXT,
-                    token_expiry TEXT
+                    token_expiry TEXT,
+                    totp_secret TEXT DEFAULT ''
                 );
                 CREATE TABLE IF NOT EXISTS settings (
                     key TEXT PRIMARY KEY,

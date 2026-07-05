@@ -18,6 +18,7 @@ from app_core.utils import ACCENT_COLORS, JsonUtils
 from services.database import DatabaseManager
 from services.security import SecurityEngine
 from modules.reminders import ReminderEngine
+from modules.email_settings import EmailSettingsWidget
 from modules.rest_api_settings import RESTAPISettingsWidget
 from modules.telegram_settings import TelegramSettingsWidget
 from widgets.toast import ToastNotification
@@ -138,6 +139,10 @@ class SettingsDialog(QDialog):
         # --- REST API tab ---
         self._rest_api_tab = RESTAPISettingsWidget()
         tabs.addTab(self._rest_api_tab, I18n._("rest_api.title"))
+
+        # --- Email tab ---
+        self._email_tab = EmailSettingsWidget()
+        tabs.addTab(self._email_tab, I18n._("email.title"))
 
         # --- Customization tab ---
         custom = QFrame()
@@ -296,6 +301,10 @@ class SettingsDialog(QDialog):
             self._rest_api_tab._save_values()
         except Exception:
             pass
+        try:
+            self._email_tab._save_values()
+        except Exception:
+            pass
 
         # Save custom button labels
         for key, field in self._btn_fields.items():
@@ -345,6 +354,10 @@ class UsersDialog(QDialog):
         role_btn = QPushButton(I18n._("user.change_role"))
         role_btn.clicked.connect(self._change_role)
         toolbar.addWidget(role_btn)
+
+        totp_btn = QPushButton(I18n._("user.totp_setup"))
+        totp_btn.clicked.connect(self._setup_totp)
+        toolbar.addWidget(totp_btn)
 
         toolbar.addStretch()
         layout.addLayout(toolbar)
@@ -492,6 +505,53 @@ class UsersDialog(QDialog):
             self.db.log_event(f"Role changed for {user['username']}: {role}", "INFO")
             self._refresh()
             ToastNotification.notify(I18n._("common.success"), "success", 2000)
+
+    def _setup_totp(self) -> None:
+        uid = self._selected_user_id()
+        if uid is None:
+            return
+        user = self.db.fetch_one(
+            "SELECT username, totp_secret FROM users WHERE id=?", (uid,))
+        if not user:
+            return
+        from services.security import SecurityEngine
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QTextEdit
+        dlg = QDialog(self)
+        dlg.setWindowTitle(I18n._("user.totp_setup"))
+        dlg.setMinimumWidth(420)
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+        secret = user.get("totp_secret", "") or ""
+        if not secret:
+            secret = SecurityEngine.generate_totp_secret_b32()
+        uri = SecurityEngine.get_totp_uri(secret, user["username"])
+        layout.addWidget(QLabel(I18n._("user.totp_instruction")))
+        code_label = QLabel(f"<b>{secret}</b>")
+        code_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        code_label.setAlignment(Qt.AlignCenter)
+        code_label.setStyleSheet("font-size: 18px; letter-spacing: 2px; padding: 8px;")
+        layout.addWidget(code_label)
+        uri_edit = QTextEdit()
+        uri_edit.setPlainText(uri)
+        uri_edit.setMaximumHeight(60)
+        uri_edit.setReadOnly(True)
+        layout.addWidget(uri_edit)
+        btn_layout = QHBoxLayout()
+        save_btn = QPushButton(I18n._("common.save"))
+        def _do_save():
+            self.db.execute("UPDATE users SET totp_secret=? WHERE id=?",
+                            (secret, uid))
+            self.db.log_event(f"TOTP set up for {user['username']}", "INFO")
+            dlg.accept()
+            ToastNotification.notify(I18n._("user.totp_saved"), "success", 3000)
+        save_btn.clicked.connect(_do_save)
+        btn_layout.addWidget(save_btn)
+        cancel_btn = QPushButton(I18n._("common.cancel"))
+        cancel_btn.clicked.connect(dlg.reject)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+        dlg.exec_()
 
 
 class AuditTab(QWidget):

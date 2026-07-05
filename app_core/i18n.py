@@ -786,6 +786,32 @@ class I18n:
         "rest_api.stop": "Остановить",
         "rest_api.log": "Лог запросов",
         "rest_api.no_key_warning": "API ключ не задан — сервер будет доступен без аутентификации",
+
+        "email.title": "Email",
+        "email.enabled": "Включить Email уведомления",
+        "email.smtp_host": "SMTP сервер",
+        "email.smtp_port": "SMTP порт",
+        "email.use_tls": "Использовать TLS",
+        "email.username": "Имя пользователя",
+        "email.password": "Пароль",
+        "email.show_password": "Показать пароль",
+        "email.from": "От кого",
+        "email.default_to": "Получатель по умолчанию",
+        "email.test_title": "Проверка отправки",
+        "email.test_send": "Отправить тест",
+        "email.test_ok": "Тестовое письмо отправлено",
+        "email.test_error": "Ошибка: {error}",
+        "email.test_no_recipient": "Укажите получателя",
+
+        "login.totp": "Код из приложения",
+        "login.totp_title": "Двухфакторная аутентификация",
+        "login.totp_invalid": "Неверный код",
+        "login.verify": "Подтвердить",
+        "login.locked": "Слишком много попыток. Подождите {seconds} сек.",
+
+        "user.totp_setup": "2FA настройка",
+        "user.totp_instruction": "Отсканируйте QR-код в приложении (Google Authenticator) или введите ключ вручную:",
+        "user.totp_saved": "2FA включена",
     }
 
     _en: Dict[str, str] = {
@@ -926,6 +952,32 @@ class I18n:
         "rest_api.stop": "Stop",
         "rest_api.log": "Request log",
         "rest_api.no_key_warning": "No API key set — server will be accessible without authentication",
+
+        "email.title": "Email",
+        "email.enabled": "Enable Email notifications",
+        "email.smtp_host": "SMTP Host",
+        "email.smtp_port": "SMTP Port",
+        "email.use_tls": "Use TLS",
+        "email.username": "Username",
+        "email.password": "Password",
+        "email.show_password": "Show password",
+        "email.from": "From address",
+        "email.default_to": "Default recipient",
+        "email.test_title": "Test sending",
+        "email.test_send": "Send Test",
+        "email.test_ok": "Test email sent",
+        "email.test_error": "Error: {error}",
+        "email.test_no_recipient": "Enter a recipient",
+
+        "login.totp": "Authenticator code",
+        "login.totp_title": "Two-factor authentication",
+        "login.totp_invalid": "Invalid code",
+        "login.verify": "Verify",
+        "login.locked": "Too many attempts. Wait {seconds} sec.",
+
+        "user.totp_setup": "2FA Setup",
+        "user.totp_instruction": "Scan the QR code with your authenticator app or enter the key manually:",
+        "user.totp_saved": "2FA enabled",
     }
 
     @classmethod

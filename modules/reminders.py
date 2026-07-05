@@ -15,6 +15,7 @@ from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
 from app_core.utils import wrap_table_with_glow
 from services.database import DatabaseManager
+from services.email_service import EmailService
 from services.telegram_bot import TelegramBot
 from widgets.toast import ToastNotification
 
@@ -196,6 +197,13 @@ class ReminderEngine(QObject):
                                 f"🔔 {title}", "warning", 8000)
                             try:
                                 TelegramBot().send_notification(
+                                    title,
+                                    f"{I18n._('reminder.due_date')}: {r.get('due_date', '')}\n{r.get('description', '')}",
+                                    "warning")
+                            except Exception:
+                                pass
+                            try:
+                                EmailService().send_notification(
                                     title,
                                     f"{I18n._('reminder.due_date')}: {r.get('due_date', '')}\n{r.get('description', '')}",
                                     "warning")

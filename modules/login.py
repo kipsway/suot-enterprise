@@ -4,12 +4,13 @@ from typing import Optional, Dict, Any
 from PyQt5.QtCore import Qt, QEasingCurve, QPoint, QPropertyAnimation, QTimer
 from PyQt5.QtGui import QCursor
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QLabel, QLineEdit,
-                             QPushButton, QCheckBox, QFrame, QWidget)
+                             QPushButton, QCheckBox, QFrame, QWidget,
+                             QHBoxLayout)
 
 from app_core.config import AppConfig
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
-from services.security import SecurityEngine
+from services.security import SecurityEngine, RateLimiter
 from services.database import DatabaseManager
 
 
@@ -19,12 +20,14 @@ class LoginDialog(QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.db = DatabaseManager()
         self._authenticated_user: Optional[Dict[str, Any]] = None
+        self._rate_limiter = RateLimiter()
+        self._step = "credentials"
         self._build_ui()
         self._try_auto_login()
 
     def _build_ui(self) -> None:
         self.setWindowTitle(I18n._("login.title"))
-        self.setFixedSize(420, 480)
+        self.setFixedSize(420, 520)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
@@ -50,53 +53,70 @@ class LoginDialog(QDialog):
                 border-radius: 20px;
             }}
         """)
-        cl = QVBoxLayout(container)
-        cl.setContentsMargins(36, 36, 36, 36)
-        cl.setSpacing(16)
+        self._cl = QVBoxLayout(container)
+        self._cl.setContentsMargins(36, 36, 36, 36)
+        self._cl.setSpacing(16)
 
         title = QLabel(I18n._("app.name"))
         title.setProperty("heading", True)
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size: 26px; letter-spacing: -0.5px;")
-        cl.addWidget(title)
+        self._cl.addWidget(title)
 
-        subtitle = QLabel(I18n._("login.title"))
-        subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("font-size: 14px; margin-bottom: 4px; opacity: 0.7;")
-        cl.addWidget(subtitle)
+        self._subtitle = QLabel(I18n._("login.title"))
+        self._subtitle.setAlignment(Qt.AlignCenter)
+        self._subtitle.setStyleSheet("font-size: 14px; margin-bottom: 4px; opacity: 0.7;")
+        self._cl.addWidget(self._subtitle)
 
-        cl.addSpacing(8)
+        self._cl.addSpacing(8)
 
         self._username_edit = QLineEdit()
         self._username_edit.setPlaceholderText(I18n._("login.username"))
-        cl.addWidget(self._username_edit)
+        self._cl.addWidget(self._username_edit)
 
         self._password_edit = QLineEdit()
         self._password_edit.setPlaceholderText(I18n._("login.password"))
         self._password_edit.setEchoMode(QLineEdit.Password)
-        cl.addWidget(self._password_edit)
+        self._cl.addWidget(self._password_edit)
 
         self._remember_cb = QCheckBox(I18n._("login.remember"))
-        cl.addWidget(self._remember_cb)
+        self._cl.addWidget(self._remember_cb)
+
+        self._totp_layout = QHBoxLayout()
+        self._totp_label = QLabel(I18n._("login.totp"))
+        self._totp_label.hide()
+        self._totp_layout.addWidget(self._totp_label)
+        self._totp_edit = QLineEdit()
+        self._totp_edit.setPlaceholderText("000000")
+        self._totp_edit.setMaxLength(6)
+        self._totp_edit.hide()
+        self._totp_layout.addWidget(self._totp_edit)
+        self._cl.addLayout(self._totp_layout)
+
+        self._lockout_label = QLabel()
+        self._lockout_label.setStyleSheet("color: #E74C3C; font-size: 12px;")
+        self._lockout_label.setAlignment(Qt.AlignCenter)
+        self._lockout_label.hide()
+        self._cl.addWidget(self._lockout_label)
 
         self._error_label = QLabel()
-        self._error_label.setStyleSheet(f"color: #E74C3C; font-size: 12px;")
+        self._error_label.setStyleSheet("color: #E74C3C; font-size: 12px;")
         self._error_label.setAlignment(Qt.AlignCenter)
         self._error_label.hide()
-        cl.addWidget(self._error_label)
+        self._cl.addWidget(self._error_label)
 
-        login_btn = QPushButton(I18n._("login.btn"))
-        login_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        login_btn.clicked.connect(self._on_login)
-        login_btn.setDefault(True)
-        login_btn.setMinimumHeight(44)
-        login_btn.setStyleSheet(
-            "font-size: 15px; font-weight: 700; letter-spacing: 0.3px;"
-        )
-        cl.addWidget(login_btn)
+        self._login_btn = QPushButton(I18n._("login.btn"))
+        self._login_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self._login_btn.clicked.connect(self._on_login)
+        self._login_btn.setDefault(True)
+        self._login_btn.setMinimumHeight(44)
+        self._login_btn.setStyleSheet(
+            "font-size: 15px; font-weight: 700; letter-spacing: 0.3px;")
+        self._cl.addWidget(self._login_btn)
 
-        self._password_edit.returnPressed.connect(login_btn.click)
+        self._password_edit.returnPressed.connect(self._login_btn.click)
         self._username_edit.returnPressed.connect(self._password_edit.setFocus)
+        self._totp_edit.returnPressed.connect(self._login_btn.click)
 
         main.addWidget(container, 0, Qt.AlignCenter)
 
@@ -110,40 +130,85 @@ class LoginDialog(QDialog):
             self._auto_logged_in = True
 
     def _on_login(self) -> None:
+        if self._step == "credentials":
+            self._do_credentials_step()
+        elif self._step == "totp":
+            self._do_totp_step()
+
+    def _do_credentials_step(self) -> None:
         username = self._username_edit.text().strip()
         password = self._password_edit.text()
+
+        locked, remaining = self._rate_limiter.check_login(username)
+        if locked:
+            self._show_lockout(remaining)
+            self.db.log_event(f"Login blocked (rate limit): {username}", "WARNING",
+                              {"username": username, "remaining": remaining})
+            return
         if not username or not password:
             self._show_error(I18n._("login.error.empty"))
             return
         user = self.db.fetch_one(
-            "SELECT id, username, password_hash, salt, role FROM users WHERE username=?",
-            (username,))
+            "SELECT id, username, password_hash, salt, role, totp_secret "
+            "FROM users WHERE username=?", (username,))
         if not user:
+            self._rate_limiter.record_login(username)
             self._show_error(I18n._("login.error.invalid"))
             self._shake()
-            self.db.log_event(f"Failed login attempt for: {username}", "WARNING",
-                              {"username": username})
             return
+
         stored_hash = user["password_hash"]
         salt = user["salt"]
+        totp_secret = user.get("totp_secret", "") or ""
+
         if not SecurityEngine.verify(stored_hash, salt, password):
+            self._rate_limiter.record_login(username)
             self._show_error(I18n._("login.error.invalid"))
             self._shake()
-            self.db.log_event(f"Failed login attempt for: {username}", "WARNING",
+            self.db.log_event(f"Failed login: {username}", "WARNING",
                               {"username": username})
             return
+
+        self._pending_user = user
+        if totp_secret:
+            self._step = "totp"
+            self._subtitle.setText(I18n._("login.totp_title"))
+            self._username_edit.hide()
+            self._password_edit.hide()
+            self._remember_cb.hide()
+            self._totp_label.show()
+            self._totp_edit.show()
+            self._totp_edit.setFocus()
+            self._login_btn.setText(I18n._("login.verify"))
+        else:
+            self._complete_login(user)
+
+    def _do_totp_step(self) -> None:
+        code = self._totp_edit.text().strip()
+        totp_secret = (self._pending_user or {}).get("totp_secret", "") or ""
+        if not SecurityEngine.verify_totp(totp_secret, code):
+            self._show_error(I18n._("login.totp_invalid"))
+            self._shake()
+            return
+        self._complete_login(self._pending_user)
+
+    def _complete_login(self, user: Any) -> None:
         self._authenticated_user = user
-        self.db.log_event(f"User logged in: {username}", "INFO",
-                          {"username": username, "role": user.get("role")})
-        if self._remember_cb.isChecked():
+        self._rate_limiter.clear_login(user["username"])
+        self.db.log_event(f"User logged in: {user['username']}", "INFO",
+                          {"username": user["username"], "role": user.get("role")})
+        if self._remember_cb.isChecked() and self._step == "credentials":
             token = SecurityEngine.create_token()
             expiry = datetime.now() + timedelta(days=AppConfig.TOKEN_TTL_DAYS)
-            self.db.session_manager.save_remember_me(username, token, expiry)
-        self._on_auth_success()
-
-    def _on_auth_success(self) -> None:
+            self.db.session_manager.save_remember_me(
+                user["username"], token, expiry)
         I18n.set_language(self.db.get_setting("app_language", "ru"))
         self.accept()
+
+    def _show_lockout(self, remaining: int) -> None:
+        self._lockout_label.setText(
+            I18n._("login.locked").format(seconds=remaining))
+        self._lockout_label.show()
 
     def _show_error(self, msg: str) -> None:
         self._error_label.setText(msg)
