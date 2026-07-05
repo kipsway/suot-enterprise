@@ -25,6 +25,7 @@ from app_core.utils import ACCENT_COLORS, fade_in_widget
 from services.database import DatabaseManager
 from services.security import SecurityEngine
 from services.workerpool import AsyncPool
+from services.rest_api import RESTAPIServer
 from services.telegram_bot import TelegramBot
 from widgets.toast import ToastNotification
 from modules.login import LoginDialog
@@ -60,6 +61,8 @@ class MainWindow(QMainWindow):
         self._hotkeys = HotkeyManager(self)
         self._telegram_bot = TelegramBot()
         self._telegram_bot.start()
+        self._rest_api = RESTAPIServer()
+        self._rest_api.start()
 
     def _btn_text(self, key: str, fallback: str) -> str:
         custom = self.db.get_setting(key, "")
@@ -76,6 +79,10 @@ class MainWindow(QMainWindow):
             pass
         try:
             self._telegram_bot.stop()
+        except Exception:
+            pass
+        try:
+            self._rest_api.stop()
         except Exception:
             pass
         event.accept()

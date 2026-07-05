@@ -18,6 +18,7 @@ from app_core.utils import ACCENT_COLORS, JsonUtils
 from services.database import DatabaseManager
 from services.security import SecurityEngine
 from modules.reminders import ReminderEngine
+from modules.rest_api_settings import RESTAPISettingsWidget
 from modules.telegram_settings import TelegramSettingsWidget
 from widgets.toast import ToastNotification
 
@@ -133,6 +134,10 @@ class SettingsDialog(QDialog):
         # --- Telegram tab ---
         self._telegram_tab = TelegramSettingsWidget()
         tabs.addTab(self._telegram_tab, I18n._("telegram.title"))
+
+        # --- REST API tab ---
+        self._rest_api_tab = RESTAPISettingsWidget()
+        tabs.addTab(self._rest_api_tab, I18n._("rest_api.title"))
 
         # --- Customization tab ---
         custom = QFrame()
@@ -285,6 +290,10 @@ class SettingsDialog(QDialog):
 
         try:
             self._telegram_tab._save_values()
+        except Exception:
+            pass
+        try:
+            self._rest_api_tab._save_values()
         except Exception:
             pass
 

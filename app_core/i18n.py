@@ -772,6 +772,20 @@ class I18n:
         "telegram.register_hint": "Укажите логин системы: /register ваш_логин",
         "telegram.register_not_found": "Пользователь {user} не найден",
         "telegram.register_ok": "Аккаунт {user} привязан к Telegram",
+
+        "rest_api.title": "REST API",
+        "rest_api.enabled": "Включить REST API сервер",
+        "rest_api.port": "Порт",
+        "rest_api.api_key": "API Ключ",
+        "rest_api.show_key": "Показать ключ",
+        "rest_api.generate_key": "Сгенерировать",
+        "rest_api.server_status": "Сервер",
+        "rest_api.running": "Запущен на",
+        "rest_api.stopped": "Остановлен",
+        "rest_api.start": "Запустить",
+        "rest_api.stop": "Остановить",
+        "rest_api.log": "Лог запросов",
+        "rest_api.no_key_warning": "API ключ не задан — сервер будет доступен без аутентификации",
     }
 
     _en: Dict[str, str] = {
@@ -898,6 +912,20 @@ class I18n:
         "telegram.register_hint": "Enter system username: /register your_username",
         "telegram.register_not_found": "User {user} not found",
         "telegram.register_ok": "Account {user} linked to Telegram",
+
+        "rest_api.title": "REST API",
+        "rest_api.enabled": "Enable REST API server",
+        "rest_api.port": "Port",
+        "rest_api.api_key": "API Key",
+        "rest_api.show_key": "Show key",
+        "rest_api.generate_key": "Generate",
+        "rest_api.server_status": "Server",
+        "rest_api.running": "Running on",
+        "rest_api.stopped": "Stopped",
+        "rest_api.start": "Start",
+        "rest_api.stop": "Stop",
+        "rest_api.log": "Request log",
+        "rest_api.no_key_warning": "No API key set — server will be accessible without authentication",
     }
 
     @classmethod
