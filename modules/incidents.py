@@ -20,6 +20,7 @@ from widgets.photos import PhotoGalleryDialog
 from widgets.dropzone import DropZone
 from widgets.inline_edit_mixin import InlineEditMixin
 from widgets.column_width_mixin import ColumnWidthMixin
+from modules.notes import NotesDialog
 from modules.textbook import DateAwareLineEdit
 
 TABLE_NAME = "incidents"
@@ -204,6 +205,11 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         self._photos_btn.setProperty("flat", True)
         self._photos_btn.clicked.connect(self._open_photos)
         toolbar.addWidget(self._photos_btn)
+
+        self._notes_btn = QPushButton("📝 " + I18n._("common.notes"))
+        self._notes_btn.setProperty("flat", True)
+        self._notes_btn.clicked.connect(self._open_notes)
+        toolbar.addWidget(self._notes_btn)
 
         self._export_btn = QPushButton("📤 " + I18n._("export.title"))
         self._export_btn.setProperty("flat", True)
@@ -472,12 +478,22 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         except Exception as e:
             ToastNotification.notify(I18n._("export.error").format(error=str(e)), "error", 5000)
 
+    def _open_notes(self) -> None:
+        row = self._table.currentRow()
+        if row < 0 or row >= len(self._records):
+            ToastNotification.notify(I18n._("common.no_selection"), "warning", 3000)
+            return
+        rec = self._records[row]
+        dlg = NotesDialog(TABLE_NAME, rec["id"], "", self)
+        dlg.exec_()
+
     def _open_photos(self) -> None:
         row = self._table.currentRow()
         if row < 0 or row >= len(self._records):
             ToastNotification.notify(I18n._("common.no_selection"), "warning", 3000)
             return
-        dj = self._records[row].get("data_json", {})
+        rec = self._records[row]
+        dj = rec.get("data_json", {})
         self._open_photos_for(dj)
 
     def _open_photos_for(self, dj: Dict[str, Any]) -> None:

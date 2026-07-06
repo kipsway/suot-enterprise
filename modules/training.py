@@ -18,6 +18,7 @@ from services.database import DatabaseManager
 from widgets.toast import ToastNotification
 from widgets.inline_edit_mixin import InlineEditMixin
 from widgets.column_width_mixin import ColumnWidthMixin
+from modules.notes import NotesDialog
 from modules.textbook import DateAwareLineEdit
 
 TABLE_NAME = "training"
@@ -163,6 +164,10 @@ class TrainingTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         self._delete_btn = QPushButton(I18n._("common.delete"))
         self._delete_btn.clicked.connect(self._delete_selected)
         toolbar.addWidget(self._delete_btn)
+        self._notes_btn = QPushButton("📝 " + I18n._("common.notes"))
+        self._notes_btn.setProperty("flat", True)
+        self._notes_btn.clicked.connect(self._open_notes)
+        toolbar.addWidget(self._notes_btn)
         self._export_btn = QPushButton("📤 " + I18n._("export.title"))
         self._export_btn.setProperty("flat", True)
         self._export_btn.clicked.connect(self._export_selected)
@@ -361,6 +366,15 @@ class TrainingTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
             self.db.delete_json_record(TABLE_NAME, rid)
         self._load_data()
         ToastNotification.notify(I18n._("toast.delete_success"), "success", 3000)
+
+    def _open_notes(self) -> None:
+        row = self._table.currentRow()
+        if row < 0 or row >= len(self._records):
+            ToastNotification.notify(I18n._("common.no_selection"), "warning", 3000)
+            return
+        rec = self._records[row]
+        dlg = NotesDialog(TABLE_NAME, rec["id"], "", self)
+        dlg.exec_()
 
     def _export_selected(self) -> None:
         row = self._table.currentRow()
