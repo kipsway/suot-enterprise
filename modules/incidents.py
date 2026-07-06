@@ -19,6 +19,7 @@ from widgets.toast import ToastNotification
 from widgets.photos import PhotoGalleryDialog
 from widgets.dropzone import DropZone
 from widgets.inline_edit_mixin import InlineEditMixin
+from widgets.column_width_mixin import ColumnWidthMixin
 from modules.textbook import DateAwareLineEdit
 
 TABLE_NAME = "incidents"
@@ -142,7 +143,7 @@ class IncidentEditDialog(QDialog):
         return result
 
 
-class IncidentsTableWidget(QWidget, InlineEditMixin):
+class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
     TABLE_NAME = "incidents"
 
     def __init__(self, parent: Optional[QWidget] = None,
@@ -237,6 +238,7 @@ class IncidentsTableWidget(QWidget, InlineEditMixin):
         self._table.customContextMenuRequested.connect(self._on_table_context_menu)
         self._table.verticalHeader().setDefaultSectionSize(36)
         layout.addWidget(wrap_table_with_glow(self._table, self))
+        self._setup_column_widths()
 
         self._info_label = QLabel()
         self._info_label.setStyleSheet("font-size: 12px; padding: 4px 0;")
@@ -325,6 +327,7 @@ class IncidentsTableWidget(QWidget, InlineEditMixin):
 
         self._table.horizontalHeader().setSectionResizeMode(
             QHeaderView.Interactive)
+        self._restore_column_widths()
         self._info_label.setText(
             f'{I18n._("common.count")}: {len(self._records)} / {len(self._all_records)}')
 

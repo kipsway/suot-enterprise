@@ -16,6 +16,7 @@ from app_core.utils import wrap_table_with_glow, get_status_indicator_bg
 from services.database import DatabaseManager
 from widgets.toast import ToastNotification
 from widgets.inline_edit_mixin import InlineEditMixin
+from widgets.column_width_mixin import ColumnWidthMixin
 from modules.textbook import DateAwareLineEdit
 
 TABLE_NAME = "permits"
@@ -122,7 +123,7 @@ class PermitEditDialog(QDialog):
         return result
 
 
-class PermitsTableWidget(QWidget, InlineEditMixin):
+class PermitsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
     TABLE_NAME = "permits"
 
     def __init__(self, parent: Optional[QWidget] = None,
@@ -200,6 +201,8 @@ class PermitsTableWidget(QWidget, InlineEditMixin):
         self._table.customContextMenuRequested.connect(self._on_table_context_menu)
         self._table.verticalHeader().setDefaultSectionSize(36)
         layout.addWidget(wrap_table_with_glow(self._table, self))
+        self._setup_column_widths()
+
         self._info_label = QLabel()
         self._info_label.setStyleSheet("font-size: 12px; padding: 4px 0;")
         layout.addWidget(self._info_label)
@@ -261,6 +264,7 @@ class PermitsTableWidget(QWidget, InlineEditMixin):
                 self._table.setItem(row, col_idx, item)
         self._table.blockSignals(False)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self._restore_column_widths()
         self._info_label.setText(f'{I18n._("common.count")}: {len(self._records)} / {len(self._all_records)}')
 
     def _on_header_clicked(self, idx: int) -> None:
