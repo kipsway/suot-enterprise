@@ -673,6 +673,22 @@ tr:nth-child(even){background:#f5f5f5}
         return self.fetch_all(
             "SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,))
 
+    def get_audit_events_for_record(self, table: str, record_id: int,
+                                     limit: int = 100) -> List[Dict[str, Any]]:
+        rows = self.fetch_all(
+            "SELECT * FROM audit_log WHERE event LIKE ? AND details LIKE ? "
+            "ORDER BY id DESC LIMIT ?",
+            (f"%{table}%", f"%{record_id}%", limit))
+        result = []
+        for row in rows:
+            try:
+                details = JsonUtils.loads(row.get("details", "{}"))
+            except Exception:
+                details = {}
+            if details.get("id") == record_id or details.get("table") == table:
+                result.append(row)
+        return result
+
     def _validate_json_table(self, name: str) -> str:
         if name not in self.JSON_TABLES:
             raise ValueError(f"Unsupported JSON table: {name}")

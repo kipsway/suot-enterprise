@@ -80,6 +80,7 @@ class I18n:
         "common.field": "Поле",
         "common.value": "Значение",
         "common.notes": "Заметки",
+        "common.history": "История",
         "common.notes_hint": "Введите текст заметки...",
         "common.saved": "Сохранено",
         "common.reminders": "Напоминания",
@@ -670,6 +671,7 @@ class I18n:
         "report.none_active": "Все предписания устранены. Риски отсутствуют.",
         "report.generated_html": "HTML-отчёт сформирован",
 
+        "audit.events": "событий",
         "audit.export_title": "Экспорт журнала аудита",
         "audit.export_success": "Лог успешно выгружен",
 
@@ -1102,6 +1104,7 @@ class I18n:
         "backup.hours": " h",
         "backup.keep": "Keep backups",
         "backup.keep_all": "All",
+        "common.history": "History",
 
         "ppe.id": "ID",
         "ppe.employee": "Employee",
@@ -1245,6 +1248,7 @@ class I18n:
         "stat.overdue_trend": "Overdue violations",
         "stat.monthly_trend": "Monthly violation trend",
         "stat.no_overdue": "No overdue violations",
+        "audit.events": "events",
     }
 
     @classmethod

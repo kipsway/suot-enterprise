@@ -18,6 +18,7 @@ from services.database import DatabaseManager
 from widgets.toast import ToastNotification
 from widgets.inline_edit_mixin import InlineEditMixin
 from widgets.column_width_mixin import ColumnWidthMixin
+from widgets.audit_trail import AuditTrailDialog
 from modules.notes import NotesDialog
 from modules.textbook import DateAwareLineEdit
 
@@ -358,11 +359,16 @@ class PPETableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         menu = QMenu()
         edit_action = menu.addAction(I18n._("common.edit"))
         delete_action = menu.addAction(I18n._("common.delete"))
+        menu.addSeparator()
+        history_action = menu.addAction("📋 " + I18n._("common.history"))
         action = menu.exec_(QCursor.pos())
         if action == edit_action:
             self._edit_record(rec)
         elif action == delete_action:
             self._delete_record(rec)
+        elif action == history_action:
+            dlg = AuditTrailDialog(TABLE_NAME, rec["id"], parent=self)
+            dlg.exec_()
 
     def _add_record(self) -> None:
         dlg = PPEEditDialog({}, self._columns, self)

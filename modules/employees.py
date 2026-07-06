@@ -25,6 +25,7 @@ from modules.textbook import TextbookLineEdit, DateAwareLineEdit
 
 from modules.print_engine import PrintEngine
 from modules.notes import NotesDialog
+from widgets.audit_trail import AuditTrailDialog
 
 
 class EmployeeEditDialog(QDialog):
@@ -742,6 +743,7 @@ class EmployeeTableWidget(QWidget):
         print_a = menu.addAction("🖨 " + I18n._("print.any_table"))
         menu.addSeparator()
         copy_a = menu.addAction(I18n._("common.copy"))
+        history_a = menu.addAction("📋 " + I18n._("common.history"))
         action = menu.exec_(self._table.mapToGlobal(pos))
         if action == edit_a:
             self._edit_selected()
@@ -755,6 +757,10 @@ class EmployeeTableWidget(QWidget):
             item = self._table.item(row, self._table.currentColumn())
             if item and item.text():
                 QApplication.clipboard().setText(item.text())
+        elif action == history_a and row < len(self._records):
+            rec = self._records[row]
+            dlg = AuditTrailDialog("employees", rec["id"], parent=self)
+            dlg.exec_()
 
     def refresh(self) -> None:
         self._load_data()
