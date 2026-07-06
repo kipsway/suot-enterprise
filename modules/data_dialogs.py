@@ -612,6 +612,10 @@ class GlobalSearchDialog(QDialog):
             ("employees", I18n._("tab.employees"), "ФИО"),
             ("violations", I18n._("tab.violations"), "Описание"),
             ("custom_ledger", I18n._("tab.custom_ledger"), "Описание"),
+            ("incidents", I18n._("tab.incidents"), "Описание"),
+            ("ppe", I18n._("tab.ppe"), "Наименование СИЗ"),
+            ("training", I18n._("tab.training"), "Наименование"),
+            ("permits", I18n._("tab.permits"), "Описание работ"),
             ("companies", I18n._("tab.companies"), "name"),
         ]
         for table, label, title_field in tables:
@@ -673,12 +677,18 @@ class GlobalSearchDialog(QDialog):
         rid = item.data(0, Qt.UserRole + 1)
         if table and rid and isinstance(self.parent(), QMainWindow):
             mw = self.parent()
-            tab_map = {"employees": 1, "violations": 2, "custom_ledger": 4, "companies": 3}
-            if table in tab_map:
-                mw._tab_widget.setCurrentIndex(tab_map[table])
-                tab_w = mw._tab_widget.currentWidget()
+            tab_keys = {"employees": "tab.employees", "violations": "tab.violations",
+                        "companies": "tab.companies", "custom_ledger": "tab.custom_ledger",
+                        "incidents": "tab.incidents", "ppe": "tab.ppe",
+                        "training": "tab.training", "permits": "tab.permits"}
+            key = tab_keys.get(table)
+            if key and hasattr(mw, '_tabs_data') and key in mw._tabs_data:
+                idx, tab_w = mw._tabs_data[key]
+                mw._tab_widget.setCurrentIndex(idx)
                 if hasattr(tab_w, '_load_data'):
                     tab_w._load_data()
+                if hasattr(tab_w, 'focus_record'):
+                    tab_w.focus_record(rid)
             ToastNotification.notify(f"{table} #{rid}", "info", 3000)
 
 
