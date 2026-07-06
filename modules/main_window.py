@@ -215,8 +215,11 @@ class MainWindow(QMainWindow):
             idx = self._tab_widget.addTab(widget, label)
             self._tabs_data[key] = (idx, widget)
 
+        self._restore_tab_order()
+
         self._tab_widget.tabBar().installEventFilter(self)
         self._tab_widget.currentChanged.connect(self._on_tab_changed)
+        self._tab_widget.tabBar().tabMoved.connect(self._on_tab_moved)
         self._update_tab_badges()
         self._update_status()
 
@@ -361,6 +364,44 @@ class MainWindow(QMainWindow):
                 self._tab_widget.setTabText(idx, f"{label} ({permit_count})")
             else:
                 self._tab_widget.setTabText(idx, label)
+
+    def _on_tab_moved(self, _from: int, _to: int) -> None:
+        self._rebuild_tabs_data()
+        order = [None] * self._tab_widget.count()
+        for key, (idx, _) in self._tabs_data.items():
+            if 0 <= idx < len(order):
+                order[idx] = key
+        self.db.set_setting("tab_order", json.dumps(order, ensure_ascii=False))
+
+    def _restore_tab_order(self) -> None:
+        raw = self.db.get_setting("tab_order", "")
+        if not raw:
+            return
+        try:
+            order = json.loads(raw)
+        except Exception:
+            return
+        widgets = {key: w for key, (_, w) in self._tabs_data.items()}
+        ordered_widgets = [widgets.get(k) for k in order if k in widgets]
+        for w in reversed(ordered_widgets):
+            cur = self._tab_widget.indexOf(w)
+            if cur >= 0:
+                self._tab_widget.tabBar().moveTab(cur, 0)
+        self._rebuild_tabs_data()
+
+    def _rebuild_tabs_data(self) -> None:
+        attr_map = {getattr(self, f"_{k.split('.')[1]}_tab", None): k
+                    for k in ("tab.dashboard", "tab.employees", "tab.violations",
+                              "tab.companies", "tab.custom_ledger", "tab.statistics",
+                              "tab.timeline", "tab.reminders", "tab.calendar",
+                              "tab.incidents", "tab.ppe", "tab.training",
+                              "tab.permits", "tab.ai", "tab.ai_insights")}
+        self._tabs_data.clear()
+        for i in range(self._tab_widget.count()):
+            w = self._tab_widget.widget(i)
+            key = attr_map.get(w)
+            if key:
+                self._tabs_data[key] = (i, w)
 
     def _tab_name_by_index(self) -> Dict[int, str]:
         if not hasattr(self, '_tabs_data'):
