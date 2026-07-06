@@ -475,6 +475,8 @@ class I18n:
         "export.excel": "Excel (.xlsx)",
         "export.success": "Экспорт завершён: {path}",
         "export.error": "Ошибка экспорта: {error}",
+        "pdf.export": "Экспорт в PDF",
+        "pdf.success": "PDF сохранён: {path}",
 
         "sort.asc": "по возрастанию",
         "sort.desc": "по убыванию",
@@ -1249,6 +1251,8 @@ class I18n:
         "stat.monthly_trend": "Monthly violation trend",
         "stat.no_overdue": "No overdue violations",
         "audit.events": "events",
+        "pdf.export": "Export PDF",
+        "pdf.success": "PDF saved: {path}",
     }
 
     @classmethod

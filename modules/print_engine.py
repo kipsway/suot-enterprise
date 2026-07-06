@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from PyQt5.QtCore import Qt, QObject, QEvent
 from PyQt5.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QFont, QBrush, QPen
-from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
+from PyQt5.QtPrintSupport import QPrinter, QPrintDialog, QAbstractPrintDialog
 from PyQt5.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QPushButton, QComboBox, QTextEdit,
                              QLineEdit, QInputDialog, QMessageBox, QSplitter,
@@ -296,3 +296,17 @@ class PrintEngine:
             ToastNotification.notify(I18n._("print.generated"), "success", 3000)
         except Exception:
             ToastNotification.notify(I18n._("error.generic"), "error", 5000)
+
+    @staticmethod
+    def export_to_pdf(html: str, file_path: str,
+                      parent: Optional[QWidget] = None) -> bool:
+        try:
+            printer = QPrinter(QPrinter.HighResolution)
+            printer.setOutputFormat(QPrinter.PdfFormat)
+            printer.setOutputFileName(file_path)
+            browser = QTextBrowser()
+            browser.setHtml(html)
+            browser.print_(printer)
+            return True
+        except Exception:
+            return False

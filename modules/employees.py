@@ -201,6 +201,11 @@ class EmployeeTableWidget(QWidget):
         self._export_btn.clicked.connect(self._export_selected)
         toolbar.addWidget(self._export_btn)
 
+        self._pdf_btn = QPushButton("📄 " + I18n._("pdf.export"))
+        self._pdf_btn.setProperty("flat", True)
+        self._pdf_btn.clicked.connect(self._export_pdf)
+        toolbar.addWidget(self._pdf_btn)
+
         self._print_btn = QPushButton("🖨 " + I18n._("print.any_table"))
         self._print_btn.setProperty("flat", True)
         self._print_btn.clicked.connect(self._print_selected)
@@ -549,6 +554,29 @@ class EmployeeTableWidget(QWidget):
                     self.db.delete_json_record("employees", rid)
         self._load_data()
         ToastNotification.notify(I18n._("toast.delete_success"), "success", 3000)
+
+    def _export_pdf(self) -> None:
+        row = self._table.currentRow()
+        if row < 0 or row >= len(self._records):
+            ToastNotification.notify(I18n._("common.no_selection"), "warning", 3000)
+            return
+        rec = self._records[row]
+        dj = rec.get("data_json", {})
+        path, _ = QFileDialog.getSaveFileName(self, I18n._("pdf.export"),
+                                               f"employee_{rec['id']}.pdf",
+                                               "PDF (*.pdf)")
+        if not path:
+            return
+        rows_html = "".join(
+            f"<tr><td><b>{c['name']}</b></td><td>{str(dj.get(c['name'], ''))}</td></tr>"
+            for c in self._columns)
+        html = (f"<h2>{I18n._('tab.employees')} #{rec['id']}</h2>"
+                f"<table border='1' cellpadding='4' style='border-collapse:collapse;width:100%'>"
+                f"{rows_html}</table>")
+        if PrintEngine.export_to_pdf(html, path, self):
+            ToastNotification.notify(I18n._("pdf.success").format(path=path), "success", 3000)
+        else:
+            ToastNotification.notify(I18n._("export.error").format(error="PDF"), "error", 5000)
 
     def _export_selected(self) -> None:
         row = self._table.currentRow()
