@@ -22,3 +22,16 @@ backups/
 .opencode/
 scripts/lnk/
 flyway-*.log
+
+# Отладочный мусор (не коммитить)
+_*_dbg*.py
+_*_probe*.py
+_*_mini*.py
+_bisect.py
+_cmt*.py
+_cmp*.py
+_*_diff*.py
+_*_tbal.py
+_*_thead.py
+_test_import.py
+_use_dist.py
