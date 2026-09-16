@@ -16,3 +16,9 @@ venv/
 env/
 .DS_Store
 Thumbs.db
+debug.log
+exports/
+backups/
+.opencode/
+scripts/lnk/
+flyway-*.log

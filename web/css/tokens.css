@@ -1,0 +1,300 @@
+/* ═══ SUOT Neo — дизайн-система 3.0 ═══
+   Единая точка правды для всех токенов.
+   Тёмная тема по умолчанию, светлая через [data-theme="light"].
+   Акцент: индиго 12-тоновая шкала. Фоны — холодные нейтрали.
+   Типографика: системная стека (Inter/Segoe UI), 8-точечная сетка. */
+
+:root, [data-theme="dark"] {
+  /* ── 12-тоновая шкала акцента (indigo) ── */
+  --acc-50:  #EEF2FF;
+  --acc-100: #E0E7FF;
+  --acc-200: #C7D2FE;
+  --acc-300: #A5B4FC;
+  --acc-400: #818CF8;
+  --acc-500: #6366F1;
+  --acc-600: #4F46E5;
+  --acc-700: #4338CA;
+  --acc-800: #3730A3;
+  --acc-900: #312E81;
+  --acc-950: #1E1B4B;
+
+  /* Нейтральная 12-тоновая шкала (slate) */
+  --n-50:  #F8FAFC;
+  --n-100: #F1F5F9;
+  --n-200: #E2E8F0;
+  --n-300: #CBD5E1;
+  --n-400: #94A3B8;
+  --n-500: #64748B;
+  --n-600: #475569;
+  --n-700: #334155;
+  --n-800: #1E293B;
+  --n-900: #0F172A;
+  --n-950: #020617;
+
+  /* ── Поверхности (глубокая тёмная) ── */
+  --bg-0: #0B0D12;          /* фон окна */
+  --bg-1: #12151C;          /* панели */
+  --bg-2: #171B24;          /* карточки */
+  --bg-3: #1F2431;          /* ховер, вложенные */
+  --bg-glass: rgba(23, 27, 36, .72);
+
+  /* ── Текст ── */
+  --t-0: #F2F5FA;
+  --t-1: #A3ADBF;
+  --t-2: #6B7684;
+  --t-3: #4B5462;
+
+  /* ── Акцент ── */
+  --acc: var(--acc-500);
+  --acc-h: var(--acc-300);
+  --acc-p: var(--acc-600);
+  --acc-soft: rgba(99, 102, 241, .14);
+  --acc-glow: rgba(99, 102, 241, .35);
+  --fg-on-acc: #FFFFFF;
+
+  /* ── Семантика ── */
+  --ok: #34D399;  --ok-soft: rgba(52,211,153,.14);
+  --warn: #FBBF24; --warn-soft: rgba(251,191,36,.14);
+  --err: #F87171; --err-soft: rgba(248,113,113,.14);
+  --fg-on-err: #FFFFFF;
+  --info: #60A5FA; --info-soft: rgba(96,165,250,.14);
+  --purple: #A855F7; --purple-soft: rgba(168,85,247,.14);
+  --orange: #F97316; --orange-soft: rgba(249,115,22,.14);
+  --blue: #3B82F6; --blue-soft: rgba(59,130,246,.14);
+
+  /* ── Линии ── */
+  --line: rgba(255,255,255,.07);
+  --line-strong: rgba(255,255,255,.13);
+  --line-soft: rgba(255,255,255,.04);
+
+  /* ── Игры (2048: матовые плитки) ── */
+  --t-tile-2: #3A4356;     --t-tile-f-2: #E8ECF4;
+  --t-tile-4: #454F66;     --t-tile-f-4: #E8ECF4;
+  --t-tile-8: #4F5A74;     --t-tile-f-8: #FFFFFF;
+  --t-tile-16: #815A3A;    --t-tile-f-16: #FFFFFF;
+  --t-tile-32: #90603C;    --t-tile-f-32: #FFFFFF;
+  --t-tile-64: #A06A42;    --t-tile-f-64: #FFFFFF;
+  --t-tile-128: #B07A38;   --t-tile-f-128: #FFFFFF;
+  --t-tile-256: #C08A2E;   --t-tile-f-256: #FFFFFF;
+  --t-tile-512: #D09A24;   --t-tile-f-512: #FFFFFF;
+  --t-tile-1024: #E0AA18;  --t-tile-f-1024: #FFFFFF;
+  --t-tile-2048: #F0B800;  --t-tile-f-2048: #FFFFFF;
+  --t-tile-4096: #F5A623;  --t-tile-f-4096: #FFFFFF;
+  --t-tile-super: #F97316; --t-tile-f-super: #FFFFFF;
+  --t-board: var(--bg-2);  --t-cell: var(--bg-3);
+  --t-five: var(--line);
+  --g-b-1: var(--acc-500);  --g-b-2: var(--info);
+  --g-b-3: var(--ok);       --g-b-4: var(--warn);
+  --g-b-5: var(--purple);   --g-b-6: var(--orange);
+  --g-b-7: var(--err);
+
+  /* ── Печать (предпросмотр листа: всегда белая бумага) ── */
+  --paper-0: #FFFFFF;  --paper-ink: #111111;
+
+  /* ── Тени (двухслойные, мягкие) ── */
+  --shadow-1: 0 1px 2px rgba(0,0,0,.35);
+  --shadow-2: 0 8px 28px rgba(0,0,0,.36);
+  --shadow-3: 0 20px 60px rgba(0,0,0,.5);
+  --glow: 0 0 0 1px rgba(99,102,241,.35), 0 8px 28px rgba(99,102,241,.18);
+
+  /* ── Радиусы ── */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-pill: 999px;
+
+  /* ── Типографика (шкала) ── */
+  --fs-xs: 11.5px; --fs-sm: 12.5px; --fs-md: 13.5px;
+  --fs-lg: 15px;   --fs-xl: 20px;   --fs-2xl: 28px;
+  --lh: 1.5;
+  --fw-med: 500; --fw-semi: 600;
+
+  /* ── Отступы 8pt ── */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px;
+  --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+
+  /* ── Моушн (единый язык движения 2.0) ──
+     Все длительности/кривые — только через эти токены.
+     Стандарт: 150 мс (микро) / 250 мс (переходы) / 400 мс (крупные). */
+  --ease: cubic-bezier(.4, 0, .2, 1);          /* стандарт движения */
+  --ease-out: cubic-bezier(.16, .84, .22, 1);  /* выход (decelerate) */
+  --ease-in: cubic-bezier(.36, 0, .66, -.56);  /* вход (accelerate) */
+  --ease-in-out: cubic-bezier(.65, .05, .36, 1);
+  --ease-back: cubic-bezier(.34, 1.56, .64, 1);/* упругий возврат (ease-back) */
+  --ease-spring: cubic-bezier(.34, 1.4, .5, 1);
+  --dur-ms: 150ms;                             /* микроинтеракции */
+  --dur-sm: 250ms;                             /* переходы, списки */
+  --dur-md: 400ms;                             /* крупные, модалки */
+  --dur-skel: 1300ms;                          /* скелетоны / shimmer */
+  --dur-spin: 700ms;                           /* спиннеры */
+  --dur-pulse: 1600ms;                         /* пульсации */
+  --ease-standard: var(--ease);
+  --ease-emphasized: cubic-bezier(.2, 0, 0, 1);
+  /* совместимость со старой схемой 180/280/420 → новый стандарт */
+  --t-fast: var(--dur-ms); --t-med: var(--dur-sm); --t-slow: var(--dur-md);
+
+  /* ── Каркас ── */
+  --sidebar-w: 236px;
+  --tabbar-h: 44px;
+  --statusbar-h: 28px;
+}
+
+[data-theme="light"] {
+  /* ── Поверхности (чистая светлая) ── */
+  --bg-0: #F6F7FB;
+  --bg-1: #FFFFFF;
+  --bg-2: #FFFFFF;
+  --bg-3: #EEF1F7;
+  --bg-glass: rgba(255, 255, 255, .78);
+
+  /* ── Текст ── */
+  --t-0: #161B27;
+  --t-1: #4B5568;
+  --t-2: #98A1B5;
+  --t-3: #C0C7D6;
+
+  /* ── Акцент ── */
+  --acc: var(--acc-600);
+  --acc-h: var(--acc-500);
+  --acc-p: var(--acc-700);
+  --acc-soft: rgba(99, 102, 241, .10);
+  --acc-glow: rgba(99, 102, 241, .22);
+  --fg-on-acc: #FFFFFF;
+
+  /* ── Семантика ── */
+  --ok: #10B981; --ok-soft: rgba(16,185,129,.12);
+  --warn: #E8930C; --warn-soft: rgba(232,147,12,.14);
+  --err: #E5484D; --err-soft: rgba(229,72,77,.12);
+  --fg-on-err: #FFFFFF;
+  --info: #3B82F6; --info-soft: rgba(59,130,246,.12);
+  --purple: #A855F7; --purple-soft: rgba(168,85,247,.12);
+  --orange: #F97316; --orange-soft: rgba(249,115,22,.12);
+  --blue: #3B82F6; --blue-soft: rgba(59,130,246,.12);
+
+  /* ── Линии ── */
+  --line: rgba(16,23,42,.08);
+  --line-strong: rgba(16,23,42,.14);
+  --line-soft: rgba(16,23,42,.04);
+
+  /* ── Игры (2048: свежие светлые плитки) ── */
+  --t-tile-2: #EEE4DA;     --t-tile-f-2: #5B5B3C;
+  --t-tile-4: #EDE0C8;     --t-tile-f-4: #5B5B3C;
+  --t-tile-8: #F07F50;     --t-tile-f-8: #FFFFFF;
+  --t-tile-16: #E3623C;    --t-tile-f-16: #FFFFFF;
+  --t-tile-32: #E04E2E;    --t-tile-f-32: #FFFFFF;
+  --t-tile-64: #DC3F22;    --t-tile-f-64: #FFFFFF;
+  --t-tile-128: #E9C24A;   --t-tile-f-128: #5B5B3C;
+  --t-tile-256: #E8BD3C;   --t-tile-f-256: #5B5B3C;
+  --t-tile-512: #E8B830;   --t-tile-f-512: #5B5B3C;
+  --t-tile-1024: #E8AE20;  --t-tile-f-1024: #FFFFFF;
+  --t-tile-2048: #E8A700;  --t-tile-f-2048: #FFFFFF;
+  --t-tile-4096: #EF8A00;  --t-tile-f-4096: #FFFFFF;
+  --t-tile-super: #F97316; --t-tile-f-super: #FFFFFF;
+  --t-board: #BBADA0;      --t-cell: #CDC1B4;
+  --t-five: rgba(16,23,42,.10);
+
+  --shadow-1: 0 1px 2px rgba(16,23,42,.06);
+  --shadow-2: 0 8px 28px rgba(16,23,42,.09);
+  --shadow-3: 0 20px 60px rgba(16,23,42,.13);
+  --glow: 0 0 0 1px rgba(99,102,241,.25), 0 8px 28px rgba(99,102,241,.16);
+}
+
+/* ── Акцентные темы: ocean / forest / sunset (поверхности) ── */
+[data-theme="ocean"] {
+  --bg-0: #050C15; --bg-1: #0A1C30; --bg-2: #0E2338; --bg-3: #15304C;
+  --bg-glass: rgba(14, 35, 56, .72);
+  --line: #1D3958; --t-0: #E4EEF9; --t-1: #8FA8C4; --t-2: #5C7A99;
+  --ok: #34D399; --warn: #FBBF24; --err: #FB7185;
+  --acc-500: #0EA5E9; --acc-600: #0284C7; --acc-400: #38BDF8;
+  --acc-soft: rgba(14,165,233,.14); --acc-glow: rgba(14,165,233,.35);
+  --line-strong: rgba(255,255,255,.13); --line-soft: rgba(255,255,255,.04);
+}
+[data-theme="forest"] {
+  --bg-0: #060D08; --bg-1: #0C1C13; --bg-2: #11261A; --bg-3: #1A3427;
+  --bg-glass: rgba(17, 38, 26, .72);
+  --line: #22422F; --t-0: #E3F2E8; --t-1: #93B8A2; --t-2: #61826E;
+  --ok: #4ADE80; --warn: #FACC15; --err: #F87171;
+  --acc-500: #10B981; --acc-600: #059669; --acc-400: #34D399;
+  --acc-soft: rgba(16,185,129,.14); --acc-glow: rgba(16,185,129,.35);
+  --line-strong: rgba(255,255,255,.13); --line-soft: rgba(255,255,255,.04);
+}
+[data-theme="sunset"] {
+  --bg-0: #150910; --bg-1: #221019; --bg-2: #2C1821; --bg-3: #39202B;
+  --bg-glass: rgba(44, 24, 33, .72);
+  --line: #452737; --t-0: #F9EAF0; --t-1: #C79AAC; --t-2: #96697C;
+  --ok: #86EFAC; --warn: #FDE047; --err: #FDA4AF;
+  --acc-500: #EC4899; --acc-600: #DB2777; --acc-400: #F472B6;
+  --acc-soft: rgba(244,114,182,.14); --acc-glow: rgba(244,114,182,.35);
+  --line-strong: rgba(255,255,255,.13); --line-soft: rgba(255,255,255,.04);
+}
+
+/* ── Плотность таблиц ── */
+html[data-density="compact"] table.grid td { padding: 3px 10px; font-size: 12.5px; }
+html[data-density="spacious"] table.grid td { padding: 13px 14px; }
+
+/* ── Радиусы ── */
+html[data-radius="sm"] { --r-sm: 5px; --r-md: 8px; --r-lg: 11px; --r-xl: 14px; }
+html[data-radius="lg"] { --r-sm: 11px; --r-md: 16px; --r-lg: 24px; --r-xl: 30px; }
+
+/* ── Стекло выкл ── */
+html.no-glass .overlay,
+html.no-glass .palette-panel,
+html.no-glass .ai-panel { backdrop-filter: none !important;
+                           background: var(--bg-1) !important; }
+
+/* ═══ Базовые глобальные стили ═══ */
+* { box-sizing: border-box; }
+[x-cloak] { display: none !important; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 14px; line-height: 1.5;
+  background: var(--bg-0); color: var(--t-0);
+  transition: background-color var(--t-med) var(--ease),
+              color var(--t-med) var(--ease);
+}
+
+::selection { background: var(--acc-soft); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--bg-3); border-radius: 8px;
+  border: 2px solid var(--bg-0);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
+
+button, input, select, textarea { font-family: inherit; }
+button { cursor: pointer; }
+
+kbd {
+  background: var(--bg-3); border: 1px solid var(--line);
+  border-radius: 4px; padding: 1px 5px; font-size: 11px;
+  color: var(--t-1); margin: 0 1px;
+}
+
+/* Моушн-анимации */ 
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px) scale(.995); }
+                    to { opacity:1; transform:none; } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes riseIn { from { opacity:0; transform:translateY(8px) scale(.98); }
+                     to { opacity:1; transform:none; } }
+@keyframes shimmer { 0% { background-position:-400px 0; }
+                     100% { background-position:400px 0; } }
+@keyframes rippleGo { to { transform: scale(3); opacity: 0; } }
+
+.anim-stagger > * { animation: fadeUp var(--dur-sm) var(--ease-out) both;
+  will-change: transform, opacity; }
+.anim-stagger > *:nth-child(1) { animation-delay: calc(var(--dur-ms) * .2); }
+.anim-stagger > *:nth-child(2) { animation-delay: calc(var(--dur-ms) * .47); }
+.anim-stagger > *:nth-child(3) { animation-delay: calc(var(--dur-ms) * .73); }
+.anim-stagger > *:nth-child(4) { animation-delay: calc(var(--dur-ms) * 1); }
+.anim-stagger > *:nth-child(5) { animation-delay: calc(var(--dur-ms) * 1.27); }
+.anim-stagger > *:nth-child(6) { animation-delay: calc(var(--dur-ms) * 1.53); }
+.anim-stagger > *:nth-child(n+7) { animation-delay: calc(var(--dur-ms) * 1.8); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important;
+    transition-duration: .001s !important; }
+  /* функциональные остаются: спиннеры, индикаторы статуса */
+  .spinner, .dz-spin, .statusbar .dot, .bell-ring { animation-duration:
+    var(--dur-spin) !important; }
+}

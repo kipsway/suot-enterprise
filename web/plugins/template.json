@@ -1,0 +1,12 @@
+{
+  "id": "template-plugin",
+  "name": "Шаблон плагина",
+  "version": "1.0",
+  "author": "SUOT",
+  "description": "Скелет нового плагина: скопируйте файл, смените id и добавьте команды/кнопки. Поведения (behavior) реализуются в ядре: overdue_label, copy_tsv.",
+  "enabled_by_default": false,
+  "commands": [
+    { "title": "Пример команды из шаблона", "behavior": "copy_tsv" }
+  ],
+  "toolbar": []
+}

@@ -1,0 +1,14 @@
+{
+  "id": "quick-overdue",
+  "name": "Быстрая метка просрочки",
+  "version": "1.0",
+  "author": "SUOT",
+  "description": "Ставит красную метку «Просрочка» всем выбранным строкам активной таблицы одним действием.",
+  "enabled_by_default": true,
+  "commands": [
+    { "title": "Метка «Просрочка» на выбранных строках", "behavior": "overdue_label" }
+  ],
+  "toolbar": [
+    { "table": "*", "icon": "clock", "tooltip": "Метка просрочки (выбранным)", "behavior": "overdue_label" }
+  ]
+}
