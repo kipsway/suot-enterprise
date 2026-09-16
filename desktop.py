@@ -39,6 +39,25 @@ def _fix_streams() -> None:
             pass
 
 
+# Один экземпляр приложения: не даём открыть второе окно на том же сервере.
+_MUTEX_NAME = "SUOT_Neo_SingleInstance_v1"
+_mutex_handle = None
+
+
+def _acquire_single_instance() -> bool:
+    """True — мы единственный экземпляр; False — уже запущен другой."""
+    global _mutex_handle
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        _mutex_handle = kernel32.CreateMutexW(None, False, _MUTEX_NAME)
+        ERROR_ALREADY_EXISTS = 183
+        return kernel32.GetLastError() != ERROR_ALREADY_EXISTS
+    except Exception:
+        return True
+
+
 def _start_server() -> "uvicorn.Server":
     import uvicorn
     from server.app import app
@@ -66,6 +85,9 @@ def _wait_ready(timeout: float = 15.0) -> bool:
 
 def main() -> int:
     _fix_streams()
+    if not _acquire_single_instance():
+        _log("Уже запущен другой экземпляр — второе окно не открываем.")
+        return 0
     _log("Запуск сервера…")
     try:
         import server.app  # noqa: force import of the app

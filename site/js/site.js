@@ -189,7 +189,7 @@
   fetch("downloads/index.json", { cache: "no-store" })
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      var ver = data.version || "2.2.1";
+      var ver = data.version || "2.2.2";
       var hEl = document.getElementById("heroVer");
       if (hEl) { hEl.textContent = ver; }
       var padV = document.getElementById("siteReady");
@@ -458,6 +458,6 @@
   var pad = document.createElement("div");
   pad.id = "siteReady";
   pad.hidden = true;
-  pad.textContent = "v2.2.1";
+  pad.textContent = "v2.2.2";
   document.body.appendChild(pad);
 })();

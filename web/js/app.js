@@ -1,6 +1,6 @@
 /* SUOT Neo — корневое состояние приложения (Alpine.js) */
 document.addEventListener("alpine:init", () => {
-  Alpine.store("version", "2.2.1");
+  Alpine.store("version", "2.2.2");
   Alpine.store("brand", { org_name: "", logo: "" });
   Alpine.store("startScreen", localStorage.getItem("suot_start")
     || "workspace");
@@ -575,9 +575,24 @@ document.addEventListener("alpine:init", () => {
 
     validate() {
       const u = this.loginForm.username.trim();
-      if (u.length < 3) return I18N.t("auth.usernamePh");
-      /* длина пароля проверяется на сервере — сид-пароли тоже валидны */
+      if (u.length < 3) return I18N.t("auth.errUserShort");
+      if (this.authMode === "register" && this.loginForm.password.length < 6)
+        return I18N.t("auth.errPassShort");
+      /* длина пароля при входе проверяется на сервере — сид-пароли валидны */
       return "";
+    },
+
+    localizeAuthError(msg) {
+      const map = {
+        "Имя пользователя: минимум 3 символа": "auth.errUserShort",
+        "Пароль: минимум 6 символов": "auth.errPassShort",
+        "Пользователь с таким именем уже существует": "auth.errUserExists",
+        "Неверное имя пользователя или пароль": "auth.errBadCred",
+        "Аккаунт заблокирован": "auth.errBlocked",
+      };
+      if (map[msg]) return I18N.t(map[msg]);
+      if (/Слишком много попыток/.test(msg || "")) return I18N.t("auth.errLocked");
+      return msg || I18N.t("auth.errGeneric");
     },
 
     checkCaps(e) {
@@ -611,7 +626,7 @@ document.addEventListener("alpine:init", () => {
         this.showPassword = false;
         this.enterMain();
       } catch (e) {
-        this.error = e.message;
+        this.error = this.localizeAuthError(e.message);
       } finally {
         this.busy = false;
       }
