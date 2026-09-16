@@ -1,0 +1,32 @@
+{
+  "version": "2.1.0",
+  "updated": "2026-09-16 15:28",
+  "releases": [
+    {
+      "file": "SUOT_Neo_portable.zip",
+      "size": 40962951,
+      "size_mb": 39.1,
+      "sha256": "a01b6be10360c370ad57c071f9b8ba565357922d38003425885b78a2febcc31b"
+    },
+    {
+      "file": "SUOT_Neo_setup.exe",
+      "size": 31838096,
+      "size_mb": 30.4,
+      "sha256": "6b4f4c12bc9455d55d90cb78fc63e122867c6783bf162122f4c95ef55eb87dea"
+    }
+  ],
+  "history": [
+    {
+      "version": "2.1.0",
+      "date": "2026-09-16",
+      "file": "SUOT_Neo_portable.zip",
+      "size_mb": 39.1
+    },
+    {
+      "version": "2.1.0",
+      "date": "2026-09-16",
+      "file": "SUOT_Neo_setup.exe",
+      "size_mb": 30.4
+    }
+  ]
+}
