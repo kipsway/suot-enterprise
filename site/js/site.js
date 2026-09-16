@@ -12,8 +12,10 @@
   var now = new Date();
   var viewYear = now.getFullYear();
   var viewMonth = now.getMonth(); // 0-11
-  var calEl = document.getElementById("miniCal");
-  var calTitle = document.getElementById("mcTitle");
+  var cals = [
+    { el: document.getElementById("miniCal"), title: document.getElementById("mcTitle") },
+    { el: document.getElementById("miniCal2"), title: document.getElementById("mcTitle2") }
+  ];
 
   /* ── типографика: айлат в camel ── */
 
@@ -27,8 +29,7 @@
 
   function pad2(n) { return n < 10 ? "0" + n : "" + n; }
 
-  function renderCal() {
-    var y = viewYear, m = viewMonth;
+  function paintCal(y, m) {
     var dm = daysInMonth(y, m);
     var firstDow = new Date(y, m, 1).getDay(); // 0=Вс
     var lead = (firstDow === 0 ? 6 : firstDow - 1); // понедельник-первый
@@ -48,9 +49,15 @@
       if (dayHasEvent(d, m)) { cls += " ev"; }
       html += '<div class="' + cls + '">' + d + "</div>";
     }
-    calEl.innerHTML = html;
-    calTitle.textContent = MONTH[m] + " " + y;
+    for (var ci = 0; ci < cals.length; ci++) {
+      if (cals[ci].el) {
+        cals[ci].el.innerHTML = html;
+        cals[ci].title.textContent = MONTH[m] + " " + y;
+      }
+    }
   }
+
+  function renderCal() { paintCal(viewYear, viewMonth); }
 
   function moveMonth(delta) {
     viewMonth += delta;
@@ -66,6 +73,51 @@
     })(parseInt(mcBtns[bi].getAttribute("data-mc"), 10)));
   }
   renderCal();
+
+  /* ── живое демо: переключение вкладок ── */
+  var demoViews = document.querySelectorAll("[data-view]");
+  var demoTabs = document.querySelectorAll(".mini-side span[data-tab], .mini-tool[data-tab]");
+
+  function showView(tab) {
+    for (var i = 0; i < demoViews.length; i++) {
+      if (demoViews[i].getAttribute("data-view") === tab) {
+        demoViews[i].style.display = "";
+      } else {
+        demoViews[i].style.display = "none";
+      }
+    }
+    var sideTabs = document.querySelectorAll(".mini-side span[data-tab]");
+    for (var j = 0; j < sideTabs.length; j++) {
+      if (sideTabs[j].getAttribute("data-tab") === tab) {
+        sideTabs[j].classList.add("active");
+      } else {
+        sideTabs[j].classList.remove("active");
+      }
+    }
+  }
+
+  for (var ti = 0; ti < demoTabs.length; ti++) {
+    (function (el) {
+      el.addEventListener("click", function () {
+        showView(el.getAttribute("data-tab"));
+      });
+    })(demoTabs[ti]);
+  }
+  showView("dashboard");
+
+  /* ── живое демо: поиск по сотрудникам ── */
+  var empSearch = document.getElementById("empSearch");
+  if (empSearch) {
+    empSearch.addEventListener("input", function () {
+      var q = empSearch.value.toLowerCase();
+      var rows = document.querySelectorAll("#empTable tbody tr");
+      for (var ri = 0; ri < rows.length; ri++) {
+        var text = rows[ri].textContent.toLowerCase();
+        if (!q || text.indexOf(q) !== -1) { rows[ri].style.display = ""; }
+        else { rows[ri].style.display = "none"; }
+      }
+    });
+  }
 
   /* ── KPI-счётчики (бегущий набор) ── */
   var KPI = [

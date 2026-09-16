@@ -63,9 +63,8 @@
           </div>
         </div>
 
-        <!-- «Прикольная фишка»: живое мини-приложение -->
+        <!-- «Живое демо»: интерактивное мини-приложение с переключением вкладок -->
         <div class="hero-stage reveal" id="demo">
-          window
           <div class="appframe">
             <div class="appframe-bar">
               <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
@@ -74,22 +73,92 @@
             <div class="appframe-body">
               <div class="mini-side">
                 <div class="mini-logo"></div>
-                <span>Сотрудники</span><span>СИЗ</span><span>Обучение</span>
-                <span class="active">Дашборд</span><span>Календарь</span>
-                <span class="mini-add">…</span>
+                <span data-tab="employees">Сотрудники</span>
+                <span data-tab="ppe">СИЗ</span>
+                <span data-tab="training">Обучение</span>
+                <span class="active" data-tab="dashboard">Дашборд</span>
+                <span data-tab="calendar">Календарь</span>
+                <span class="mini-add" data-tab="tools">…</span>
               </div>
               <div class="mini-main">
-                <div class="mini-kpis">
-                  <div class="mini-kpi"><b id="kpi1">0</b><span>сотрудников</span></div>
-                  <div class="mini-kpi"><b id="kpi2">0</b><span>СИЗ на учёте</span></div>
-                  <div class="mini-kpi"><b id="kpi3">0</b><span>наряд-допусков</span></div>
+                <!-- Дашборд -->
+                <div class="mini-view" data-view="dashboard">
+                  <div class="mini-kpis">
+                    <div class="mini-kpi"><b id="kpi1">0</b><span>сотрудников</span></div>
+                    <div class="mini-kpi"><b id="kpi2">0</b><span>СИЗ на учёте</span></div>
+                    <div class="mini-kpi"><b id="kpi3">0</b><span>наряд-допусков</span></div>
+                  </div>
+                  <div class="mini-cal-head">
+                    <button class="mc-btn" data-mc="-1" aria-label="Назад">‹</button>
+                    <b id="mcTitle">…</b>
+                    <button class="mc-btn" data-mc="1" aria-label="Вперёд">›</button>
+                  </div>
+                  <div class="mini-cal" id="miniCal"></div>
                 </div>
-                <div class="mini-cal-head">
-                  <button class="mc-btn" data-mc="-1" aria-label="Назад">‹</button>
-                  <b id="mcTitle">…</b>
-                  <button class="mc-btn" data-mc="1" aria-label="Вперёд">›</button>
+                <!-- Сотрудники -->
+                <div class="mini-view" data-view="employees" style="display:none">
+                  <div class="mini-search"><input type="text" placeholder="Поиск сотрудника…" id="empSearch"></div>
+                  <table class="mini-tbl" id="empTable">
+                    <thead><tr><th>ФИО</th><th>Должность</th><th>Статус</th></tr></thead>
+                    <tbody>
+                      <tr><td>Иванов П.С.</td><td>Инженер по ОТ</td><td class="st-ok">Активен</td></tr>
+                      <tr><td>Петрова А.В.</td><td>Техник безопасности</td><td class="st-ok">Активен</td></tr>
+                      <tr><td>Сидоров К.М.</td><td>Слесарь</td><td class="st-warn">На обучении</td></tr>
+                      <tr><td>Козлова Е.Д.</td><td>Экономист</td><td class="st-ok">Активен</td></tr>
+                      <tr><td>Новиков Р.И.</td><td>Электрик</td><td class="st-err">Просрочка СИЗ</td></tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div class="mini-cal" id="miniCal"></div>
+                <!-- СИЗ -->
+                <div class="mini-view" data-view="ppe" style="display:none">
+                  <table class="mini-tbl">
+                    <thead><tr><th>Наименование</th><th>Срок годности</th><th>Статус</th></tr></thead>
+                    <tbody>
+                      <tr><td>Каска СТ-4</td><td>До дек 2026</td><td class="st-ok">Норма</td></tr>
+                      <tr><td>Перчатки ТК-3</td><td>До мар 2027</td><td class="st-ok">Норма</td></tr>
+                      <tr><td>Обувь СБЗ</td><td>До авг 2025</td><td class="st-err">Просрочены</td></tr>
+                      <tr><td>Респиратор Р-2</td><td>До янв 2026</td><td class="st-warn">Месяц остался</td></tr>
+                      <tr><td>Жилет ОС-1</td><td>До июн 2027</td><td class="st-ok">Норма</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- Обучение -->
+                <div class="mini-view" data-view="training" style="display:none">
+                  <table class="mini-tbl">
+                    <thead><tr><th>Программа</th><th>Дата</th><th>Статус</th></tr></thead>
+                    <tbody>
+                      <tr><td>Охрана труда (общий)</td><td>15 сен 2026</td><td class="st-ok">Пройдено</td></tr>
+                      <tr><td>Пожарно-технический минимум</td><td>01 окт 2026</td><td class="st-warn">Запланировано</td></tr>
+                      <tr><td>Безопасность работ на высоте</td><td>20 ноя 2026</td><td class="st-warn">Запланировано</td></tr>
+                      <tr><td>Электробезопасность (группа II)</td><td>10 дек 2025</td><td class="st-err">Просрочено</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- Календарь -->
+                <div class="mini-view" data-view="calendar" style="display:none">
+                  <div class="mini-cal-head">
+                    <button class="mc-btn" data-mc="-1" aria-label="Назад">‹</button>
+                    <b id="mcTitle2">…</b>
+                    <button class="mc-btn" data-mc="1" aria-label="Вперёд">›</button>
+                  </div>
+                  <div class="mini-cal" id="miniCal2"></div>
+                  <div class="mini-events">
+                    <div class="mini-ev"><span class="ev-dot"></span>День рождения Иванова П.С.</div>
+                    <div class="mini-ev"><span class="ev-dot ev-warn"></span>Осмотры СИЗ — через 5 дней</div>
+                    <div class="mini-ev"><span class="ev-dot ev-err"></span>Пожарный тренинг — просрочено</div>
+                  </div>
+                </div>
+                <!-- Инструменты -->
+                <div class="mini-view" data-view="tools" style="display:none">
+                  <div class="mini-tools-grid">
+                    <div class="mini-tool" data-tab="dashboard"><span class="tool-ic">⏱️</span><span>Таймер</span></div>
+                    <div class="mini-tool" data-tab="calendar"><span class="tool-ic">📅</span><span>Календарь</span></div>
+                    <div class="mini-tool"><span class="tool-ic">📝</span><span>Заметки</span></div>
+                    <div class="mini-tool"><span class="tool-ic">🧮</span><span>Калькулятор</span></div>
+                    <div class="mini-tool"><span class="tool-ic">🔢</span><span>Генератор</span></div>
+                    <div class="mini-tool"><span class="tool-ic">🎲</span><span>2048</span></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

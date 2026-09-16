@@ -14,6 +14,8 @@
   --acc-p: #4F46E5;
   --acc-soft: rgba(99, 102, 241, .14);
   --ok: #10B981;
+  --warn: #F59E0B;
+  --err: #EF4444;
   --line: rgba(255, 255, 255, .07);
   --line-strong: rgba(255, 255, 255, .13);
   --ease: cubic-bezier(.4, 0, .2, 1);
@@ -174,6 +176,37 @@ kbd { background: var(--bg-3); border: 1px solid var(--line-strong); border-radi
 .mini-cal .dn.off { color: var(--t-2); opacity: .55; }
 .mini-cal .dn.ev::after { content: ""; display: block; width: 4px; height: 4px;
   margin: 2px auto 0; border-radius: 50%; background: var(--ok); }
+
+/* ── живое демо: вкладки, мини-таблицы ── */
+.mini-side span { cursor: pointer; }
+.mini-side span:hover { background: var(--acc-soft); color: var(--acc-h); }
+.mini-search { margin-bottom: 10px; }
+.mini-search input { width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--line-strong); background: var(--bg-1); color: var(--t-0);
+  font-size: 12px; outline: none; }
+.mini-search input:focus { border-color: var(--acc); }
+.mini-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mini-tbl th { text-align: left; padding: 6px 8px; color: var(--t-2); font-size: 11px;
+  border-bottom: 1px solid var(--line); }
+.mini-tbl td { padding: 7px 8px; border-bottom: 1px solid var(--line); color: var(--t-0);
+  white-space: nowrap; }
+.mini-tbl tr:last-child td { border-bottom: none; }
+.st-ok { color: var(--ok); }
+.st-warn { color: var(--warn); }
+.st-err { color: var(--err); }
+.mini-events { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+.mini-ev { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--t-0);
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; }
+.ev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex-shrink: 0; }
+.ev-dot.ev-warn { background: var(--warn); }
+.ev-dot.ev-err { background: var(--err); }
+.mini-tools-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mini-tool { display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 6px; font-size: 11px; color: var(--t-1); cursor: pointer;
+  transition: border-color .15s var(--ease), transform .15s var(--ease); }
+.mini-tool:hover { border-color: var(--acc); transform: translateY(-2px); }
+.tool-ic { font-size: 20px; }
 
 /* ── разделы ── */
 .section { padding: 74px 0; }
