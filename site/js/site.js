@@ -280,26 +280,6 @@
     paint();
   })();
 
-  /* ── лёгкий parallax: фон двигается чуть медленнее скролла ── */
-  var reduced = false;
-  try {
-    reduced = window.matchMedia &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch (e) { reduced = false; }
-  var glowEl = document.querySelector(".bg-glow");
-  var ticking = false;
-  if (glowEl && !reduced) {
-    window.addEventListener("scroll", function () {
-      if (ticking) { return; }
-      ticking = true;
-      requestAnimationFrame(function () {
-        var y = window.pageYOffset || document.documentElement.scrollTop || 0;
-        glowEl.style.backgroundPosition = "0 " + (y * 0.25) + "px";
-        ticking = false;
-      });
-    });
-  }
-
   /* ── командная палитра (Ctrl+K) ── */
   var COMMANDS = [
     { label: "Скачать программу", g: "Ctrl+N", cat: "Загрузка", href: "#download" },

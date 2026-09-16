@@ -74,6 +74,7 @@ kbd { background: var(--bg-3); border: 1px solid var(--line-strong); border-radi
 
 /* ── фон ── */
 .bg-glow { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-attachment: scroll;
   background:
     radial-gradient(900px 420px at 15% -5%, rgba(99,102,241,.20), transparent 60%),
     radial-gradient(700px 380px at 90% 15%, rgba(16,185,129,.10), transparent 60%); }
