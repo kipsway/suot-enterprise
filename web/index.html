@@ -40,9 +40,7 @@
 <body x-data="suotApp()" x-init="init()" :data-theme="theme" x-cloak
       @suot-logout.window="logout()"
       @suot-toggle-theme.window="toggleTheme()"
-      @suot-table-settings.window="openTableSettings($event.detail.key)"
-      @suot-table-settings.window="openTableSettings($event.detail.key)"
-      
+      @suot-table-settings.window="openTableSettings($event.detail.key)">
 <!-- ═══════════ ЭКРАН 1: ВЫБОР ЯЗЫКА ═══════════ -->
 <template x-if="screen === 'lang'">
 <div class="screen screen-lang">

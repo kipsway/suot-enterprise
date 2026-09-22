@@ -171,12 +171,24 @@ window.backupCenter = function () {
         this.busy = false;
       }
     },
-    download(name) {
-      const a = document.createElement("a");
-      a.href = "/api/backup/download?name=" +
-        encodeURIComponent(name);
-      a.download = name;
-      a.click();
+    async download(name) {
+      // Скачивание идёт через fetch с токеном: plain <a href> без
+      // Authorization получал бы 401.
+      try {
+        const res = await fetch("/api/backup/download?name=" +
+          encodeURIComponent(name), { headers: API.authHeaders() });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        }, 4000);
+      } catch (e) { Toast.show(e.message, "error"); }
     },
     fmtSize(n) {
       return n > 1048576 ? (n / 1048576).toFixed(1) + " МБ"

@@ -25,13 +25,27 @@ flyway-*.log
 
 # Отладочный мусор (не коммитить)
 _*_dbg*.py
+_dbg*.py
 _*_probe*.py
+_probe*.py
 _*_mini*.py
+_mini*.py
 _bisect.py
 _cmt*.py
 _cmp*.py
 _*_diff*.py
+_hdiff.py
+_diff_out.txt
 _*_tbal.py
+_tbal.py
 _*_thead.py
+_thead.py
 _test_import.py
+test_import.py
 _use_dist.py
+_panecheck.py
+_tb.py
+_tmp_check.py
+_xdcheck.py
+_i_pg2.py
+*.log

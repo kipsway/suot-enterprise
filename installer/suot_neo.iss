@@ -3,7 +3,7 @@
 ; Перед компиляцией: python scripts\build_exe.py
 
 #define AppName "ОхранаТруда Про"
-#define AppVersion "2.2.2"
+#define AppVersion "2.2.3"
 #define AppExe "SUOT_Neo.exe"
 #define InstallerGuid "{7E1B6C2A-52F4-4A57-9D8E-2F3C4A5B6C7D}"
 

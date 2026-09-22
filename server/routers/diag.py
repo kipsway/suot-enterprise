@@ -10,6 +10,7 @@ import time
 from fastapi import APIRouter, Depends
 from server.deps import get_db, get_current_user, is_admin
 from server import tokens
+from app_core.version import APP_VERSION
 
 router = APIRouter(prefix="/api/diag", tags=["diag"])
 
@@ -109,7 +110,7 @@ def diag_summary(db=Depends(get_db), user=Depends(get_current_user)):
     return {
         "app": {
             "name": "ОхранаТруда Про",
-            "version": "3.0.0",
+            "version": APP_VERSION,
             "mode": "exe" if getattr(sys, "frozen", False) else "source",
             "uptime_sec": int(time.time() - _START_TIME),
         },

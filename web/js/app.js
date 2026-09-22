@@ -1,6 +1,6 @@
 /* SUOT Neo — корневое состояние приложения (Alpine.js) */
 document.addEventListener("alpine:init", () => {
-  Alpine.store("version", "2.2.2");
+  Alpine.store("version", "2.2.3");
   Alpine.store("brand", { org_name: "", logo: "" });
   Alpine.store("startScreen", localStorage.getItem("suot_start")
     || "workspace");
@@ -538,6 +538,13 @@ document.addEventListener("alpine:init", () => {
       }).catch(() => {});
     },
 
+    stopHealthLoop() {
+      if (this._healthTimer) {
+        clearInterval(this._healthTimer);
+        this._healthTimer = null;
+      }
+    },
+
     startHealthLoop() {
       if (this._healthTimer) return;
       const ping = async () => {
@@ -553,6 +560,8 @@ document.addEventListener("alpine:init", () => {
     },
 
     initScrollTop() {
+      if (this._scrollTopBound) return;
+      this._scrollTopBound = true;
       this.$nextTick(() => {
         const c = document.querySelector(".content");
         if (!c) return;
@@ -634,6 +643,7 @@ document.addEventListener("alpine:init", () => {
 
     logout() {
       API.setToken("", false);
+      this.stopHealthLoop();
       this.user = null;
       Alpine.store("user", {});
       this.demoNeeded = false;

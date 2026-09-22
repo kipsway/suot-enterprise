@@ -4,5 +4,5 @@
 скриптом scripts/release.py. Не менять вручную.
 """
 
-APP_VERSION = "2.2.2"
-BUILD_NUMBER = 3
+APP_VERSION = "2.2.3"
+BUILD_NUMBER = 4

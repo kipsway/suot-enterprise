@@ -20,7 +20,9 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERSION_FILE = os.path.join(ROOT, "app_core", "version.py")
-ISCC = r"C:\Users\ДДД\AppData\Local\Programs\Inno Setup 6\ISCC.exe"
+ISCC = os.environ.get("SUOT_ISCC") or (
+    r"C:\Users\ДДД\AppData\Local\Programs\Inno Setup 6\ISCC.exe"
+)
 
 # Файлы, где упоминается старая версия (обновляются на новую).
 VERSIONED = [

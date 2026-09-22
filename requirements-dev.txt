@@ -1,0 +1,7 @@
+# Зависимости для разработки/тестирования (в прод-сборку не входят).
+# Установка: python -m pip install -r requirements-dev.txt
+pyinstaller>=6.0.0
+pytest>=8.0.0
+ruff>=0.4.0
+playwright>=1.44.0
+httpx>=0.27.0

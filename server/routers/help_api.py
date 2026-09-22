@@ -8,11 +8,12 @@ from datetime import datetime
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from server.deps import get_db, get_current_user, is_admin
+from server import tokens
+from server.deps import get_db, get_current_user, is_admin, revoke_user_sessions
 from app_core.version import APP_VERSION
 
 router = APIRouter(prefix="/api", tags=["help"])
@@ -57,11 +58,17 @@ DEFAULT_MANIFEST = "https://kipsway.github.io/suot-enterprise/downloads/index.js
 def update_check(
     body: UpdateIn = None, db=Depends(get_db), user=Depends(get_current_user)
 ):
-    url = (body.manifest_url if body else "") or db.get_setting(
-        "update_manifest_url", ""
-    )
+    # Кастомный URL манифеста разрешён только администратору: иначе любой
+    # вошедший пользователь мог бы заставить сервер запросить произвольный
+    # URL (SSRF). Остальные используют настроенный URL или URL по умолчанию.
+    if is_admin(user) and body and (body.manifest_url or "").strip():
+        url = body.manifest_url.strip()
+    else:
+        url = db.get_setting("update_manifest_url", "")
     if not url:
         url = DEFAULT_MANIFEST
+    if not url.lower().startswith(("http://", "https://")):
+        raise HTTPException(400, "Некорректный URL манифеста")
     try:
         r = httpx.get(url, timeout=8.0)
         r.raise_for_status()
@@ -107,7 +114,7 @@ class OpenUpdateIn(BaseModel):
 
 
 @router.post("/update/open")
-def open_update_form(body: OpenUpdateIn):
+def open_update_form(body: OpenUpdateIn, user=Depends(get_current_user)):
     import webbrowser
     import threading
 
@@ -122,7 +129,10 @@ def open_update_form(body: OpenUpdateIn):
 def set_update_url(body: UpdateIn, db=Depends(get_db), user=Depends(get_current_user)):
     if not is_admin(user):
         raise HTTPException(403, "Только администратор")
-    db.upsert_setting("update_manifest_url", body.manifest_url.strip())
+    url = (body.manifest_url or "").strip()
+    if url and not url.lower().startswith(("http://", "https://")):
+        raise HTTPException(400, "URL должен начинаться с http:// или https://")
+    db.upsert_setting("update_manifest_url", url)
     return {"ok": True}
 
 
@@ -290,6 +300,7 @@ def block_user(
     )
     if body.blocked:
         db.execute("UPDATE users SET session_token='' WHERE id=?", (uid,))
+        revoke_user_sessions(db, uid)
     db.commit()
     verb = "blocked" if body.blocked else "unblocked"
     db.log_event(
@@ -316,6 +327,7 @@ def reset_password(uid: int, db=Depends(get_db), user=Depends(get_current_user))
         "UPDATE users SET password_hash=?, salt=?, session_token='' WHERE id=?",
         (pwd_hash, salt, uid),
     )
+    revoke_user_sessions(db, uid)
     db.commit()
     db.log_event(
         f"Password reset: {target['username']}", "WARN", {"by": user["username"]}
@@ -339,7 +351,10 @@ class ChangePwdIn(BaseModel):
 
 @router.post("/auth/change_password")
 def change_password(
-    body: ChangePwdIn, db=Depends(get_db), user=Depends(get_current_user)
+    body: ChangePwdIn,
+    request: Request,
+    db=Depends(get_db),
+    user=Depends(get_current_user),
 ):
     row = db.fetch_one("SELECT * FROM users WHERE id=?", (int(user["id"]),))
     if not row:
@@ -355,6 +370,10 @@ def change_password(
         "UPDATE users SET password_hash=?, salt=? WHERE id=?",
         (pwd_hash, salt, int(user["id"])),
     )
+    # Отзываем все чужие сессии, текущую сохраняем (пользователь остаётся в системе).
+    auth = request.headers.get("Authorization", "")
+    cur = auth[7:].strip() if auth.startswith("Bearer ") else ""
+    revoke_user_sessions(db, int(user["id"]), tokens.token_hash(cur) if cur else "")
     db.commit()
     db.log_event(f"Password changed: {row['username']}", "INFO", {})
     return {"ok": True}

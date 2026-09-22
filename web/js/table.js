@@ -832,6 +832,7 @@
         this.dialogBusy = true;
         try {
           let prevData = null;
+          let data;
           if (this.dialog.mode === "edit") {
             const r = this.rows.find((x) => x.id === this.dialog.id);
             prevData = r ? JSON.parse(JSON.stringify(r.data)) : null;
@@ -1257,10 +1258,13 @@
       },
 
       /* ── Часть 21: печать текущего вида ── */      async printList() {
+        if (this._printBusy) return;
+        this._printBusy = true;
         const cols = (this.visibleCols || []).map((c) => c.name);
         if (!cols.length) {
           Toast.show(I18N.lang === "ru" ? "Нет колонок" : "No columns",
             "error");
+          this._printBusy = false;
           return;
         }
         const rows = this.rowsFiltered.map((r) =>
@@ -1295,6 +1299,8 @@
         } catch (e) {
           Toast.show(e.message, "error");
           Sounds.play("error");
+        } finally {
+          this._printBusy = false;
         }
       },
       async pluginAction(behavior) {
@@ -1636,7 +1642,7 @@
           : this.rows;
         if (!rows.length) return;
         const cols = this.visibleCols;
-        const esc = (v) => '"' + String(v !== undefined && row.data[c.name] !== null ? row.data[c.name] : "").replace(/"/g, '""') + '"';
+        const esc = (v) => '"' + String(v === undefined || v === null ? "" : v).replace(/"/g, '""') + '"';
         const head = ["ID", ...cols.map((c) => c.name)].map(esc).join(";");
         const lines = rows.map((r) =>
           [esc(r.id), ...cols.map((c) => esc(this.cell(r, c)))].join(";"));

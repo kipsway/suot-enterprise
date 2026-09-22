@@ -121,7 +121,8 @@ with client:
     )
     check("заблокирован: login → 403", rl.status_code == 403, str(rl.status_code))
     rme = client.get("/api/auth/me", headers=HU)
-    check("заблокирован: старый токен → 403", rme.status_code == 403)
+    # Сессии отзываются при блокировке → старый токен мёртв (401 вместо 403).
+    check("заблокирован: старый токен → 401", rme.status_code == 401)
     runb = client.post(
         f"/api/admin/users/{uid}/block", headers=HAdm, json={"blocked": False}
     )

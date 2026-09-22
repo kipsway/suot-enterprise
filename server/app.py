@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app_core.version import APP_VERSION
+
 from server.routers import (
     auth,
     data,
@@ -107,7 +109,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ОхранаТруда Про", version="2.2.0", lifespan=lifespan)
+app = FastAPI(title="ОхранаТруда Про", version=APP_VERSION, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
