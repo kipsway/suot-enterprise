@@ -19,7 +19,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff
-      - name: Ruff (критичные правила: синтаксис, неопределённые имена, дубли)
+      - name: "Ruff (критичные правила: синтаксис, неопределённые имена, дубли)"
         run: |
           ruff check server services app_core scripts tests --select E9,F63,F7,F82,F811 --output-format=concise
       - name: Syntax check
