@@ -12,10 +12,10 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from server.deps import get_db, get_current_user
+from server.deps import get_db, get_current_user, is_admin
 from services.database import DatabaseManager
 
 router = APIRouter(prefix="/api/exporter", tags=["exporter"])
@@ -90,6 +90,10 @@ def set_plan(body: PlanIn, db=Depends(get_db), user=Depends(get_current_user)):
 
 @router.post("/run_now")
 def run_now(db=Depends(get_db), user=Depends(get_current_user)):
+    # IDOR-фикс (аудит 7.2 п.7): экспорт идёт с owner=None (все данные) —
+    # запуск вручную только для администратора.
+    if not is_admin(user):
+        raise HTTPException(403, "Только для администратора")
     plan = _load_plan(db)
     out = do_export(db, plan)
     return {"ok": True, "file": out}

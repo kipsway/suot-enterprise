@@ -392,7 +392,14 @@ rnd = client.delete(f"/api/record/notes/{nid}", headers=HA)
 check("заметка удалена", rnd.status_code == 200)
 
 # Связи
-rc_id = comp_id
+# IDOR-фикс (аудит 7.2 п.5): цель связи тоже должна быть доступна.
+# comp_id создан пользователем B — A не может связать с ним; создаём свою.
+rca = client.post(
+    "/api/data/companies",
+    headers=HA,
+    json={"data": {"Наименование": "ООО КомпанияА"}},
+)
+rc_id = rca.json()["id"]
 rln = (
     client.post(
         f"/api/record/violations/{rb_own_id if False else 1}/links",
@@ -409,6 +416,12 @@ rvl = client.post(
     json={"data": {"Описание": "связь-тест", "Дата": "01.08.2026"}},
 )
 viol_id = rvl.json()["id"]
+rln_x = client.post(
+    f"/api/record/violations/{viol_id}/links",
+    headers=HA,
+    json={"target_table": "companies", "target_id": comp_id},
+)
+check("связь к чужой компании → 403", rln_x.status_code == 403, str(rln_x.json()))
 rln = client.post(
     f"/api/record/violations/{viol_id}/links",
     headers=HA,
@@ -424,7 +437,7 @@ check("дубль связи → 409", rln2.status_code == 409)
 rll = client.get(f"/api/record/violations/{viol_id}/links", headers=HA)
 check(
     "имя связанной записи резолвится",
-    any("Переименованная" in (i.get("target_name") or "") for i in rll.json()["items"]),
+    any("КомпанияА" in (i.get("target_name") or "") for i in rll.json()["items"]),
     str(rll.json()["items"][:1]),
 )
 

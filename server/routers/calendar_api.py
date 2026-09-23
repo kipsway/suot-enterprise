@@ -301,12 +301,16 @@ def update_category(
     name = (body.name or "").strip()
     if not name:
         raise HTTPException(400, "Укажите название категории")
-    db.calendar_save_category(
-        int(user["id"]),
-        cat_id,
-        name[:60],
-        (body.color or "").strip() or CAT_COLOR,
-    )
+    try:
+        db.calendar_save_category(
+            int(user["id"]),
+            cat_id,
+            name[:60],
+            (body.color or "").strip() or CAT_COLOR,
+        )
+    except ValueError:
+        # IDOR-фикс (аудит 7.2 п.9): чужая категория не обновляется.
+        raise HTTPException(404, "Категория не найдена или нет доступа")
     return {"ok": True}
 
 

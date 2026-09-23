@@ -263,6 +263,9 @@ def preview(body: PreviewIn, db=Depends(get_db), user=Depends(get_current_user))
     admin = is_admin(user)
     data: Dict[str, Any] = {}
     if body.record_id:
+        # IDOR-фикс (аудит 7.2 п.3): предпросмотр только своих записей.
+        if not db.user_can_access(body.table, body.record_id, uid, admin):
+            raise HTTPException(403, "Нет доступа к записи")
         if body.table in DatabaseManager.JSON_TABLES:
             rec = db.get_json_record(body.table, body.record_id)
             if rec:

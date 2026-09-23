@@ -61,6 +61,9 @@ def _collect_rows(
     if ids:
         out = []
         for rid in ids:
+            # IDOR-фикс (аудит 7.2 п.1): экспорт по ids — только свои записи.
+            if not db.user_can_access(table, int(rid), int(user["id"]), admin):
+                continue
             rec = (
                 db.get_json_record(table, int(rid))
                 if table in DatabaseManager.JSON_TABLES

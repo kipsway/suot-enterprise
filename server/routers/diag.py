@@ -74,10 +74,19 @@ def _webview2_info() -> dict:
     }
 
 
+def _require_admin(user: dict) -> None:
+    """IDOR-фикс (аудит 7.2 п.8): диагностика — только администратору."""
+    if not is_admin(user):
+        from fastapi import HTTPException
+
+        raise HTTPException(403, "Только для администратора")
+
+
 @router.get("")
 @router.get("/summary")
 def diag_summary(db=Depends(get_db), user=Depends(get_current_user)):
-    """Общая диагностика для любого авторизованного пользователя."""
+    """Общая диагностика (версии, пути, размеры) — только админу."""
+    _require_admin(user)
 
     def _port() -> int:
         try:
@@ -144,7 +153,8 @@ def diag_summary(db=Depends(get_db), user=Depends(get_current_user)):
 
 @router.get("/log")
 def diag_log(limit: int = 40, db=Depends(get_db), user=Depends(get_current_user)):
-    """Последние записи журнала аудита."""
+    """Последние записи журнала аудита (чужие события) — только админу."""
+    _require_admin(user)
     limit = max(1, min(limit, 200))
     rows = db.fetch_all(
         "SELECT id, timestamp, event, severity, username, details "
@@ -167,7 +177,8 @@ def diag_log(limit: int = 40, db=Depends(get_db), user=Depends(get_current_user)
 
 @router.get("/disk")
 def diag_disk(db=Depends(get_db), user=Depends(get_current_user)):
-    """Размеры директорий данных (БД, бэкапы, медиа, экспорт)."""
+    """Размеры директорий данных (БД, бэкапы, медиа, экспорт) — только админу."""
+    _require_admin(user)
     from app_core.config import RUNTIME_PATHS
 
     def _size_of(d: str) -> int:

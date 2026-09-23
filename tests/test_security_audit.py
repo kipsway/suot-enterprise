@@ -216,6 +216,136 @@ check(
     r.json().get("app", {}).get("version") == APP_VERSION,
     r.json().get("app", {}).get("version"),
 )
+print("== IDOR: изоляция записей (аудит 7.2 п.1-9) ==")
+# Запись админа — недоступна worker1 (tD) ни через один из путей.
+r = c.post(
+    "/api/data/employees",
+    headers=H(ADMIN),
+    json={"data": {"ФИО": "IDOR-Test AdminRecord", "Должность": "Тест"}},
+)
+check("admin record created", r.status_code == 201, r.status_code)
+AREC = r.json()["id"]
+
+# п.1: экспорт по ids без проверки владельца
+r = c.post(
+    "/api/export/json/employees",
+    headers=H(tD),
+    json={"table": "employees", "ids": [AREC]},
+)
+leaked = [i for i in r.json().get("items", []) if i.get("id") == AREC or i.get("ФИО") == "IDOR-Test AdminRecord"]
+check("export ids: чужая запись отфильтрована", r.status_code == 200 and not leaked, r.status_code)
+
+# п.2: batch_pdf по record_ids без проверки владельца
+r = c.post(
+    "/api/print/batch_pdf",
+    headers=H(tD),
+    json={"template_html": "<div>{ФИО}</div>", "table": "employees", "record_ids": [AREC]},
+)
+check("batch_pdf: чужие ids -> 404 (нет записей)", r.status_code == 404, r.status_code)
+
+# п.3: preview чужой записи
+r = c.post(
+    "/api/print/preview",
+    headers=H(tD),
+    json={"html_content": "<div>{ФИО}</div>", "table": "employees", "record_id": AREC},
+)
+check("preview чужой записи -> 403", r.status_code == 403, r.status_code)
+
+# п.4: transfer из системной таблицы чужих записей
+r = c.post(
+    "/api/custom/transfer",
+    headers=H(tD),
+    json={"from_key": "employees", "to_key": "violations", "ids": [AREC], "move": False},
+)
+check("transfer чужой записи -> moved=0", r.status_code == 200 and r.json().get("moved") == 0, f"{r.status_code} {r.json()}")
+
+# п.5: удаление чужих заметок/связей
+nid = c.post(
+    f"/api/record/employees/{AREC}/notes",
+    headers=H(ADMIN),
+    json={"title": "n", "content": "secret"},
+).json()["id"]
+r = c.delete(f"/api/record/notes/{nid}", headers=H(tD))
+check("note_del чужой -> 403", r.status_code == 403, r.status_code)
+r = c.delete(f"/api/record/notes/{nid}", headers=H(ADMIN))
+check("note_del свой -> 200", r.status_code == 200, r.status_code)
+
+r = c.post(
+    "/api/data/employees",
+    headers=H(ADMIN),
+    json={"data": {"ФИО": "IDOR-Test Target"}},
+)
+AREC2 = r.json()["id"]
+c.post(
+    f"/api/record/employees/{AREC}/links",
+    headers=H(ADMIN),
+    json={"target_table": "employees", "target_id": AREC2},
+)
+links = c.get(f"/api/record/employees/{AREC}/links", headers=H(ADMIN)).json()["items"]
+lid = links[0]["id"] if links else 0
+r = c.delete(f"/api/record/links/{lid}", headers=H(tD))
+check("link_del чужой -> 403", r.status_code == 403, r.status_code)
+# link_add к чужой целевой записи
+wrec = c.post(
+    "/api/data/employees",
+    headers=H(tD),
+    json={"data": {"ФИО": "IDOR-Test WorkerRec"}},
+).json()["id"]
+r = c.post(
+    f"/api/record/employees/{wrec}/links",
+    headers=H(tD),
+    json={"target_table": "employees", "target_id": AREC2},
+)
+check("link_add к чужой цели -> 403", r.status_code == 403, r.status_code)
+
+# п.6: импорт — STASH, undo, history привязаны к пользователю
+r = c.post(
+    "/api/import/upload_text",
+    headers=H(ADMIN),
+    json={"text": "ФИО\nIDOR Import Row", "filename": "idor.csv"},
+)
+fid_admin = r.json()["file_id"]
+r = c.get(f"/api/import/preview/{fid_admin}", headers=H(tD))
+check("import preview чужого файла -> 403", r.status_code == 403, r.status_code)
+r = c.post(
+    "/api/import/run",
+    headers=H(ADMIN),
+    json={"file_id": fid_admin, "table": "employees", "mapping": {"ФИО": "ФИО"}, "mode": "insert"},
+)
+imp_id = r.json().get("import_id", 0)
+check("admin import run", r.status_code == 200 and imp_id, f"{r.status_code} {imp_id}")
+r = c.post("/api/import/undo", headers=H(tD), json={"import_id": imp_id})
+check("import undo чужого -> 403", r.status_code == 403, r.status_code)
+hist_w = c.get("/api/import/history", headers=H(tD)).json()["items"]
+check("import history изолирована", all(h["id"] != imp_id for h in hist_w), str([h["id"] for h in hist_w]))
+hist_a = c.get("/api/import/history", headers=H(ADMIN)).json()["items"]
+check("admin видит свой импорт", any(h["id"] == imp_id for h in hist_a))
+r = c.post("/api/import/undo", headers=H(ADMIN), json={"import_id": imp_id})
+check("import undo свой -> 200", r.status_code == 200, r.status_code)
+
+# п.7: exporter run_now — только админ
+r = c.post("/api/exporter/run_now", headers=H(tD))
+check("exporter run_now non-admin -> 403", r.status_code == 403, r.status_code)
+
+# п.8: diag — только админ
+for ep in ("/api/diag/summary", "/api/diag/log", "/api/diag/disk"):
+    r = c.get(ep, headers=H(tD))
+    check(f"diag {ep.split('/')[-1]} non-admin -> 403", r.status_code == 403, r.status_code)
+r = c.get("/api/diag/summary", headers=H(ADMIN))
+check("diag summary admin -> 200", r.status_code == 200, r.status_code)
+
+# п.9: календарь — обновление чужой категории
+cid = c.post(
+    "/api/calendar/categories", headers=H(ADMIN), json={"name": "IDOR Cat"}
+).json()["id"]
+r = c.put(
+    f"/api/calendar/categories/{cid}", headers=H(tD), json={"name": "Hacked"}
+)
+check("calendar update чужой категории -> 404", r.status_code == 404, r.status_code)
+r = c.put(
+    f"/api/calendar/categories/{cid}", headers=H(ADMIN), json={"name": "IDOR Cat 2"}
+)
+check("calendar update своей -> 200", r.status_code == 200, r.status_code)
 
 print(f"\n=> {len(PASS)} OK, {len(FAIL)} FAIL")
 if FAIL:

@@ -15,10 +15,9 @@ def _access(db: DatabaseManager, table: str, record_id: int, user: dict) -> None
     """Проверка доступа к записи (владелец / админ / общая)."""
     if table not in DatabaseManager.JSON_TABLES:
         raise HTTPException(404, f"Неизвестная таблица: {table}")
-    row = db.fetch_one(f"SELECT user_id FROM {table} WHERE id=?", (record_id,))
-    if not row:
+    owner = db.record_owner_id(table, record_id)
+    if owner is None:
         raise HTTPException(404, "Запись не найдена")
-    owner = int(row["user_id"] or 0)
     if owner != 0 and owner != int(user["id"]) and not is_admin(user):
         raise HTTPException(403, "Нет доступа к записи")
 
@@ -63,6 +62,15 @@ def note_add(
 
 @router.delete("/notes/{note_id}")
 def note_del(note_id: int, db=Depends(get_db), user=Depends(get_current_user)):
+    # IDOR-фикс (аудит 7.2 п.5): заметку можно удалить, только если есть
+    # доступ к записи, к которой она привязана.
+    note = db.fetch_one(
+        "SELECT entity_type, entity_id FROM notes WHERE id=?", (note_id,)
+    )
+    if not note:
+        raise HTTPException(404, "Заметка не найдена")
+    if note["entity_type"] != "global":
+        _access(db, note["entity_type"], int(note["entity_id"] or 0), user)
     ok = db.delete_note(note_id)
     if not ok:
         raise HTTPException(404, "Заметка не найдена")
@@ -98,11 +106,8 @@ def link_add(
     _access(db, table, record_id, user)
     if body.target_table not in DatabaseManager.JSON_TABLES:
         raise HTTPException(400, "Неверная целевая таблица")
-    tgt = db.fetch_one(
-        f"SELECT id FROM {body.target_table} WHERE id=?", (body.target_id,)
-    )
-    if not tgt:
-        raise HTTPException(404, "Целевая запись не найдена")
+    # IDOR-фикс (аудит 7.2 п.5): целевая запись тоже должна быть доступна.
+    _access(db, body.target_table, body.target_id, user)
     dup = db.fetch_one(
         "SELECT id FROM record_links WHERE source_table=? AND source_id=? "
         "AND target_table=? AND target_id=?",
@@ -120,6 +125,14 @@ def link_add(
 
 @router.delete("/links/{link_id}")
 def link_del(link_id: int, db=Depends(get_db), user=Depends(get_current_user)):
+    # IDOR-фикс (аудит 7.2 п.5): связь можно удалить, только если есть
+    # доступ к записи-источнику.
+    link = db.fetch_one(
+        "SELECT source_table, source_id FROM record_links WHERE id=?", (link_id,)
+    )
+    if not link:
+        raise HTTPException(404, "Связь не найдена")
+    _access(db, link["source_table"], int(link["source_id"]), user)
     ok = db.remove_record_link(link_id)
     if not ok:
         raise HTTPException(404, "Связь не найдена")

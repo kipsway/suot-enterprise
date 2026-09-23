@@ -56,14 +56,31 @@ def _norm_date(v: Any) -> Optional[str]:
     return None
 
 
-def _stash_put(content: bytes, filename: str) -> str:
+def _stash_put(content: bytes, filename: str, user_id: int = 0) -> str:
     fid = uuid.uuid4().hex[:16]
-    STASH[fid] = {"content": content, "filename": filename, "ts": datetime.now()}
+    # IDOR-фикс (аудит 7.2 п.6): stash привязан к пользователю.
+    STASH[fid] = {
+        "content": content,
+        "filename": filename,
+        "ts": datetime.now(),
+        "user_id": int(user_id),
+    }
     # чистка старых
     for k in list(STASH):
         if (datetime.now() - STASH[k]["ts"]).total_seconds() > STASH_TTL:
             STASH.pop(k, None)
     return fid
+
+
+def _stash_get(fid: str, user: dict) -> Dict[str, Any]:
+    """Запись stash с проверкой владельца (IDOR-фикс, аудит 7.2 п.6)."""
+    st = STASH.get(fid)
+    if not st:
+        raise HTTPException(404, "Файл истёк, загрузите заново")
+    owner = int(st.get("user_id") or 0)
+    if owner and owner != int(user["id"]) and not is_admin(user):
+        raise HTTPException(403, "Нет доступа к файлу")
+    return st
 
 
 def _parse_sheet(
@@ -129,13 +146,13 @@ async def upload_file(
     fn = file.filename or "import.csv"
     if not fn.lower().endswith((".xlsx", ".xlsm", ".csv", ".tsv", ".txt", ".zip")):
         raise HTTPException(400, "Поддерживаются .xlsx и .csv")
-    fid = _stash_put(content, fn)
+    fid = _stash_put(content, fn, int(user["id"]))
     return {"file_id": fid, "filename": fn, "sheets": _sheet_names(content, fn)}
 
 
 @router.post("/upload_text")
 def upload_text(body: UploadTextIn, db=Depends(get_db), user=Depends(get_current_user)):
-    fid = _stash_put(body.text.encode("utf-8"), body.filename)
+    fid = _stash_put(body.text.encode("utf-8"), body.filename, int(user["id"]))
     return {
         "file_id": fid,
         "filename": body.filename,
@@ -151,9 +168,7 @@ def preview(
     db=Depends(get_db),
     user=Depends(get_current_user),
 ):
-    st = STASH.get(fid)
-    if not st:
-        raise HTTPException(404, "Файл истёк, загрузите заново")
+    st = _stash_get(fid, user)
     headers, rows = _parse_sheet(st["content"], st["filename"], sheet)
     return {"headers": headers, "total": len(rows), "rows": rows[:limit]}
 
@@ -177,10 +192,9 @@ class AnalyzeIn(BaseModel):
 
 def _build_records(
     body: AnalyzeIn,
+    user: dict,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[str]]:
-    st = STASH.get(body.file_id)
-    if not st:
-        raise HTTPException(404, "Файл истёк, загрузите заново")
+    st = _stash_get(body.file_id, user)
     headers, rows = _parse_sheet(st["content"], st["filename"], body.sheet)
     db = DatabaseManager()
     sys_cols = {
@@ -238,7 +252,7 @@ def _build_records(
 @router.post("/analyze")
 def analyze(body: AnalyzeIn, db=Depends(get_db), user=Depends(get_current_user)):
     _table_ok(body.table)
-    records, errors, headers = _build_records(body)
+    records, errors, headers = _build_records(body, user)
     uid = int(user["id"])
     admin = is_admin(user)
     to_update = 0
@@ -277,7 +291,7 @@ class RunIn(AnalyzeIn):
 @router.post("/run")
 def run_import(body: RunIn, db=Depends(get_db), user=Depends(get_current_user)):
     _table_ok(body.table)
-    records, errors, headers = _build_records(body)
+    records, errors, headers = _build_records(body, user)
     uid = int(user["id"])
     admin = is_admin(user)
     created_ids: List[int] = []
@@ -321,7 +335,7 @@ def run_import(body: RunIn, db=Depends(get_db), user=Depends(get_current_user)):
     }
     cur = db.execute(
         "INSERT INTO import_history (table_name, source_file, imported, "
-        "updated, errors, details) VALUES (?, ?, ?, ?, ?, ?)",
+        "updated, errors, details, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (
             body.table,
             STASH.get(body.file_id, {}).get("filename", ""),
@@ -329,6 +343,7 @@ def run_import(body: RunIn, db=Depends(get_db), user=Depends(get_current_user)):
             updated_n,
             len(errors),
             JsonUtils.dumps(details),
+            uid,
         ),
     )
     db.commit()
@@ -351,16 +366,28 @@ def undo_import(body: UndoIn, db=Depends(get_db), user=Depends(get_current_user)
     h = db.fetch_one("SELECT * FROM import_history WHERE id=?", (body.import_id,))
     if not h:
         raise HTTPException(404, "Импорт не найден")
+    # IDOR-фикс (аудит 7.2 п.6): отменять можно только свой импорт.
+    owner = int(h["user_id"] or 0)
+    if owner and owner != int(user["id"]) and not is_admin(user):
+        raise HTTPException(403, "Нет доступа к импорту")
+    # IDOR-фикс: table_name из БД — только известные JSON-таблицы.
+    if h["table_name"] not in DatabaseManager.JSON_TABLES:
+        raise HTTPException(400, "Неизвестная таблица импорта")
     try:
         details = JsonUtils.loads(h["details"] or "{}")
     except Exception:
         details = {}
     undone = 0
     for cid in details.get("created_ids", []):
+        # IDOR-фикс: удаляем только свои/общие записи.
+        if not db.user_can_access(h["table_name"], int(cid), int(user["id"]), is_admin(user)):
+            continue
         if db.fetch_one(f"SELECT id FROM {h['table_name']} WHERE id=?", (cid,)):
             db.delete_json_record(h["table_name"], cid)
             undone += 1
     for snap in details.get("updated", []):
+        if not db.user_can_access(h["table_name"], int(snap["id"]), int(user["id"]), is_admin(user)):
+            continue
         db.save_json_record(
             h["table_name"], snap["id"], snap.get("prev", {}), user_id=int(user["id"])
         )
@@ -372,12 +399,19 @@ def undo_import(body: UndoIn, db=Depends(get_db), user=Depends(get_current_user)
 
 @router.get("/history")
 def history(limit: int = 20, db=Depends(get_db), user=Depends(get_current_user)):
-    rows = db.fetch_all(
-        "SELECT id, timestamp, table_name, source_file, imported, updated, "
-        "errors FROM import_history ORDER BY id DESC LIMIT ?",
-        (limit,),
+    # IDOR-фикс (аудит 7.2 п.6): не-админ видит только свои импорты.
+    rows = db.get_import_history(
+        limit, user_id=int(user["id"]), is_admin=is_admin(user)
     )
-    return {"items": [dict(r) for r in rows]}
+    items = [
+        {
+            k: r.get(k)
+            for k in ("id", "timestamp", "table_name", "source_file",
+                      "imported", "updated", "errors")
+        }
+        for r in rows
+    ]
+    return {"items": items}
 
 
 @router.get("/template/{table}")
@@ -421,9 +455,7 @@ class PhotosIn(BaseModel):
 def photos_zip(body: PhotosIn, db=Depends(get_db), user=Depends(get_current_user)):
     if body.table not in DatabaseManager.JSON_TABLES:
         raise HTTPException(404, "Неизвестная таблица")
-    st = STASH.get(body.file_id)
-    if not st:
-        raise HTTPException(404, "ZIP истёк, загрузите заново")
+    st = _stash_get(body.file_id, user)
     if not st["filename"].lower().endswith(".zip"):
         raise HTTPException(400, "Нужен .zip архив")
     from app_core.config import RUNTIME_PATHS

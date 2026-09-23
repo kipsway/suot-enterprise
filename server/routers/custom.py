@@ -420,6 +420,10 @@ def transfer(body: TransferIn, db=Depends(get_db), user=Depends(get_current_user
             rec = db.get_custom_record(body.from_key, rid)
             src_data = dict(rec.get("data_json") or {})
         else:
+            # IDOR-фикс (аудит 7.2 п.4): из системной таблицы переносятся
+            # только свои/общие записи.
+            if not db.user_can_access(body.from_key, rid, int(user["id"]), is_admin(user)):
+                continue
             rec = db.get_json_record(body.from_key, rid)
             if not rec:
                 continue

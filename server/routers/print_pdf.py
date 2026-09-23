@@ -191,6 +191,9 @@ def batch_pdf(body: BatchPdfIn, db=Depends(get_db), user=Depends(get_current_use
     rows = []
     if body.record_ids:
         for rid in body.record_ids:
+            # IDOR-фикс (аудит 7.2 п.2): печать по ids — только свои записи.
+            if not db.user_can_access(body.table, rid, uid, admin):
+                continue
             rec = db.get_json_record(body.table, rid)
             if rec:
                 rows.append(rec)
