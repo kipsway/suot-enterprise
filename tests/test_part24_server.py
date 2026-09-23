@@ -107,19 +107,33 @@ check(
     f"total={j.get('total')}",
 )
 
+# При SUOT_E2E_DB демо-сид не грузится автоматически — грузим явно через
+# /api/demo/seed, чтобы поиск админа находил и свою запись, и демо-«Смирнову».
+rsd = client.post("/api/demo/seed", headers=HA, json={"tables": []})
+check("demo seed", rsd.status_code in (200, 201), rsd.status_code)
 rq = client.get("/api/union/records?q=Смирнов", headers=HA)
 jq = rq.json()
+# Сквозной поиск ищет по всем разделам. Демо-сид пропускает непустые таблицы
+# (employees уже содержит свою запись), поэтому демо-«Смирнов Дмитрий»
+# попадает в обучение/осмотры СИЗ — проверяем наличие своей и любой демо-записи.
+own_in_q = any("Смирнов П.П." in str(it.get("data")) for it in jq["items"])
+demo_in_q = any(
+    "Смирнов Дмитрий" in str(it.get("data")) or "Смирнова" in str(it.get("data"))
+    for it in jq["items"]
+)
 check(
-    "поиск q=Смирнов находит 1",
-    rq.status_code == 200 and jq["total"] == 1,
+    "поиск q=Смирнов находит свою запись и демо-сид",
+    rq.status_code == 200
+    and jq["total"] >= 2
+    and own_in_q
+    and demo_in_q,
     f"total={jq.get('total')}",
 )
 check(
     "записи имеют section/section_label",
     jq["items"]
     and all(
-        it.get("section") == "employees" and it.get("section_label") == "Сотрудники"
-        for it in jq["items"]
+        it.get("section") and it.get("section_label") for it in jq["items"]
     ),
 )
 check(

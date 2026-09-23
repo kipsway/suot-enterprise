@@ -347,6 +347,44 @@ r = c.put(
 )
 check("calendar update своей -> 200", r.status_code == 200, r.status_code)
 
+# п.10: сводный реестр «Всё» — общие легаси-секции (companies) и демо-сид
+# не должны протекать в выдачу/счётчики обычного пользователя.
+# При SUOT_E2E_DB демо не сидится автоматически — грузим явно, иначе
+# проверка изоляции вырождается (companies=0 и у админа, и у не-админа).
+rs = c.post("/api/demo/seed", headers=H(ADMIN), json={"tables": []})
+check("demo seed для union-проверки", rs.status_code in (200, 201), rs.status_code)
+r = c.get("/api/union/sections", headers=H(tD))
+sections = {s["section"]: s.get("count", 0) for s in r.json().get("sections", [])}
+check("union sections -> 200", r.status_code == 200, r.status_code)
+check(
+    "union: companies не отдаёт счётчик не-админу",
+    sections.get("companies", -1) == 0,
+    f"companies={sections.get('companies')}",
+)
+r = c.get("/api/union/records?f_section=companies&page_size=500", headers=H(tD))
+j = r.json()
+check(
+    "union: companies не отдаёт записи не-админу",
+    r.status_code == 200 and j.get("total") == 0 and not j.get("items"),
+    f"total={j.get('total')}",
+)
+r = c.get("/api/union/sections", headers=H(ADMIN))
+a_sections = {s["section"]: s.get("count", 0) for s in r.json().get("sections", [])}
+check(
+    "union: админ видит companies",
+    a_sections.get("companies", 0) >= 1,
+    f"companies={a_sections.get('companies')}",
+)
+# записи одного пользователя не видны другому через сквозной поиск
+r = c.get("/api/union/records?q=IDOR-Test AdminRecord", headers=H(tD))
+check(
+    "union: чужой сотрудник не находится в поиске",
+    r.status_code == 200 and all(
+        "IDOR-Test AdminRecord" not in str(i.get("data")) for i in r.json().get("items", [])
+    ),
+    f"total={r.json().get('total')}",
+)
+
 print(f"\n=> {len(PASS)} OK, {len(FAIL)} FAIL")
 if FAIL:
     print("FAILED:", FAIL)
