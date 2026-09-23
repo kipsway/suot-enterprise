@@ -48,4 +48,9 @@ _tb.py
 _tmp_check.py
 _xdcheck.py
 _i_pg2.py
+media/
+services/.github/
+_diag*.py
+_p23_js.py
+история.txt
 *.log

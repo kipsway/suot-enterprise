@@ -29,6 +29,34 @@ def _find_edge():
     for p in EDGE_PATHS:
         if os.path.isfile(p):
             return p
+    # Кросс-платформенный поиск (Linux CI / macOS): Edge/Chrome/Chromium.
+    import shutil
+
+    for name in (
+        "msedge",
+        "microsoft-edge",
+        "microsoft-edge-stable",
+        "google-chrome",
+        "google-chrome-stable",
+        "chromium",
+        "chromium-browser",
+        "chrome",
+    ):
+        found = shutil.which(name)
+        if found:
+            return found
+    # Chromium, поставленный playwright (используется в CI для PDF-тестов).
+    cache = os.path.expanduser("~/.cache/ms-playwright")
+    if os.path.isdir(cache):
+        for entry in sorted(os.listdir(cache), reverse=True):
+            if not entry.startswith("chromium"):
+                continue
+            for sub in (
+                os.path.join(cache, entry, "chrome-linux", "chrome"),
+                os.path.join(cache, entry, "chrome-linux", "headless_shell"),
+            ):
+                if os.path.isfile(sub):
+                    return sub
     return None
 
 

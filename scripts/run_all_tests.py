@@ -112,13 +112,21 @@ def run_suite(name: str, timeout: int):
     if matches:
         ok_n, fail_n = int(matches[-1][0]), int(matches[-1][1])
         status = "PASS" if fail_n == 0 and p.returncode == 0 else "FAIL"
-        return {
+        result = {
             "name": name,
             "status": status,
             "ok": ok_n,
             "fail": fail_n,
             "secs": secs,
         }
+        if status == "FAIL":
+            # Хвост вывода, чтобы видеть причину падения в CI-логе.
+            lines = out.strip().splitlines()
+            interesting = [
+                ln for ln in lines if "FAIL " in ln or "Error" in ln or "error" in ln
+            ]
+            result["tail"] = "\n".join((interesting or lines)[-15:])
+        return result
     if p.returncode != 0:
         tail = "\n".join(out.strip().splitlines()[-3:])
         return {
@@ -169,7 +177,7 @@ def run_pytest_suite(name: str, timeout: int):
     mf = re.findall(r"(\d+) (?:failed|error)", out)
     fail_n = int(mf[-1]) if mf else (0 if p.returncode == 0 else 1)
     if p.returncode != 0 and not m:
-        tail = "\n".join(out.strip().splitlines()[-3:])
+        tail = "\n".join(out.strip().splitlines()[-25:])
         return {
             "name": name,
             "status": "FAIL (rc!=0)",
@@ -179,7 +187,13 @@ def run_pytest_suite(name: str, timeout: int):
             "tail": tail,
         }
     status = "PASS" if p.returncode == 0 and fail_n == 0 else "FAIL"
-    return {"name": name, "status": status, "ok": ok_n, "fail": fail_n, "secs": secs}
+    result = {"name": name, "status": status, "ok": ok_n, "fail": fail_n, "secs": secs}
+    if status == "FAIL":
+        # Хвост вывода pytest, чтобы видеть упавшие тесты в CI-логе.
+        lines = out.strip().splitlines()
+        interesting = [ln for ln in lines if ln.startswith("FAILED") or "Error" in ln]
+        result["tail"] = "\n".join((interesting or lines)[-25:])
+    return result
 
 
 def main() -> int:
