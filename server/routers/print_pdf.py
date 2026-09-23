@@ -91,39 +91,54 @@ def _html_to_pdf(
         flags = 0
         if hasattr(subprocess, "CREATE_NO_FLAG"):
             flags = subprocess.CREATE_NO_FLAG
-        prof = output_path + ".edge-profile"
-        proc = subprocess.Popen(
-            [
-                edge,
-                "--headless",
-                "--disable-gpu",
-                "--no-sandbox",
-                "--user-data-dir=" + prof,
-                "--no-first-run",
-                "--disable-extensions",
-                "--disable-background-networking",
-                "--no-pdf-header-footer",
-                "--print-to-pdf=" + output_path,
-                tmp_html,
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=flags,
-        )
-        deadline = time.time() + 30
-        while time.time() < deadline:
-            if os.path.isfile(output_path) and os.path.getsize(output_path) > 500:
-                break
-            if proc.poll() is not None:
-                break
-            time.sleep(0.2)
-        try:
-            if proc.poll() is None:
-                proc.kill()
-                proc.wait(5)
-        except Exception:
-            pass
-        return os.path.isfile(output_path) and os.path.getsize(output_path) > 500
+
+        def _run_once(prof: str) -> bool:
+            proc = subprocess.Popen(
+                [
+                    edge,
+                    "--headless",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--user-data-dir=" + prof,
+                    "--no-first-run",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--no-pdf-header-footer",
+                    "--print-to-pdf=" + output_path,
+                    tmp_html,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=flags,
+            )
+            deadline = time.time() + 30
+            while time.time() < deadline:
+                if os.path.isfile(output_path) and os.path.getsize(output_path) > 500:
+                    break
+                if proc.poll() is not None:
+                    break
+                time.sleep(0.2)
+            try:
+                if proc.poll() is None:
+                    proc.kill()
+                    proc.wait(5)
+            except Exception:
+                pass
+            return os.path.isfile(output_path) and os.path.getsize(output_path) > 500
+
+        # Холодный старт chromium/Edge может провалить первую попытку
+        # (сборка кэша шрифтов, профиль) — повторяем один раз.
+        for attempt in range(2):
+            if os.path.isfile(output_path):
+                try:
+                    os.remove(output_path)
+                except OSError:
+                    pass
+            prof = output_path + ".profile-" + uuid.uuid4().hex[:6]
+            if _run_once(prof):
+                return True
+        return False
     except Exception:
         return False
     finally:
