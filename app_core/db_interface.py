@@ -233,7 +233,9 @@ def create_backend(config: Dict[str, Any]) -> DBBackend:
         )
     db_path = config.get("path", "")
     if not db_path:
-        from app_core.config import AppConfig
+        # Фолбэк на активный путь БД (AppConfig.db_path не существует —
+        # был AttributeError при выборе sqlite-ветви через create_backend).
+        from app_core.config import RUNTIME_PATHS
 
-        db_path = str(AppConfig.db_path)
+        db_path = str(RUNTIME_PATHS.database_path)
     return SQLiteBackend(db_path)
