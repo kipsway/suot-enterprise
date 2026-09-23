@@ -5,12 +5,10 @@ from typing import Any, Dict, List, Optional
 from PyQt5.QtCore import Qt, QObject, QEvent
 from PyQt5.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QFont, QBrush, QPen
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog, QAbstractPrintDialog
-from PyQt5.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout,
-                             QLabel, QPushButton, QComboBox, QTextEdit,
-                             QLineEdit, QInputDialog, QMessageBox, QSplitter,
-                             QGraphicsView, QGraphicsScene, QGraphicsRectItem,
-                             QScrollArea, QFrame, QTextBrowser, QGraphicsTextItem,
-                             QApplication, QFileDialog)
+from PyQt5.QtWidgets import QDialog, QWidget, QInputDialog, QTextBrowser
+from widgets.glass_button import GlassButton
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 
 from app_core.i18n import I18n
 from services.database import DatabaseManager
@@ -30,9 +28,11 @@ class PrintEngine:
             return ""
 
     @staticmethod
-    def render_order(data: Dict[str, Any],
-                     photos: Optional[List[str]] = None,
-                     template_html: Optional[str] = None) -> str:
+    def render_order(
+        data: Dict[str, Any],
+        photos: Optional[List[str]] = None,
+        template_html: Optional[str] = None,
+    ) -> str:
         db = DatabaseManager()
         if not template_html:
             templates = db.get_print_templates("order")
@@ -71,11 +71,13 @@ class PrintEngine:
         return result
 
     @staticmethod
-    def render_report(company_name: str = "",
-                      include_employees: bool = True,
-                      include_violations: bool = True,
-                      include_fines: bool = True,
-                      template_html: Optional[str] = None) -> str:
+    def render_report(
+        company_name: str = "",
+        include_employees: bool = True,
+        include_violations: bool = True,
+        include_fines: bool = True,
+        template_html: Optional[str] = None,
+    ) -> str:
         db = DatabaseManager()
         if not template_html:
             templates = db.get_print_templates("report")
@@ -112,8 +114,9 @@ class PrintEngine:
                 if dj.get("Фирма") == cname:
                     c_viol += 1
                     try:
-                        f = float(str(dj.get("Штраф", "0"))
-                                  .replace(" ", "").replace(",", "."))
+                        f = float(
+                            str(dj.get("Штраф", "0")).replace(" ", "").replace(",", ".")
+                        )
                         c_fines += f
                     except Exception:
                         f = 0
@@ -167,13 +170,21 @@ class PrintEngine:
 
         table_html = ""
         if rows_html:
-            table_html = """<table>
+            table_html = (
+                """<table>
                 <tr><th>Компания</th><th>Сотрудников</th><th>Нарушений</th>
-                <th>Штрафы</th><th>Просрочено</th></tr>""" + rows_html + "</table>"
+                <th>Штрафы</th><th>Просрочено</th></tr>"""
+                + rows_html
+                + "</table>"
+            )
         if all_viol_rows:
-            table_html += """<h2>Все нарушения</h2><table>
+            table_html += (
+                """<h2>Все нарушения</h2><table>
                 <tr><th>Фирма</th><th>Дата</th><th>Категория</th>
-                <th>Описание</th><th>Штраф</th><th>Статус</th></tr>""" + all_viol_rows + "</table>"
+                <th>Описание</th><th>Штраф</th><th>Статус</th></tr>"""
+                + all_viol_rows
+                + "</table>"
+            )
 
         now_str = datetime.now().strftime("%d.%m.%Y %H:%M")
         ctx = {
@@ -199,8 +210,9 @@ class PrintEngine:
         if not templates:
             return None
         names = [t["name"] for t in templates]
-        name, ok = QInputDialog.getItem(parent, I18n._("template.title"),
-                                        I18n._("template.choose"), names, 0, False)
+        name, ok = QInputDialog.getItem(
+            parent, I18n._("template.title"), I18n._("template.choose"), names, 0, False
+        )
         if ok and name:
             for t in templates:
                 if t["name"] == name:
@@ -208,16 +220,27 @@ class PrintEngine:
         return None
 
     @staticmethod
-    def render_with_template(parent: QWidget, template_type: str,
-                             records_data: List[Dict[str, Any]],
-                             columns: List[Dict[str, Any]],
-                             template_html: Optional[str] = None) -> str:
-        html = template_html if template_html is not None else PrintEngine.select_template(parent, template_type)
+    def render_with_template(
+        parent: QWidget,
+        template_type: str,
+        records_data: List[Dict[str, Any]],
+        columns: List[Dict[str, Any]],
+        template_html: Optional[str] = None,
+    ) -> str:
+        html = (
+            template_html
+            if template_html is not None
+            else PrintEngine.select_template(parent, template_type)
+        )
         if html is None:
             parts = []
             for rec in records_data:
                 dj = rec.get("data_json", {})
-                lbl = I18n._("tab.employees") if template_type == "order" else I18n._("tab.violations")
+                lbl = (
+                    I18n._("tab.employees")
+                    if template_type == "order"
+                    else I18n._("tab.violations")
+                )
                 lines = [f"<h1>{lbl} #{rec.get('id', '')}</h1><table>"]
                 for col in columns:
                     name = col["name"]
@@ -259,25 +282,43 @@ class PrintEngine:
             parts.append(rendered)
         result = "<html><body>" + "".join(parts) + "</body></html>"
         if len(parts) > 1 and "page-break-before" not in result:
-            result = "<html><body>" + parts[0] + "".join(
-                "<div style='page-break-before:always; margin:0; padding:0; height:1px;'></div>" + p
-                for p in parts[1:]) + "</body></html>"
+            result = (
+                "<html><body>"
+                + parts[0]
+                + "".join(
+                    "<div style='page-break-before:always; margin:0; padding:0; height:1px;'></div>"
+                    + p
+                    for p in parts[1:]
+                )
+                + "</body></html>"
+            )
         return result
 
     @staticmethod
     def print_document(html: str, parent: Optional[QWidget] = None) -> None:
         try:
+
             def _has_content(segment: str) -> bool:
                 clean = segment
-                for tag in ["<p></p>", "<p> </p>", "<p>&nbsp;</p>", "<br>", "<br/>",
-                            "<div></div>", "<div> </div>", "<div>&nbsp;</div>",
-                            "<hr>", "<hr/>"]:
+                for tag in [
+                    "<p></p>",
+                    "<p> </p>",
+                    "<p>&nbsp;</p>",
+                    "<br>",
+                    "<br/>",
+                    "<div></div>",
+                    "<div> </div>",
+                    "<div>&nbsp;</div>",
+                    "<hr>",
+                    "<hr/>",
+                ]:
                     clean = clean.replace(tag, "")
-                clean = re.sub(r'<[^>]+>', '', clean).strip()
+                clean = re.sub(r"<[^>]+>", "", clean).strip()
                 return bool(clean)
+
             parts = re.split(
-                r'<(div|p)\s+[^>]*?page-break-before:always[^>]*?>.*?</\1>',
-                html)
+                r"<(div|p)\s+[^>]*?page-break-before:always[^>]*?>.*?</\1>", html
+            )
             merged = parts[0]
             for i in range(1, len(parts)):
                 if _has_content(parts[i]):
@@ -298,8 +339,9 @@ class PrintEngine:
             ToastNotification.notify(I18n._("error.generic"), "error", 5000)
 
     @staticmethod
-    def export_to_pdf(html: str, file_path: str,
-                      parent: Optional[QWidget] = None) -> bool:
+    def export_to_pdf(
+        html: str, file_path: str, parent: Optional[QWidget] = None
+    ) -> bool:
         try:
             printer = QPrinter(QPrinter.HighResolution)
             printer.setOutputFormat(QPrinter.PdfFormat)

@@ -3,13 +3,30 @@ from typing import Any, Dict, List, Optional
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor, QCursor
-from PyQt5.QtWidgets import (QApplication, QDialog, QWidget, QFrame,
-                             QVBoxLayout, QHBoxLayout, QFormLayout,
-                             QLabel, QLineEdit, QPushButton, QComboBox,
-                             QSpinBox, QTextEdit, QScrollArea,
-                             QTableWidget, QTableWidgetItem, QHeaderView,
-                             QAbstractItemView, QDialogButtonBox, QMenu,
-                             QMessageBox, QFileDialog)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QComboBox,
+    QSpinBox,
+    QTextEdit,
+    QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QDialogButtonBox,
+    QMenu,
+    QMessageBox,
+    QFileDialog,
+)
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
@@ -20,10 +37,21 @@ from widgets.photos import PhotoGalleryDialog
 from widgets.dropzone import DropZone
 from widgets.inline_edit_mixin import InlineEditMixin
 from widgets.column_width_mixin import ColumnWidthMixin
+from widgets.column_filter_mixin import ColumnFilterMixin
 from widgets.audit_trail import AuditTrailDialog
 from modules.notes import NotesDialog
+from widgets.record_links import RecordLinksDialog
 from modules.print_engine import PrintEngine
 from modules.textbook import DateAwareLineEdit
+from widgets.filter_presets import FilterPresetsWidget
+from widgets.record_templates import RecordTemplateMixin
+from widgets.glass_button import GlassButton
+from widgets.export_helpers import add_export_buttons
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
+from widgets.glass_scrollbar import GlassScrollBar, apply_glass_scrollbars
+from widgets.glass_table import apply_glass_table
+from services.validation import ValidationEngine
 
 TABLE_NAME = "incidents"
 SEVERITIES = ["Лёгкая", "Средняя", "Тяжёлая", "Смертельная"]
@@ -31,10 +59,13 @@ INCIDENT_TYPES = ["Несчастный случай", "Инцидент", "Ми
 STATUSES = ["Открыто", "Расследуется", "Закрыто"]
 
 
-class IncidentEditDialog(QDialog):
-    def __init__(self, data: Dict[str, Any] = None,
-                 columns: List[Dict[str, Any]] = None,
-                 parent: Optional[QWidget] = None) -> None:
+class IncidentEditDialog(QDialog, RecordTemplateMixin):
+    def __init__(
+        self,
+        data: Dict[str, Any] = None,
+        columns: List[Dict[str, Any]] = None,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self._data = dict(data or {})
@@ -44,6 +75,7 @@ class IncidentEditDialog(QDialog):
         self.setWindowTitle(I18n._("inc.edit") if data else I18n._("inc.add"))
         self.setMinimumSize(820, 700)
         self.resize(980, 780)
+        self._init_templates("incidents")
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -55,6 +87,8 @@ class IncidentEditDialog(QDialog):
         heading = QLabel(heading_text)
         heading.setProperty("heading", True)
         layout.addWidget(heading)
+
+        self._build_template_bar(layout, 1)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -78,10 +112,19 @@ class IncidentEditDialog(QDialog):
                 w.setRange(0, 999999999)
                 w.setMinimumHeight(36)
                 try:
-                    w.setValue(int(float(str(value).replace(" ", "").replace(",", "."))))
+                    w.setValue(
+                        int(float(str(value).replace(" ", "").replace(",", ".")))
+                    )
                 except Exception:
                     w.setValue(0)
-            elif typ in ("Дата", "Годен до", "Дата проведения", "Date", "Date of", "Valid until"):
+            elif typ in (
+                "Дата",
+                "Годен до",
+                "Дата проведения",
+                "Date",
+                "Date of",
+                "Valid until",
+            ):
                 w = DateAwareLineEdit()
                 w.setMinimumHeight(36)
                 w.setText(str(value))
@@ -114,11 +157,10 @@ class IncidentEditDialog(QDialog):
 
         self._dropzone = DropZone()
         self._dropzone.set_photos(self._photo_paths)
-        self._dropzone.on_change(lambda paths: setattr(self, '_photo_paths', paths))
+        self._dropzone.on_change(lambda paths: setattr(self, "_photo_paths", paths))
         layout.addWidget(self._dropzone)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -145,12 +187,29 @@ class IncidentEditDialog(QDialog):
         result["Фото"] = self._photo_paths
         return result
 
+    def accept(self) -> None:
+        errors = ValidationEngine.validate_dialog(
+            self._fields, self._columns, "incidents"
+        )
+        if errors:
+            error_list = "\n".join(f"- {n}: {e}" for n, e in errors.items())
+            from PyQt5.QtWidgets import QMessageBox
 
-class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
+            QMessageBox.warning(
+                self,
+                I18n._("validation.error_title"),
+                I18n._("validation.errors_found") + "\n" + error_list,
+            )
+            return
+        super().accept()
+
+
+class IncidentsTableWidget(
+    QWidget, InlineEditMixin, ColumnWidthMixin, ColumnFilterMixin
+):
     TABLE_NAME = "incidents"
 
-    def __init__(self, parent: Optional[QWidget] = None,
-                 user_id: int = 0) -> None:
+    def __init__(self, parent: Optional[QWidget] = None, user_id: int = 0) -> None:
         super().__init__(parent)
         self.db = DatabaseManager()
         self._user_id = user_id
@@ -174,10 +233,10 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         toolbar = QHBoxLayout()
         toolbar.setSpacing(10)
 
-        self._search_edit = QLineEdit()
+        self._search_edit = GlassLineEdit()
         self._search_edit.setProperty("search", True)
         self._search_edit.setPlaceholderText(I18n._("search.placeholder"))
-        self._search_edit.setMinimumHeight(36)
+        self._search_edit.setMinimumHeight(40)
         self._search_timer = QTimer()
         self._search_timer.setSingleShot(True)
         self._search_timer.setInterval(300)
@@ -185,56 +244,69 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         self._search_edit.textChanged.connect(self._search_timer.start)
         toolbar.addWidget(self._search_edit, 1)
 
-        self._type_filter = QComboBox()
-        self._type_filter.setMinimumHeight(36)
+        self._type_filter = GlassComboBox()
+        self._type_filter.setMinimumHeight(40)
         self._type_filter.setMinimumWidth(160)
         self._type_filter.currentIndexChanged.connect(self._apply_filter)
         toolbar.addWidget(self._type_filter)
 
-        self._add_btn = QPushButton(I18n._("inc.add"))
+        self._filter_presets = FilterPresetsWidget(
+            TABLE_NAME, self._search_edit, self._type_filter
+        )
+        toolbar.addWidget(self._filter_presets)
+
+        self._add_btn = GlassButton(I18n._("inc.add"))
         self._add_btn.clicked.connect(self._add_record)
         toolbar.addWidget(self._add_btn)
 
-        self._edit_btn = QPushButton(I18n._("common.edit"))
+        self._edit_btn = GlassButton(I18n._("common.edit"))
         self._edit_btn.clicked.connect(self._edit_selected)
         toolbar.addWidget(self._edit_btn)
 
-        self._delete_btn = QPushButton(I18n._("common.delete"))
+        self._delete_btn = GlassButton(I18n._("common.delete"))
         self._delete_btn.clicked.connect(self._delete_selected)
         toolbar.addWidget(self._delete_btn)
 
-        self._photos_btn = QPushButton("📷 " + I18n._("inc.photo"))
-        self._photos_btn.setProperty("flat", True)
+        self._photos_btn = GlassButton("📷 " + I18n._("inc.photo"), variant="ghost")
         self._photos_btn.clicked.connect(self._open_photos)
         toolbar.addWidget(self._photos_btn)
 
-        self._notes_btn = QPushButton("📝 " + I18n._("common.notes"))
-        self._notes_btn.setProperty("flat", True)
+        self._notes_btn = GlassButton("📝 " + I18n._("common.notes"), variant="ghost")
         self._notes_btn.clicked.connect(self._open_notes)
         toolbar.addWidget(self._notes_btn)
 
-        self._export_btn = QPushButton("📤 " + I18n._("export.title"))
-        self._export_btn.setProperty("flat", True)
+        self._links_btn = GlassButton(
+            "\U0001f517 \u0421\u0432\u044f\u0437\u0430\u0442\u044c"
+        )
+        self._links_btn.setProperty("flat", True)
+        self._links_btn.clicked.connect(self._open_links)
+        toolbar.addWidget(self._links_btn)
+
+        self._export_btn = GlassButton("📤 " + I18n._("export.title"), variant="ghost")
         self._export_btn.clicked.connect(self._export_selected)
         toolbar.addWidget(self._export_btn)
 
-        self._pdf_btn = QPushButton("📄 " + I18n._("pdf.export"))
-        self._pdf_btn.setProperty("flat", True)
+        add_export_buttons(
+            toolbar, lambda: self._records, lambda: self._columns, "incidents", self
+        )
+
+        self._pdf_btn = GlassButton("📄 " + I18n._("pdf.export"), variant="ghost")
         self._pdf_btn.clicked.connect(self._export_pdf)
         toolbar.addWidget(self._pdf_btn)
 
-        self._refresh_btn = QPushButton(I18n._("common.refresh"))
-        self._refresh_btn.setProperty("flat", True)
+        self._refresh_btn = GlassButton(I18n._("common.refresh"), variant="ghost")
         self._refresh_btn.clicked.connect(self._load_data)
         toolbar.addWidget(self._refresh_btn)
 
         layout.addLayout(toolbar)
 
-        self._table = QTableWidget()
+        self._table = QTableWidget(self)
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().hide()
+        apply_glass_table(self._table)
+        apply_glass_scrollbars(self._table)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._table.horizontalHeader().setStretchLastSection(True)
         self._table.horizontalHeader().setSectionsClickable(True)
@@ -242,9 +314,11 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         self._table.horizontalHeader().sectionClicked.connect(self._on_header_clicked)
         self._table.horizontalHeader().setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.horizontalHeader().customContextMenuRequested.connect(
-            self._on_header_context_menu)
+            self._on_header_context_menu
+        )
         self._table.horizontalHeader().sectionDoubleClicked.connect(
-            lambda idx: self._table.resizeColumnToContents(idx))
+            lambda idx: self._table.resizeColumnToContents(idx)
+        )
         self._setup_inline_editing()
         self._table.setSortingEnabled(False)
         self._table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -259,11 +333,11 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
 
     def _load_data(self) -> None:
         self._columns = self.db.get_columns_config(TABLE_NAME)
-        self._all_records = self.db.get_json_records(TABLE_NAME,
-                                                     user_id=self._user_id)
+        self._all_records = self.db.get_json_records(TABLE_NAME, user_id=self._user_id)
         self._search_edit.clear()
         self._populate_filter()
         self._apply_filter()
+        self._setup_header_filters()
 
     def _populate_filter(self) -> None:
         current = self._type_filter.currentText()
@@ -302,6 +376,8 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
                         break
                 if not found:
                     continue
+            if not self._check_header_filter(dj):
+                continue
             self._records.append(r)
         self._populate_table()
 
@@ -314,8 +390,7 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
 
         visible_cols = [c for c in self._columns if c.get("visible", True)]
         self._table.setColumnCount(col_count)
-        self._table.setHorizontalHeaderLabels(
-            [c["name"] for c in visible_cols])
+        self._table.setHorizontalHeaderLabels([c["name"] for c in visible_cols])
         self._table.setRowCount(len(self._records))
 
         self._table.blockSignals(True)
@@ -325,7 +400,9 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
                 name = col["name"]
                 val = str(dj.get(name, ""))
                 item = QTableWidgetItem(val)
-                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
+                item.setFlags(
+                    Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+                )
                 if name == "ID":
                     item.setText(str(rec.get("id", "")))
                 if status_col is not None and col_idx == status_col:
@@ -338,11 +415,11 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
                 self._table.setItem(row, col_idx, item)
         self._table.blockSignals(False)
 
-        self._table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Interactive)
+        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._restore_column_widths()
         self._info_label.setText(
-            f'{I18n._("common.count")}: {len(self._records)} / {len(self._all_records)}')
+            f"{I18n._('common.count')}: {len(self._records)} / {len(self._all_records)}"
+        )
 
     def _on_header_clicked(self, idx: int) -> None:
         visible_cols = [c for c in self._columns if c.get("visible", True)]
@@ -350,17 +427,21 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
             return
         col_name = visible_cols[idx]["name"]
         if self._sort_col == idx:
-            self._sort_order = (Qt.DescendingOrder
-                                if self._sort_order == Qt.AscendingOrder
-                                else Qt.AscendingOrder)
+            self._sort_order = (
+                Qt.DescendingOrder
+                if self._sort_order == Qt.AscendingOrder
+                else Qt.AscendingOrder
+            )
         else:
             self._sort_col = idx
             self._sort_order = Qt.AscendingOrder
 
         def sort_key(r: Dict[str, Any]) -> str:
             return str(r.get("data_json", {}).get(col_name, ""))
-        self._records.sort(key=sort_key,
-                           reverse=(self._sort_order == Qt.DescendingOrder))
+
+        self._records.sort(
+            key=sort_key, reverse=(self._sort_order == Qt.DescendingOrder)
+        )
         self._populate_table()
 
     def _on_header_context_menu(self, pos: Any) -> None:
@@ -370,8 +451,7 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
             return
         col_name = visible_cols[idx]["name"]
         menu = QMenu()
-        hide_action = menu.addAction(
-            I18n._("column.delete").format(name=col_name))
+        hide_action = menu.addAction(I18n._("column.delete").format(name=col_name))
         action = menu.exec_(QCursor.pos())
         if action == hide_action:
             for c in self._columns:
@@ -409,8 +489,7 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         if dlg.exec_() == QDialog.Accepted:
             data = dlg.get_data()
             try:
-                self.db.save_json_record(TABLE_NAME, 0, data,
-                                         user_id=self._user_id)
+                self.db.save_json_record(TABLE_NAME, 0, data, user_id=self._user_id)
                 self._load_data()
                 ToastNotification.notify(I18n._("common.success"), "success", 3000)
             except Exception:
@@ -422,8 +501,9 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         if dlg.exec_() == QDialog.Accepted:
             data = dlg.get_data()
             try:
-                self.db.save_json_record(TABLE_NAME, record["id"], data,
-                                         user_id=self._user_id)
+                self.db.save_json_record(
+                    TABLE_NAME, record["id"], data, user_id=self._user_id
+                )
                 self._load_data()
                 ToastNotification.notify(I18n._("common.success"), "success", 3000)
             except Exception:
@@ -442,9 +522,11 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
         if not rows:
             return
         reply = QMessageBox.question(
-            self, I18n._("common.confirm"),
+            self,
+            I18n._("common.confirm"),
             I18n._("inc.delete_confirm"),
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
         for row in sorted(rows, reverse=True):
@@ -457,9 +539,11 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
 
     def _delete_record(self, record: Dict[str, Any]) -> None:
         reply = QMessageBox.question(
-            self, I18n._("common.confirm"),
+            self,
+            I18n._("common.confirm"),
             I18n._("inc.delete_confirm"),
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
         rid = record.get("id", 0)
@@ -475,9 +559,9 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
             return
         rec = self._records[row]
         dj = rec.get("data_json", {})
-        path, _ = QFileDialog.getSaveFileName(self, I18n._("export.title"),
-                                               f"incident_{rec['id']}.csv",
-                                               "CSV (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, I18n._("export.title"), f"incident_{rec['id']}.csv", "CSV (*.csv)"
+        )
         if not path:
             return
         try:
@@ -486,9 +570,13 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
                 w.writerow([c["name"] for c in self._columns])
                 row_data = [dj.get(c["name"], "") for c in self._columns]
                 w.writerow(row_data)
-            ToastNotification.notify(I18n._("export.success").format(path=path), "success", 3000)
+            ToastNotification.notify(
+                I18n._("export.success").format(path=path), "success", 3000
+            )
         except Exception as e:
-            ToastNotification.notify(I18n._("export.error").format(error=str(e)), "error", 5000)
+            ToastNotification.notify(
+                I18n._("export.error").format(error=str(e)), "error", 5000
+            )
 
     def _export_pdf(self) -> None:
         row = self._table.currentRow()
@@ -497,21 +585,28 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
             return
         rec = self._records[row]
         dj = rec.get("data_json", {})
-        path, _ = QFileDialog.getSaveFileName(self, I18n._("pdf.export"),
-                                               f"incident_{rec['id']}.pdf",
-                                               "PDF (*.pdf)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, I18n._("pdf.export"), f"incident_{rec['id']}.pdf", "PDF (*.pdf)"
+        )
         if not path:
             return
         rows_html = "".join(
             f"<tr><td><b>{c['name']}</b></td><td>{str(dj.get(c['name'], ''))}</td></tr>"
-            for c in self._columns)
-        html = (f"<h2>{I18n._('tab.incidents')} #{rec['id']}</h2>"
-                f"<table border='1' cellpadding='4' style='border-collapse:collapse;width:100%'>"
-                f"{rows_html}</table>")
+            for c in self._columns
+        )
+        html = (
+            f"<h2>{I18n._('tab.incidents')} #{rec['id']}</h2>"
+            f"<table border='1' cellpadding='4' style='border-collapse:collapse;width:100%'>"
+            f"{rows_html}</table>"
+        )
         if PrintEngine.export_to_pdf(html, path, self):
-            ToastNotification.notify(I18n._("export.success").format(path=path), "success", 3000)
+            ToastNotification.notify(
+                I18n._("export.success").format(path=path), "success", 3000
+            )
         else:
-            ToastNotification.notify(I18n._("export.error").format(error="PDF"), "error", 5000)
+            ToastNotification.notify(
+                I18n._("export.error").format(error="PDF"), "error", 5000
+            )
 
     def _open_notes(self) -> None:
         row = self._table.currentRow()
@@ -520,6 +615,17 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
             return
         rec = self._records[row]
         dlg = NotesDialog(TABLE_NAME, rec["id"], "", self)
+        dlg.exec_()
+
+    def _open_links(self) -> None:
+        row = self._table.currentRow()
+        if row < 0 or row >= len(self._records):
+            ToastNotification.notify(I18n._("common.no_selection"), "warning", 3000)
+            return
+        rec = self._records[row]
+        dj = rec.get("data_json", {})
+        name = dj.get("title", f"#{rec['id']}")
+        dlg = RecordLinksDialog("incidents", rec["id"], name, self)
         dlg.exec_()
 
     def _open_photos(self) -> None:
@@ -543,5 +649,6 @@ class IncidentsTableWidget(QWidget, InlineEditMixin, ColumnWidthMixin):
                 if 0 <= row < len(self._records):
                     rid = self._records[row].get("id", 0)
                     if rid:
-                        self.db.save_json_record(TABLE_NAME, rid, dj,
-                                                 user_id=self._user_id)
+                        self.db.save_json_record(
+                            TABLE_NAME, rid, dj, user_id=self._user_id
+                        )

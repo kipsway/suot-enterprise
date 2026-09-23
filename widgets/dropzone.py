@@ -3,8 +3,16 @@ from typing import Any, Callable, List, Optional
 
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QPixmap
-from PyQt5.QtWidgets import (QFrame, QHBoxLayout, QVBoxLayout, QLabel,
-                             QPushButton, QFileDialog, QWidget, QScrollArea)
+from PyQt5.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QVBoxLayout,
+    QLabel,
+    QPushButton,
+    QFileDialog,
+    QWidget,
+    QScrollArea,
+)
 
 from app_core.config import RUNTIME_PATHS
 from app_core.i18n import I18n
@@ -63,8 +71,11 @@ class DropZone(QFrame):
 
     def _browse(self) -> None:
         files, _ = QFileDialog.getOpenFileNames(
-            self, I18n._("dropzone.browse"), "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.gif *.webp);;All files (*.*)")
+            self,
+            I18n._("dropzone.browse"),
+            "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif *.webp);;All files (*.*)",
+        )
         for f in files:
             if f not in self._photos:
                 self._photos.append(f)
@@ -87,8 +98,7 @@ class DropZone(QFrame):
 
         for path in self._photos:
             thumb = self._make_thumb(path)
-            self._thumb_layout.insertWidget(
-                self._thumb_layout.count() - 1, thumb)
+            self._thumb_layout.insertWidget(self._thumb_layout.count() - 1, thumb)
 
     def _make_thumb(self, path: str) -> QFrame:
         card = QFrame()
@@ -99,8 +109,11 @@ class DropZone(QFrame):
         cl.setSpacing(0)
 
         pix = QPixmap(path)
-        thumb = pix.scaled(76, 56, Qt.KeepAspectRatio,
-                           Qt.SmoothTransformation) if not pix.isNull() else QPixmap()
+        thumb = (
+            pix.scaled(76, 56, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            if not pix.isNull()
+            else QPixmap()
+        )
         img = QLabel()
         if not thumb.isNull():
             img.setPixmap(thumb)
@@ -121,7 +134,8 @@ class DropZone(QFrame):
         del_btn.setStyleSheet(
             "QPushButton { background: #E74C3C; color: white; border-radius: 9px;"
             " font-size: 10px; font-weight: bold; }"
-            "QPushButton:hover { background: #C0392B; }")
+            "QPushButton:hover { background: #C0392B; }"
+        )
         del_btn.clicked.connect(lambda checked, p=path: self._remove_photo(p))
         del_btn.move(60, 0)
         del_btn.setParent(card)
@@ -148,7 +162,14 @@ class DropZone(QFrame):
             for url in event.mimeData().urls():
                 path = url.toLocalFile()
                 ext = os.path.splitext(path)[1].lower()
-                if ext in (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp") and os.path.isfile(path):
+                if ext in (
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                    ".bmp",
+                    ".gif",
+                    ".webp",
+                ) and os.path.isfile(path):
                     if path not in self._photos:
                         self._photos.append(path)
             self._render_thumbs()

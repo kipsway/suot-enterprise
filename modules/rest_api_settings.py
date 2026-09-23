@@ -2,9 +2,20 @@ import secrets
 from typing import Optional
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (QFrame, QVBoxLayout, QHBoxLayout, QFormLayout,
-                             QLabel, QLineEdit, QPushButton, QCheckBox,
-                             QSpinBox, QGroupBox, QTextEdit)
+from PyQt5.QtWidgets import (
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QSpinBox,
+    QGroupBox,
+    QTextEdit,
+)
+from widgets.glass_checkbox import GlassCheckBox
+
+from widgets.glass_button import GlassButton
+from widgets.glass_line_edit import GlassLineEdit
 
 from app_core.i18n import I18n
 from services.database import DatabaseManager
@@ -17,6 +28,7 @@ class RESTAPISettingsWidget(QFrame):
         super().__init__(parent)
         self.setProperty("card", True)
         self.db = DatabaseManager()
+        self._server: Optional[RESTAPIServer] = None
         self._build_ui()
         self._load_values()
         self._update_status()
@@ -30,7 +42,7 @@ class RESTAPISettingsWidget(QFrame):
         form.setSpacing(10)
         form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        self._enabled_cb = QCheckBox(I18n._("rest_api.enabled"))
+        self._enabled_cb = GlassCheckBox(I18n._("rest_api.enabled"))
         self._enabled_cb.toggled.connect(self._on_enabled_toggled)
         form.addRow("", self._enabled_cb)
 
@@ -39,15 +51,17 @@ class RESTAPISettingsWidget(QFrame):
         form.addRow(I18n._("rest_api.port") + ":", self._port_spin)
 
         api_key_layout = QHBoxLayout()
-        self._api_key_edit = QLineEdit()
-        self._api_key_edit.setEchoMode(QLineEdit.Password)
+        self._api_key_edit = GlassLineEdit()
+        self._api_key_edit.setEchoMode(GlassLineEdit.Password)
         api_key_layout.addWidget(self._api_key_edit)
-        self._show_key_cb = QCheckBox(I18n._("rest_api.show_key"))
+        self._show_key_cb = GlassCheckBox(I18n._("rest_api.show_key"))
         self._show_key_cb.toggled.connect(
             lambda c: self._api_key_edit.setEchoMode(
-                QLineEdit.Normal if c else QLineEdit.Password))
+                GlassLineEdit.Normal if c else GlassLineEdit.Password
+            )
+        )
         api_key_layout.addWidget(self._show_key_cb)
-        gen_btn = QPushButton(I18n._("rest_api.generate_key"))
+        gen_btn = GlassButton(I18n._("rest_api.generate_key"))
         gen_btn.clicked.connect(self._generate_key)
         api_key_layout.addWidget(gen_btn)
         form.addRow(I18n._("rest_api.api_key") + ":", api_key_layout)
@@ -60,16 +74,16 @@ class RESTAPISettingsWidget(QFrame):
         self._status_label = QLabel()
         status_layout.addWidget(self._status_label)
         btn_layout = QHBoxLayout()
-        self._start_btn = QPushButton(I18n._("rest_api.start"))
+        self._start_btn = GlassButton(I18n._("rest_api.start"))
         self._start_btn.setProperty("success", True)
         self._start_btn.clicked.connect(self._start_server)
         btn_layout.addWidget(self._start_btn)
-        self._stop_btn = QPushButton(I18n._("rest_api.stop"))
+        self._stop_btn = GlassButton(I18n._("rest_api.stop"))
         self._stop_btn.setProperty("danger", True)
         self._stop_btn.clicked.connect(self._stop_server)
         btn_layout.addWidget(self._stop_btn)
         btn_layout.addStretch()
-        self._refresh_btn = QPushButton(I18n._("common.refresh"))
+        self._refresh_btn = GlassButton(I18n._("common.refresh"))
         self._refresh_btn.clicked.connect(self._update_status)
         btn_layout.addWidget(self._refresh_btn)
         status_layout.addLayout(btn_layout)
@@ -107,10 +121,9 @@ class RESTAPISettingsWidget(QFrame):
         self.db.upsert_setting("rest_api_enabled", enabled)
         self.db.upsert_setting("rest_api_port", port)
         self.db.upsert_setting("rest_api_key", key)
-        server = RESTAPIServer()
-        if (enabled != old_enabled or port != old_port
-                or key != old_key):
-            server.restart()
+        if enabled != old_enabled or port != old_port or key != old_key:
+            if self._server:
+                self._server.restart()
 
     def _on_enabled_toggled(self, checked: bool) -> None:
         self._start_btn.setEnabled(checked)
@@ -120,35 +133,34 @@ class RESTAPISettingsWidget(QFrame):
         self._api_key_edit.setText(key)
 
     def _update_status(self) -> None:
-        server = RESTAPIServer()
-        if server.is_running:
+        if self._server and self._server.is_running:
             self._status_label.setText(
                 f"<span style='color:#4CAF50; font-size:14px;'>"
                 f"● {I18n._('rest_api.running')} "
-                f"http://127.0.0.1:{server.port}</span>")
+                f"http://127.0.0.1:{self._server.port}</span>"
+            )
             self._start_btn.setEnabled(False)
             self._stop_btn.setEnabled(True)
         else:
             self._status_label.setText(
                 f"<span style='color:#888; font-size:14px;'>"
-                f"○ {I18n._('rest_api.stopped')}</span>")
-            self._start_btn.setEnabled(
-                self._enabled_cb.isChecked())
+                f"○ {I18n._('rest_api.stopped')}</span>"
+            )
+            self._start_btn.setEnabled(self._enabled_cb.isChecked())
             self._stop_btn.setEnabled(False)
 
     def _start_server(self) -> None:
         if not self._api_key_edit.text().strip():
-            ToastNotification.notify(
-                I18n._("rest_api.no_key_warning"), "warning", 3000)
+            ToastNotification.notify(I18n._("rest_api.no_key_warning"), "warning", 3000)
         port = self._port_spin.value()
-        server = RESTAPIServer()
-        server.log_received.connect(self._on_log)
-        server.start(port)
+        self._server = RESTAPIServer()
+        self._server.log_received.connect(self._on_log)
+        self._server.start(port)
         self._update_status()
 
     def _stop_server(self) -> None:
-        server = RESTAPIServer()
-        server.stop()
+        if self._server:
+            self._server.stop()
         self._update_status()
 
     def _on_log(self, msg: str) -> None:

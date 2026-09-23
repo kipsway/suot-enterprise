@@ -3,13 +3,36 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from PyQt5.QtCore import Qt, QTimer, QSettings
 from PyQt5.QtGui import QColor, QFont, QPixmap, QCursor, QKeySequence
-from PyQt5.QtWidgets import (QApplication, QDialog, QWidget, QFrame,
-    QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QLineEdit,
-    QPushButton, QComboBox, QSpinBox, QCheckBox, QTabWidget,
-    QListWidget, QListWidgetItem, QGroupBox, QMessageBox,
-    QInputDialog, QFileDialog, QColorDialog, QHeaderView,
-    QAbstractItemView, QTableWidget, QTableWidgetItem, QMenu,
-    QDialogButtonBox, QScrollArea, QShortcut, QMainWindow)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSpinBox,
+    QTabWidget,
+    QListWidget,
+    QListWidgetItem,
+    QGroupBox,
+    QMessageBox,
+    QInputDialog,
+    QFileDialog,
+    QColorDialog,
+    QHeaderView,
+    QAbstractItemView,
+    QTableWidget,
+    QTableWidgetItem,
+    QMenu,
+    QDialogButtonBox,
+    QScrollArea,
+    QShortcut,
+    QMainWindow,
+)
 
 from app_core.i18n import I18n
 from app_core.config import RUNTIME_PATHS, AppConfig
@@ -18,12 +41,20 @@ from app_core.utils import ACCENT_COLORS, JsonUtils
 from services.database import DatabaseManager
 from services.security import SecurityEngine
 from modules.reminders import ReminderEngine
+from widgets.glass_checkbox import GlassCheckBox
 from modules.email_settings import EmailSettingsWidget
 from modules.rest_api_settings import RESTAPISettingsWidget
 from modules.telegram_settings import TelegramSettingsWidget
 from modules.webhook_settings import WebhookSettingsWidget
 from modules.system_monitor import SystemMonitorWidget
 from widgets.toast import ToastNotification
+from widgets.validation_rules_dialog import ValidationRulesDialog
+from widgets.glass_button import GlassButton
+from widgets.scheduler_dialog import SchedulerDialog
+from widgets.update_dialog import UpdateDialog
+from widgets.db_settings_widget import DatabaseSettingsWidget
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 
 from modules.employees import EmployeeEditDialog
 from modules.violations import ViolationEditDialog
@@ -55,12 +86,13 @@ class SettingsDialog(QDialog):
         gl.setContentsMargins(20, 20, 20, 20)
         gl.setSpacing(12)
 
-        self._lang_combo = QComboBox()
+        self._lang_combo = GlassComboBox()
         self._lang_combo.addItem("Русский", "ru")
         self._lang_combo.addItem("English", "en")
         gl.addRow(I18n._("settings.language") + ":", self._lang_combo)
 
-        self._theme_combo = QComboBox()
+        self._theme_combo = GlassComboBox()
+        self._theme_combo.addItem(I18n._("settings.auto"), "auto")
         self._theme_combo.addItem(I18n._("settings.light"), "light")
         self._theme_combo.addItem(I18n._("settings.dark"), "dark")
         gl.addRow(I18n._("settings.theme") + ":", self._theme_combo)
@@ -72,14 +104,17 @@ class SettingsDialog(QDialog):
         af.setSpacing(6)
         self._accent_btns: Dict[str, QPushButton] = {}
         for name, color in ACCENT_COLORS.items():
-            btn = QPushButton()
+            btn = GlassButton()
             btn.setFixedSize(28, 28)
             btn.setStyleSheet(
                 f"background: {color}; border-radius: 14px; "
-                f"border: 2px solid {'#2C3E50' if color == self.db.get_setting('accent_color', '#2196F3') else 'transparent'};")
+                f"border: 2px solid {'#2C3E50' if color == self.db.get_setting('accent_color', '#2196F3') else 'transparent'};"
+            )
             btn.setCursor(QCursor(Qt.PointingHandCursor))
             btn.setToolTip(name.capitalize())
-            btn.clicked.connect(lambda checked, c=color, b=btn: self._select_accent(c, b))
+            btn.clicked.connect(
+                lambda checked, c=color, b=btn: self._select_accent(c, b)
+            )
             af.addWidget(btn)
             self._accent_btns[name] = btn
         af.addStretch()
@@ -106,10 +141,10 @@ class SettingsDialog(QDialog):
         sl.addRow(I18n._("settings.reminder_interval") + ":", self._reminder_spin)
 
         media_layout = QHBoxLayout()
-        self._media_path_edit = QLineEdit()
+        self._media_path_edit = GlassLineEdit()
         self._media_path_edit.setMinimumWidth(250)
         media_layout.addWidget(self._media_path_edit)
-        browse_btn = QPushButton("...")
+        browse_btn = GlassButton("...")
         browse_btn.setFixedWidth(36)
         browse_btn.clicked.connect(self._browse_media)
         media_layout.addWidget(browse_btn)
@@ -117,7 +152,7 @@ class SettingsDialog(QDialog):
 
         # --- Браузер для печати ---
         browser_layout = QHBoxLayout()
-        self._browser_combo = QComboBox()
+        self._browser_combo = GlassComboBox()
         self._browser_combo.setEditable(True)
         self._browser_combo.addItem(I18n._("settings.browser_default"), "default")
         self._browser_combo.addItem("Google Chrome", "chrome")
@@ -126,7 +161,7 @@ class SettingsDialog(QDialog):
         self._browser_combo.addItem(I18n._("settings.browser_custom"), "custom")
         self._browser_combo.setMinimumWidth(200)
         browser_layout.addWidget(self._browser_combo)
-        self._browser_path_edit = QLineEdit()
+        self._browser_path_edit = GlassLineEdit()
         self._browser_path_edit.setPlaceholderText(I18n._("settings.browser_path_hint"))
         self._browser_path_edit.setMinimumWidth(200)
         browser_layout.addWidget(self._browser_path_edit)
@@ -137,16 +172,18 @@ class SettingsDialog(QDialog):
         sep.setStyleSheet("border: none; border-top: 1px solid #ddd; margin: 8px 0;")
         sl.addRow(sep)
 
-        self._auto_backup_cb = QCheckBox(I18n._("backup.auto_enable"))
+        self._auto_backup_cb = GlassCheckBox(I18n._("backup.auto_enable"))
         self._auto_backup_cb.setChecked(
-            self.db.get_setting("auto_backup_enabled", "false") == "true")
+            self.db.get_setting("auto_backup_enabled", "false") == "true"
+        )
         sl.addRow("", self._auto_backup_cb)
 
         backup_int_layout = QHBoxLayout()
         self._backup_interval = QSpinBox()
         self._backup_interval.setRange(1, 168)
         self._backup_interval.setValue(
-            int(self.db.get_setting("auto_backup_interval_hours", "24")))
+            int(self.db.get_setting("auto_backup_interval_hours", "24"))
+        )
         self._backup_interval.setSuffix(" " + I18n._("backup.hours"))
         self._backup_interval.setMinimumHeight(36)
         backup_int_layout.addWidget(self._backup_interval)
@@ -156,15 +193,28 @@ class SettingsDialog(QDialog):
         backup_max_layout = QHBoxLayout()
         self._backup_max = QSpinBox()
         self._backup_max.setRange(0, 100)
-        self._backup_max.setValue(
-            int(self.db.get_setting("auto_backup_max", "10")))
+        self._backup_max.setValue(int(self.db.get_setting("auto_backup_max", "10")))
         self._backup_max.setSpecialValueText(I18n._("backup.keep_all"))
         self._backup_max.setMinimumHeight(36)
         backup_max_layout.addWidget(self._backup_max)
         backup_max_layout.addStretch()
         sl.addRow(I18n._("backup.keep") + ":", backup_max_layout)
 
+        sched_btn = GlassButton("📅 Открыть планировщик задач")
+        sched_btn.setMinimumHeight(36)
+        sched_btn.clicked.connect(self._open_scheduler)
+        sl.addRow("", sched_btn)
+
+        update_btn = GlassButton("🔄 Проверить обновления")
+        update_btn.setMinimumHeight(36)
+        update_btn.clicked.connect(self._open_updater)
+        sl.addRow("", update_btn)
+
         tabs.addTab(system, I18n._("common.system"))
+
+        # --- Database tab ---
+        self._db_tab = DatabaseSettingsWidget(self.db)
+        tabs.addTab(self._db_tab, "База данных")
 
         # --- Telegram tab ---
         self._telegram_tab = TelegramSettingsWidget()
@@ -185,6 +235,27 @@ class SettingsDialog(QDialog):
         # --- System Monitor tab ---
         self._monitor_tab = SystemMonitorWidget()
         tabs.addTab(self._monitor_tab, I18n._("monitor.title"))
+
+        # --- Validation tab ---
+        val_frame = QFrame()
+        val_frame.setProperty("card", True)
+        val_layout = QVBoxLayout(val_frame)
+        val_layout.setContentsMargins(20, 20, 20, 20)
+        val_layout.setSpacing(12)
+        val_hint = QLabel(I18n._("validation.hint"))
+        val_hint.setWordWrap(True)
+        val_layout.addWidget(val_hint)
+        val_btn = GlassButton(I18n._("validation.title"))
+        val_btn.clicked.connect(self._open_validation_rules)
+        val_layout.addWidget(val_btn)
+        val_layout.addStretch()
+        tabs.addTab(val_frame, I18n._("validation.title"))
+
+        # --- Plugins tab ---
+        from widgets.plugin_manager import PluginManagerWidget
+
+        self._plugin_tab = PluginManagerWidget()
+        tabs.addTab(self._plugin_tab, "Плагины")
 
         # --- Customization tab ---
         custom = QFrame()
@@ -234,15 +305,17 @@ class SettingsDialog(QDialog):
             field_layout = QHBoxLayout(field_widget)
             field_layout.setContentsMargins(0, 0, 0, 0)
             field_layout.setSpacing(8)
-            edit_field = QLineEdit()
+            edit_field = GlassLineEdit()
             saved = self.db.get_setting(key, "")
             edit_field.setText(saved)
             edit_field.setPlaceholderText(default_label)
             edit_field.setMinimumHeight(28)
             field_layout.addWidget(edit_field, 1)
-            reset_btn = QPushButton(I18n._("common.reset"))
+            reset_btn = GlassButton(I18n._("common.reset"))
             reset_btn.setFixedWidth(60)
-            reset_btn.clicked.connect(lambda checked, k=key, e=edit_field, d=default_label: e.setText(d))
+            reset_btn.clicked.connect(
+                lambda checked, k=key, e=edit_field, d=default_label: e.setText(d)
+            )
             field_layout.addWidget(reset_btn)
             scroll_form.addRow(default_label, field_widget)
             self._btn_fields[key] = edit_field
@@ -255,12 +328,12 @@ class SettingsDialog(QDialog):
         # --- Buttons ---
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        save_btn = QPushButton(I18n._("common.save"))
+        save_btn = GlassButton(I18n._("common.save"))
         save_btn.setProperty("success", True)
         save_btn.clicked.connect(self._save)
         btn_layout.addWidget(save_btn)
 
-        cancel_btn = QPushButton(I18n._("common.cancel"))
+        cancel_btn = GlassButton(I18n._("common.cancel"))
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
 
@@ -268,16 +341,20 @@ class SettingsDialog(QDialog):
 
     def _select_accent(self, color: str, btn: QPushButton) -> None:
         for b in self._accent_btns.values():
-            b.setStyleSheet(b.styleSheet().replace(
-                "border: 2px solid #2C3E50", "border: 2px solid transparent"))
+            b.setStyleSheet(
+                b.styleSheet().replace(
+                    "border: 2px solid #2C3E50", "border: 2px solid transparent"
+                )
+            )
         btn.setStyleSheet(
-            f"background: {color}; border-radius: 14px; "
-            f"border: 2px solid #2C3E50;")
+            f"background: {color}; border-radius: 14px; border: 2px solid #2C3E50;"
+        )
         self._selected_accent = color
 
     def _browse_media(self) -> None:
-        path = QFileDialog.getExistingDirectory(self, I18n._("settings.media_path"),
-                                                 self._media_path_edit.text())
+        path = QFileDialog.getExistingDirectory(
+            self, I18n._("settings.media_path"), self._media_path_edit.text()
+        )
         if path:
             self._media_path_edit.setText(path)
 
@@ -285,7 +362,7 @@ class SettingsDialog(QDialog):
         idx = self._lang_combo.findData(self.db.get_setting("app_language", "ru"))
         if idx >= 0:
             self._lang_combo.setCurrentIndex(idx)
-        idx = self._theme_combo.findData(self.db.get_setting("theme", "light"))
+        idx = self._theme_combo.findData(self.db.get_setting("theme", "auto"))
         if idx >= 0:
             self._theme_combo.setCurrentIndex(idx)
         self._selected_accent = self.db.get_setting("accent_color", "#2196F3")
@@ -293,20 +370,24 @@ class SettingsDialog(QDialog):
             if color == self._selected_accent:
                 self._accent_btns[name].setStyleSheet(
                     f"background: {color}; border-radius: 14px; "
-                    f"border: 2px solid #2C3E50;")
+                    f"border: 2px solid #2C3E50;"
+                )
                 break
         try:
             self._auto_save_spin.setValue(
-                int(self.db.get_setting("auto_save_interval", "60")))
+                int(self.db.get_setting("auto_save_interval", "60"))
+            )
         except Exception:
             self._auto_save_spin.setValue(60)
         try:
             self._reminder_spin.setValue(
-                int(self.db.get_setting("reminder_check_interval", "60")))
+                int(self.db.get_setting("reminder_check_interval", "60"))
+            )
         except Exception:
             self._reminder_spin.setValue(60)
         self._media_path_edit.setText(
-            self.db.get_setting("media_path", RUNTIME_PATHS.media_dir))
+            self.db.get_setting("media_path", RUNTIME_PATHS.media_dir)
+        )
 
         # Load browser setting
         browser_type = self.db.get_setting("print_browser_type", "default")
@@ -335,14 +416,21 @@ class SettingsDialog(QDialog):
         self.db.upsert_setting("print_browser_type", browser_type)
         self.db.upsert_setting("print_browser_path", browser_path)
 
-        self.db.upsert_setting("auto_backup_enabled",
-                                "true" if self._auto_backup_cb.isChecked() else "false")
-        self.db.upsert_setting("auto_backup_interval_hours",
-                                str(self._backup_interval.value()))
+        self.db.upsert_setting(
+            "auto_backup_enabled",
+            "true" if self._auto_backup_cb.isChecked() else "false",
+        )
+        self.db.upsert_setting(
+            "auto_backup_interval_hours", str(self._backup_interval.value())
+        )
         self.db.upsert_setting("auto_backup_max", str(self._backup_max.value()))
 
         try:
             self._telegram_tab._save_values()
+        except Exception:
+            pass
+        try:
+            self._db_tab._apply()
         except Exception:
             pass
         try:
@@ -368,6 +456,18 @@ class SettingsDialog(QDialog):
         ToastNotification.notify(I18n._("settings.saved"), "success", 3000)
         self.accept()
 
+    def _open_scheduler(self) -> None:
+        dlg = SchedulerDialog(self)
+        dlg.exec_()
+
+    def _open_updater(self) -> None:
+        dlg = UpdateDialog(self)
+        dlg.exec_()
+
+    def _open_validation_rules(self) -> None:
+        dlg = ValidationRulesDialog(self)
+        dlg.exec_()
+
 
 class UsersDialog(QDialog):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -385,25 +485,25 @@ class UsersDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
 
         toolbar = QHBoxLayout()
-        add_btn = QPushButton(I18n._("user.add"))
+        add_btn = GlassButton(I18n._("user.add"))
         add_btn.setProperty("success", True)
         add_btn.clicked.connect(self._add_user)
         toolbar.addWidget(add_btn)
 
-        self._delete_btn = QPushButton(I18n._("user.delete"))
+        self._delete_btn = GlassButton(I18n._("user.delete"))
         self._delete_btn.setProperty("danger", True)
         self._delete_btn.clicked.connect(self._delete_user)
         toolbar.addWidget(self._delete_btn)
 
-        pw_btn = QPushButton(I18n._("user.change_password"))
+        pw_btn = GlassButton(I18n._("user.change_password"))
         pw_btn.clicked.connect(self._change_password)
         toolbar.addWidget(pw_btn)
 
-        role_btn = QPushButton(I18n._("user.change_role"))
+        role_btn = GlassButton(I18n._("user.change_role"))
         role_btn.clicked.connect(self._change_role)
         toolbar.addWidget(role_btn)
 
-        totp_btn = QPushButton(I18n._("user.totp_setup"))
+        totp_btn = GlassButton(I18n._("user.totp_setup"))
         totp_btn.clicked.connect(self._setup_totp)
         toolbar.addWidget(totp_btn)
 
@@ -412,8 +512,9 @@ class UsersDialog(QDialog):
 
         self._table = QTableWidget()
         self._table.setColumnCount(3)
-        self._table.setHorizontalHeaderLabels([
-            I18n._("user.username"), I18n._("user.role"), ""])
+        self._table.setHorizontalHeaderLabels(
+            [I18n._("user.username"), I18n._("user.role"), ""]
+        )
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._table.horizontalHeader().setStretchLastSection(True)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -424,8 +525,7 @@ class UsersDialog(QDialog):
 
     def _refresh(self) -> None:
         self._table.setRowCount(0)
-        users = self.db.fetch_all(
-            "SELECT id, username, role FROM users ORDER BY id")
+        users = self.db.fetch_all("SELECT id, username, role FROM users ORDER BY id")
         self._user_ids: List[int] = []
         for row in users:
             n = self._table.rowCount()
@@ -450,16 +550,16 @@ class UsersDialog(QDialog):
         fl.setContentsMargins(16, 16, 16, 16)
         fl.setSpacing(10)
 
-        ue = QLineEdit()
+        ue = GlassLineEdit()
         ue.setPlaceholderText(I18n._("user.username"))
         fl.addRow(I18n._("user.username") + ":", ue)
 
-        pe = QLineEdit()
+        pe = GlassLineEdit()
         pe.setEchoMode(QLineEdit.Password)
         pe.setPlaceholderText(I18n._("user.password"))
         fl.addRow(I18n._("user.password") + ":", pe)
 
-        rc = QComboBox()
+        rc = GlassComboBox()
         rc.addItem(I18n._("user.role_admin"), "Administrator")
         rc.addItem(I18n._("user.role_inspector"), "Inspector")
         rc.addItem(I18n._("user.role_manager"), "Manager")
@@ -467,11 +567,11 @@ class UsersDialog(QDialog):
 
         bl = QHBoxLayout()
         bl.addStretch()
-        ok_btn = QPushButton(I18n._("common.save"))
+        ok_btn = GlassButton(I18n._("common.save"))
         ok_btn.setProperty("success", True)
         ok_btn.clicked.connect(dlg.accept)
         bl.addWidget(ok_btn)
-        cancel_btn = QPushButton(I18n._("common.cancel"))
+        cancel_btn = GlassButton(I18n._("common.cancel"))
         cancel_btn.clicked.connect(dlg.reject)
         bl.addWidget(cancel_btn)
         fl.addRow(bl)
@@ -488,7 +588,8 @@ class UsersDialog(QDialog):
         try:
             self.db.execute(
                 "INSERT INTO users (username, password_hash, salt, role) VALUES (?, ?, ?, ?)",
-                (username, pw_hash, salt, role))
+                (username, pw_hash, salt, role),
+            )
             self.db.log_event(f"User created: {username}", "INFO")
             self._refresh()
             ToastNotification.notify(I18n._("common.success"), "success", 2000)
@@ -499,17 +600,20 @@ class UsersDialog(QDialog):
         uid = self._selected_user_id()
         if uid is None:
             return
-        user = self.db.fetch_one(
-            "SELECT username FROM users WHERE id=?", (uid,))
+        user = self.db.fetch_one("SELECT username FROM users WHERE id=?", (uid,))
         if not user:
             return
-        if user["username"] == getattr(getattr(self, 'parent')(), '_user', {}).get("username", ""):
+        if user["username"] == getattr(getattr(self, "parent")(), "_user", {}).get(
+            "username", ""
+        ):
             ToastNotification.notify("Cannot delete yourself", "warning", 3000)
             return
         reply = QMessageBox.question(
-            self, I18n._("user.delete"),
+            self,
+            I18n._("user.delete"),
             I18n._("user.delete_confirm").format(username=user["username"]),
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply == QMessageBox.Yes:
             self.db.execute("DELETE FROM users WHERE id=?", (uid,))
             self.db.log_event(f"User deleted: {user['username']}", "WARNING")
@@ -520,18 +624,21 @@ class UsersDialog(QDialog):
         uid = self._selected_user_id()
         if uid is None:
             return
-        user = self.db.fetch_one(
-            "SELECT username FROM users WHERE id=?", (uid,))
+        user = self.db.fetch_one("SELECT username FROM users WHERE id=?", (uid,))
         if not user:
             return
         password, ok = QInputDialog.getText(
-            self, I18n._("user.password_change_title"),
-            I18n._("user.password"), echo=QLineEdit.Password)
+            self,
+            I18n._("user.password_change_title"),
+            I18n._("user.password"),
+            echo=QLineEdit.Password,
+        )
         if ok and password.strip():
             pw_hash, salt = SecurityEngine.generate_hash(password.strip())
             self.db.execute(
                 "UPDATE users SET password_hash=?, salt=? WHERE id=?",
-                (pw_hash, salt, uid))
+                (pw_hash, salt, uid),
+            )
             self.db.log_event(f"Password changed for: {user['username']}", "INFO")
             ToastNotification.notify(I18n._("common.success"), "success", 2000)
 
@@ -539,17 +646,15 @@ class UsersDialog(QDialog):
         uid = self._selected_user_id()
         if uid is None:
             return
-        user = self.db.fetch_one(
-            "SELECT username, role FROM users WHERE id=?", (uid,))
+        user = self.db.fetch_one("SELECT username, role FROM users WHERE id=?", (uid,))
         if not user:
             return
         roles = ["Administrator", "Inspector", "Manager"]
         role, ok = QInputDialog.getItem(
-            self, I18n._("user.change_role"),
-            I18n._("user.role"), roles, 0, False)
+            self, I18n._("user.change_role"), I18n._("user.role"), roles, 0, False
+        )
         if ok and role:
-            self.db.execute("UPDATE users SET role=? WHERE id=?",
-                            (role, uid))
+            self.db.execute("UPDATE users SET role=? WHERE id=?", (role, uid))
             self.db.log_event(f"Role changed for {user['username']}: {role}", "INFO")
             self._refresh()
             ToastNotification.notify(I18n._("common.success"), "success", 2000)
@@ -559,12 +664,20 @@ class UsersDialog(QDialog):
         if uid is None:
             return
         user = self.db.fetch_one(
-            "SELECT username, totp_secret, backup_codes FROM users WHERE id=?", (uid,))
+            "SELECT username, totp_secret, backup_codes FROM users WHERE id=?", (uid,)
+        )
         if not user:
             return
         from services.security import SecurityEngine
-        from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton,
-                                     QHBoxLayout, QTextEdit, QFrame)
+        from PyQt5.QtWidgets import (
+            QDialog,
+            QVBoxLayout,
+            QLabel,
+            QHBoxLayout,
+            QTextEdit,
+            QFrame,
+        )
+
         dlg = QDialog(self)
         dlg.setWindowTitle(I18n._("user.totp_setup"))
         dlg.setMinimumWidth(500)
@@ -589,12 +702,16 @@ class UsersDialog(QDialog):
 
         # Backup codes section
         backup_frame = QFrame()
-        backup_frame.setStyleSheet("background: #FFF8E1; border: 1px solid #FFE082; border-radius: 8px;")
+        backup_frame.setStyleSheet(
+            "background: #FFF8E1; border: 1px solid #FFE082; border-radius: 8px;"
+        )
         bl = QVBoxLayout(backup_frame)
         bl.setContentsMargins(12, 10, 12, 10)
         bl.setSpacing(6)
         backup_heading = QLabel(I18n._("user.backup_codes_title"))
-        backup_heading.setStyleSheet("font-weight: 600; font-size: 14px; color: #F57F17;")
+        backup_heading.setStyleSheet(
+            "font-weight: 600; font-size: 14px; color: #F57F17;"
+        )
         bl.addWidget(backup_heading)
         backup_desc = QLabel(I18n._("user.backup_codes_desc"))
         backup_desc.setStyleSheet("font-size: 11px; color: #795548;")
@@ -603,27 +720,37 @@ class UsersDialog(QDialog):
 
         backup_codes = SecurityEngine.generate_backup_codes(10)
         codes_text = QTextEdit()
-        codes_text.setPlainText("\n".join(f"{i+1}. {c}" for i, c in enumerate(backup_codes)))
+        codes_text.setPlainText(
+            "\n".join(f"{i + 1}. {c}" for i, c in enumerate(backup_codes))
+        )
         codes_text.setMaximumHeight(160)
         codes_text.setReadOnly(True)
-        codes_text.setStyleSheet("font-family: monospace; font-size: 13px; padding: 6px;")
+        codes_text.setStyleSheet(
+            "font-family: monospace; font-size: 13px; padding: 6px;"
+        )
         bl.addWidget(codes_text)
         layout.addWidget(backup_frame)
 
         btn_layout = QHBoxLayout()
-        save_btn = QPushButton(I18n._("common.save"))
+        save_btn = GlassButton(I18n._("common.save"))
+
         def _do_save():
             hashed = SecurityEngine.hash_backup_codes(backup_codes)
             import json
+
             self.db.execute(
                 "UPDATE users SET totp_secret=?, backup_codes=? WHERE id=?",
-                (secret, json.dumps(hashed), uid))
-            self.db.log_event(f"TOTP + backup codes set up for {user['username']}", "INFO")
+                (secret, json.dumps(hashed), uid),
+            )
+            self.db.log_event(
+                f"TOTP + backup codes set up for {user['username']}", "INFO"
+            )
             dlg.accept()
             ToastNotification.notify(I18n._("user.totp_saved"), "success", 3000)
+
         save_btn.clicked.connect(_do_save)
         btn_layout.addWidget(save_btn)
-        cancel_btn = QPushButton(I18n._("common.cancel"))
+        cancel_btn = GlassButton(I18n._("common.cancel"))
         cancel_btn.clicked.connect(dlg.reject)
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)
@@ -646,7 +773,7 @@ class AuditTab(QWidget):
         lbl = QLabel(I18n._("audit.filter_severity") + ":")
         toolbar.addWidget(lbl)
 
-        self._severity_filter = QComboBox()
+        self._severity_filter = GlassComboBox()
         self._severity_filter.addItem(I18n._("filter.all"), "")
         self._severity_filter.addItem(I18n._("audit.info"), "INFO")
         self._severity_filter.addItem(I18n._("audit.warning"), "WARNING")
@@ -654,7 +781,7 @@ class AuditTab(QWidget):
         self._severity_filter.currentIndexChanged.connect(self._refresh)
         toolbar.addWidget(self._severity_filter)
 
-        refresh_btn = QPushButton(I18n._("common.refresh"))
+        refresh_btn = GlassButton(I18n._("common.refresh"))
         refresh_btn.setProperty("flat", True)
         refresh_btn.clicked.connect(self._refresh)
         toolbar.addWidget(refresh_btn)
@@ -664,9 +791,15 @@ class AuditTab(QWidget):
 
         self._table = QTableWidget()
         self._table.setColumnCount(5)
-        self._table.setHorizontalHeaderLabels([
-            I18n._("audit.timestamp"), I18n._("audit.event"),
-            I18n._("audit.severity"), I18n._("audit.details"), ""])
+        self._table.setHorizontalHeaderLabels(
+            [
+                I18n._("audit.timestamp"),
+                I18n._("audit.event"),
+                I18n._("audit.severity"),
+                I18n._("audit.details"),
+                "",
+            ]
+        )
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._table.horizontalHeader().setStretchLastSection(True)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -682,10 +815,12 @@ class AuditTab(QWidget):
             if severity:
                 rows = self.db.fetch_all(
                     "SELECT * FROM audit_log WHERE severity=? ORDER BY id DESC LIMIT 500",
-                    (severity,))
+                    (severity,),
+                )
             else:
                 rows = self.db.fetch_all(
-                    "SELECT * FROM audit_log ORDER BY id DESC LIMIT 500")
+                    "SELECT * FROM audit_log ORDER BY id DESC LIMIT 500"
+                )
         except Exception:
             return
         for row in rows:
@@ -704,7 +839,11 @@ class AuditTab(QWidget):
             self._table.setItem(n, 1, QTableWidgetItem(event))
             self._table.setItem(n, 2, QTableWidgetItem(sev))
             self._table.setItem(n, 3, QTableWidgetItem(detail_str))
-            color = "#27AE60" if sev == "INFO" else ("#F39C12" if sev == "WARNING" else "#E74C3C")
+            color = (
+                "#27AE60"
+                if sev == "INFO"
+                else ("#F39C12" if sev == "WARNING" else "#E74C3C")
+            )
             self._table.item(n, 2).setForeground(QColor(color))
         self._table.resizeColumnsToContents()
 
@@ -728,14 +867,26 @@ class HotkeyManager:
         self._add("Ctrl+E", lambda: self._try_open(w, "export"))
         self._add("Ctrl+I", lambda: self._try_open(w, "import_"))
         self._add("Ctrl+R", lambda: self._try_open(w, "report"))
-        self._add("Ctrl+S", lambda: (w.db.create_backup(),
-            ToastNotification.notify(I18n._("common.success"), "success", 2000)))
+        self._add(
+            "Ctrl+S",
+            lambda: (
+                w.db.create_backup(),
+                ToastNotification.notify(I18n._("common.success"), "success", 2000),
+            ),
+        )
         self._add("Ctrl+Q", w.close)
         self._add("F5", lambda: self._try_open(w, "refresh"))
         self._add("F1", lambda: w._show_about())
         # Tab switching shortcuts
         for i in range(1, 10):
-            self._add(f"Alt+{i}", lambda idx=i-1: w._tab_widget.setCurrentIndex(idx) if idx < w._tab_widget.count() else None)
+            self._add(
+                f"Alt+{i}",
+                lambda idx=i - 1: (
+                    w._tab_widget.setCurrentIndex(idx)
+                    if idx < w._tab_widget.count()
+                    else None
+                ),
+            )
 
     @staticmethod
     def _try_open(window: QMainWindow, action: str) -> None:

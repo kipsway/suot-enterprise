@@ -4,9 +4,19 @@ from typing import Any, Dict, List, Optional
 
 from PyQt5.QtCore import Qt, QSize, QTimer
 from PyQt5.QtGui import QColor, QFont
-from PyQt5.QtWidgets import (QWidget, QFrame, QVBoxLayout, QHBoxLayout,
-                             QLabel, QPushButton, QComboBox, QListWidget,
-                             QListWidgetItem, QDateEdit, QLineEdit)
+from PyQt5.QtWidgets import (
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+)
+
+from widgets.glass_button import GlassButton
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
@@ -14,11 +24,18 @@ from services.database import DatabaseManager
 
 
 EVENT_ICONS = {
-    "login": "🔑", "logout": "🚪", "User logged in": "🔑",
-    "Failed login": "❌", "TOTP": "🔐",
-    "created": "➕", "updated": "✏️", "deleted": "🗑",
-    "Import": "📥", "Export": "📤",
-    "Backup": "💾", "Restore": "♻",
+    "login": "🔑",
+    "logout": "🚪",
+    "User logged in": "🔑",
+    "Failed login": "❌",
+    "TOTP": "🔐",
+    "created": "➕",
+    "updated": "✏️",
+    "deleted": "🗑",
+    "Import": "📥",
+    "Export": "📤",
+    "Backup": "💾",
+    "Restore": "♻",
     "Import:": "📥",
     "Seed": "🌱",
 }
@@ -32,13 +49,21 @@ def _get_event_icon(event: str) -> str:
 
 
 def _get_event_color(severity: str) -> str:
-    return {"INFO": "#27AE60", "WARNING": "#F39C12", "CRITICAL": "#E74C3C"}.get(severity, "#888")
+    return {"INFO": "#27AE60", "WARNING": "#F39C12", "CRITICAL": "#E74C3C"}.get(
+        severity, "#888"
+    )
 
 
 class TimelineItemWidget(QFrame):
-    def __init__(self, event: str, severity: str, details: str,
-                 timestamp: str, username: str = "",
-                 parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        event: str,
+        severity: str,
+        details: str,
+        timestamp: str,
+        username: str = "",
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
         self.setProperty("card", True)
         self.setStyleSheet("margin: 2px 0;")
@@ -100,14 +125,14 @@ class TimelineTab(QWidget):
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
 
-        self._search_edit = QLineEdit()
+        self._search_edit = GlassLineEdit()
         self._search_edit.setProperty("search", True)
         self._search_edit.setPlaceholderText(I18n._("search.placeholder"))
         self._search_edit.setMinimumHeight(32)
         self._search_edit.textChanged.connect(self._load_events)
         toolbar.addWidget(self._search_edit, 1)
 
-        self._severity_filter = QComboBox()
+        self._severity_filter = GlassComboBox()
         self._severity_filter.setMinimumHeight(32)
         self._severity_filter.addItem(I18n._("filter.all"), "")
         self._severity_filter.addItem(I18n._("audit.info"), "INFO")
@@ -116,7 +141,7 @@ class TimelineTab(QWidget):
         self._severity_filter.currentIndexChanged.connect(self._load_events)
         toolbar.addWidget(self._severity_filter)
 
-        self._limit_combo = QComboBox()
+        self._limit_combo = GlassComboBox()
         self._limit_combo.setMinimumHeight(32)
         for val in (50, 100, 200, 500):
             self._limit_combo.addItem(str(val), val)
@@ -125,7 +150,7 @@ class TimelineTab(QWidget):
         toolbar.addWidget(QLabel(I18n._("common.count") + ":"))
         toolbar.addWidget(self._limit_combo)
 
-        refresh_btn = QPushButton(I18n._("common.refresh"))
+        refresh_btn = GlassButton(I18n._("common.refresh"))
         refresh_btn.setProperty("flat", True)
         refresh_btn.clicked.connect(self._load_events)
         toolbar.addWidget(refresh_btn)
@@ -151,10 +176,12 @@ class TimelineTab(QWidget):
             if severity:
                 rows = self.db.fetch_all(
                     "SELECT * FROM audit_log WHERE severity=? ORDER BY id DESC LIMIT ?",
-                    (severity, limit))
+                    (severity, limit),
+                )
             else:
                 rows = self.db.fetch_all(
-                    "SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,))
+                    "SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,)
+                )
         except Exception:
             rows = []
 
@@ -163,11 +190,19 @@ class TimelineTab(QWidget):
             event = str(r.get("event", ""))
             details_raw = r.get("details", "{}")
             try:
-                dd = json.loads(details_raw) if isinstance(details_raw, str) and details_raw else {}
+                dd = (
+                    json.loads(details_raw)
+                    if isinstance(details_raw, str) and details_raw
+                    else {}
+                )
             except Exception:
                 dd = {}
             detail_str = "; ".join(f"{k}={v}" for k, v in dd.items()) if dd else ""
-            if search and search not in event.lower() and search not in detail_str.lower():
+            if (
+                search
+                and search not in event.lower()
+                and search not in detail_str.lower()
+            ):
                 continue
             filtered += 1
             item = QListWidgetItem()
@@ -183,5 +218,4 @@ class TimelineTab(QWidget):
             self._list.setItemWidget(item, widget)
 
         total = len(rows)
-        self._info_label.setText(
-            f'{I18n._("common.count")}: {filtered} / {total}')
+        self._info_label.setText(f"{I18n._('common.count')}: {filtered} / {total}")

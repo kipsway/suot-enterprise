@@ -1,11 +1,12 @@
 import json
 from typing import Optional
 
+from PyQt5 import sip
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QHeaderView
 
 
-class ColumnWidthMixin:
+class ColumnWidthMixin(sip.wrapper):
     TABLE_NAME: str = ""
     _widths_loaded: bool = False
 
@@ -23,7 +24,9 @@ class ColumnWidthMixin:
             logical = hdr.logicalIndex(i)
             if logical >= 0:
                 widths[str(logical)] = hdr.sectionSize(logical)
-        self.db.set_setting(f"col_widths_{self.TABLE_NAME}", json.dumps(widths, ensure_ascii=False))
+        self.db.set_setting(
+            f"col_widths_{self.TABLE_NAME}", json.dumps(widths, ensure_ascii=False)
+        )
 
     def _restore_column_widths(self) -> None:
         if not self.TABLE_NAME:

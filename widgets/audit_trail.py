@@ -1,23 +1,32 @@
 from typing import Any, Dict, List
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                             QListWidget, QListWidgetItem, QPushButton)
+from PyQt5.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+)
 
 from app_core.i18n import I18n
 from services.database import DatabaseManager
 
 
 class AuditTrailDialog(QDialog):
-    def __init__(self, table: str, record_id: int, title: str = "",
-                 parent=None) -> None:
+    def __init__(
+        self, table: str, record_id: int, title: str = "", parent=None
+    ) -> None:
         super().__init__(parent)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.db = DatabaseManager()
         self._table = table
         self._record_id = record_id
-        self.setWindowTitle(f"{I18n._('audit.title')} #{record_id} — {table}"
-                            if not title else title)
+        self.setWindowTitle(
+            f"{I18n._('audit.title')} #{record_id} — {table}" if not title else title
+        )
         self.setMinimumSize(650, 450)
         self.resize(700, 500)
         self._build_ui()
@@ -39,7 +48,9 @@ class AuditTrailDialog(QDialog):
 
         self._detail_label = QLabel()
         self._detail_label.setWordWrap(True)
-        self._detail_label.setStyleSheet("padding: 8px; background: rgba(0,0,0,0.05); border-radius: 4px;")
+        self._detail_label.setStyleSheet(
+            "padding: 8px; background: rgba(0,0,0,0.05); border-radius: 4px;"
+        )
         self._detail_label.setMinimumHeight(60)
         layout.addWidget(self._detail_label)
 
@@ -72,14 +83,18 @@ class AuditTrailDialog(QDialog):
             self._list.addItem(item)
 
         count = self._list.count()
-        self.setWindowTitle(f"{self.windowTitle().split(' — ')[0]} — {count} {I18n._('audit.events')}")
+        self.setWindowTitle(
+            f"{self.windowTitle().split(' — ')[0]} — {count} {I18n._('audit.events')}"
+        )
 
     def _on_event_selected(self, item: QListWidgetItem) -> None:
         raw = item.data(Qt.UserRole)
         try:
             import json
+
             details = json.loads(raw)
             self._detail_label.setText(
-                "\n".join(f"{k}: {v}" for k, v in details.items()))
+                "\n".join(f"{k}: {v}" for k, v in details.items())
+            )
         except Exception:
             self._detail_label.setText(raw)

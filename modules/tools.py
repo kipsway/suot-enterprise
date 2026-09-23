@@ -4,13 +4,29 @@ from typing import Any, Dict, List, Optional, Tuple
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor, QFont, QPixmap, QDoubleValidator, QIntValidator
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
-from PyQt5.QtWidgets import (QApplication, QDialog, QWidget, QFrame,
-    QVBoxLayout, QHBoxLayout, QFormLayout, QGridLayout, QLabel,
-    QLineEdit, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-    QSlider, QScrollArea, QGroupBox, QMessageBox, QInputDialog,
-    QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView,
-    QAbstractItemView, QCheckBox, QSplitter, QTextEdit, QTextBrowser,
-    QListWidget, QListWidgetItem, QDialogButtonBox, QSizePolicy)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QScrollArea,
+    QMessageBox,
+    QInputDialog,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QTextBrowser,
+)
+
+from widgets.glass_button import GlassButton
+from widgets.glass_checkbox import GlassCheckBox
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 
 from app_core.i18n import I18n
 from app_core.config import RUNTIME_PATHS, AppConfig
@@ -40,24 +56,24 @@ class FineKinneyCalculator(QDialog):
         form.setSpacing(10)
 
         prob_items = I18n._("risk.prob_opts").split(";")
-        self._prob_cb = QComboBox()
+        self._prob_cb = GlassComboBox()
         self._prob_cb.setMinimumHeight(32)
         self._prob_cb.addItems(prob_items)
         form.addRow(I18n._("risk.probability") + ":", self._prob_cb)
 
         exp_items = I18n._("risk.exp_opts").split(";")
-        self._exp_cb = QComboBox()
+        self._exp_cb = GlassComboBox()
         self._exp_cb.setMinimumHeight(32)
         self._exp_cb.addItems(exp_items)
         form.addRow(I18n._("risk.exposure") + ":", self._exp_cb)
 
         cons_items = I18n._("risk.cons_opts").split(";")
-        self._cons_cb = QComboBox()
+        self._cons_cb = GlassComboBox()
         self._cons_cb.setMinimumHeight(32)
         self._cons_cb.addItems(cons_items)
         form.addRow(I18n._("risk.consequence") + ":", self._cons_cb)
 
-        calc_btn = QPushButton(I18n._("risk.calculate"))
+        calc_btn = GlassButton(I18n._("risk.calculate"))
         calc_btn.setProperty("success", True)
         calc_btn.setMinimumHeight(36)
         calc_btn.clicked.connect(self._calculate)
@@ -73,7 +89,7 @@ class FineKinneyCalculator(QDialog):
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         btn_row.addWidget(close_btn)
         form.addRow(btn_row)
@@ -101,7 +117,8 @@ class FineKinneyCalculator(QDialog):
 
         self._desc_label.setText(
             f"<b>{I18n._('risk.classification')}:</b> "
-            f"<span style='color:{color};font-weight:bold;'>{text}</span>")
+            f"<span style='color:{color};font-weight:bold;'>{text}</span>"
+        )
 
 
 class TextbookManagerDialog(QDialog):
@@ -127,28 +144,29 @@ class TextbookManagerDialog(QDialog):
         hint.setStyleSheet("font-size: 12px;")
         layout.addWidget(hint)
 
-        self._search_edit = QLineEdit()
+        self._search_edit = GlassLineEdit()
         self._search_edit.setPlaceholderText(I18n._("common.search_hint"))
         self._search_edit.textChanged.connect(self._filter_rows)
         layout.addWidget(self._search_edit)
 
         self._table = QTableWidget()
         self._table.setColumnCount(2)
-        self._table.setHorizontalHeaderLabels([
-            I18n._("textbook.trigger"), I18n._("textbook.expanded")])
+        self._table.setHorizontalHeaderLabels(
+            [I18n._("textbook.trigger"), I18n._("textbook.expanded")]
+        )
         self._table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeToContents)
-        self._table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.Stretch)
+            0, QHeaderView.ResizeToContents
+        )
+        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self._table.setAlternatingRowColors(True)
         layout.addWidget(self._table, 1)
 
         btn_row = QHBoxLayout()
-        add_btn = QPushButton(I18n._("common.add"))
+        add_btn = GlassButton(I18n._("common.add"))
         add_btn.clicked.connect(self._add_row)
-        del_btn = QPushButton(I18n._("common.delete"))
+        del_btn = GlassButton(I18n._("common.delete"))
         del_btn.clicked.connect(self._delete_row)
-        save_btn = QPushButton(I18n._("common.save"))
+        save_btn = GlassButton(I18n._("common.save"))
         save_btn.setProperty("success", True)
         save_btn.clicked.connect(self._save)
         btn_row.addWidget(add_btn)
@@ -165,8 +183,9 @@ class TextbookManagerDialog(QDialog):
         query = self._search_edit.text().strip().lower()
         filtered = self._all_rows
         if query:
-            filtered = [(s, t) for s, t in filtered
-                        if query in s.lower() or query in t.lower()]
+            filtered = [
+                (s, t) for s, t in filtered if query in s.lower() or query in t.lower()
+            ]
         self._table.setRowCount(len(filtered))
         for i, (short_code, full_text) in enumerate(filtered):
             self._table.setItem(i, 0, QTableWidgetItem(short_code))
@@ -175,7 +194,8 @@ class TextbookManagerDialog(QDialog):
 
     def _load_data(self) -> None:
         self._all_rows = self.db.fetch_all(
-            "SELECT short_code, full_text FROM textbook ORDER BY short_code")
+            "SELECT short_code, full_text FROM textbook ORDER BY short_code"
+        )
         self._filter_rows()
 
     def _add_row(self) -> None:
@@ -197,7 +217,8 @@ class TextbookManagerDialog(QDialog):
             if short_item and long_item and short_item.text().strip():
                 self.db.execute(
                     "INSERT INTO textbook (short_code, full_text) VALUES (?, ?)",
-                    (short_item.text().strip().lower(), long_item.text().strip()))
+                    (short_item.text().strip().lower(), long_item.text().strip()),
+                )
         ToastNotification.notify(I18n._("textbook.saved"), "success", 3000)
         self.accept()
 
@@ -229,13 +250,13 @@ class PrintDialog(QDialog):
         layout.addWidget(heading)
 
         form = QFormLayout()
-        self._table_combo = QComboBox()
+        self._table_combo = GlassComboBox()
         self._table_combo.setMinimumHeight(32)
         for tbl, label_key in self.TABLES.items():
             self._table_combo.addItem(I18n._(label_key), tbl)
         form.addRow(I18n._("common.table") + ":", self._table_combo)
 
-        self._template_combo = QComboBox()
+        self._template_combo = GlassComboBox()
         self._template_combo.setMinimumHeight(32)
         self._template_combo.addItem("— " + I18n._("print.without_template") + " —", 0)
         for t in self.db.get_all_print_templates():
@@ -243,18 +264,18 @@ class PrintDialog(QDialog):
             self._template_combo.addItem(t["name"] + suffix, t["id"])
         form.addRow(I18n._("print.template") + ":", self._template_combo)
 
-        self._all_cb = QCheckBox(I18n._("common.select_all"))
+        self._all_cb = GlassCheckBox(I18n._("common.select_all"))
         self._all_cb.setChecked(True)
         form.addRow(self._all_cb)
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
-        print_btn = QPushButton(I18n._("common.print"))
+        print_btn = GlassButton(I18n._("common.print"))
         print_btn.setMinimumHeight(36)
         print_btn.clicked.connect(self._do_print)
         btn_row.addWidget(print_btn)
         btn_row.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         btn_row.addWidget(close_btn)
         layout.addLayout(btn_row)
@@ -269,8 +290,7 @@ class PrintDialog(QDialog):
         rows_html = ""
         for rec in records:
             dj = rec.get("data_json", {})
-            cells = "".join(
-                f"<td>{str(dj.get(c['name'], '—'))}</td>" for c in cols)
+            cells = "".join(f"<td>{str(dj.get(c['name'], '—'))}</td>" for c in cols)
             rows_html += f"<tr>{cells}</tr>"
 
         headers = "".join(f"<th>{c['name']}</th>" for c in cols)
@@ -279,9 +299,11 @@ class PrintDialog(QDialog):
             templates = self.db.get_all_print_templates()
             tmpl = next((t for t in templates if t["id"] == template_id), None)
             if tmpl:
-                html = PrintEngine.render_report(label, template_html=tmpl["html_content"])
+                html = PrintEngine.render_report(
+                    label, template_html=tmpl["html_content"]
+                )
             else:
-                html = f"""<html><head><meta charset='utf-8'><style>body{{font-family:Arial,sans-serif;margin:30px;}}table{{width:100%;border-collapse:collapse;margin-top:16px;}}th,td{{border:1px solid #999;padding:8px;text-align:left;font-size:12px;}}</style></head><body><h2>{label}</h2><p>{I18n._('common.count')}: {len(records)}</p><table><thead><tr>{headers}</tr></thead><tbody>{rows_html}</tbody></table></body></html>"""
+                html = f"""<html><head><meta charset='utf-8'><style>body{{font-family:Arial,sans-serif;margin:30px;}}table{{width:100%;border-collapse:collapse;margin-top:16px;}}th,td{{border:1px solid #999;padding:8px;text-align:left;font-size:12px;}}</style></head><body><h2>{label}</h2><p>{I18n._("common.count")}: {len(records)}</p><table><thead><tr>{headers}</tr></thead><tbody>{rows_html}</tbody></table></body></html>"""
         else:
             html = f"""<html><head><meta charset='utf-8'>
             <style>
@@ -293,10 +315,10 @@ class PrintDialog(QDialog):
             tr:nth-child(even){{background:#f5f5f7;}}
             </style></head><body>
             <h2>{label}</h2>
-            <p>{I18n._('common.date')}: {datetime.now().strftime('%d.%m.%Y %H:%M')}</p>
-            <p>{I18n._('common.count')}: {len(records)}</p>
+            <p>{I18n._("common.date")}: {datetime.now().strftime("%d.%m.%Y %H:%M")}</p>
+            <p>{I18n._("common.count")}: {len(records)}</p>
             <table><thead><tr>{headers}</tr></thead>
-            <tbody>{rows_html if rows_html else '<tr><td colspan="' + str(len(cols)) + '">' + I18n._("report.no_data") + '</td></tr>'}</tbody></table>
+            <tbody>{rows_html if rows_html else '<tr><td colspan="' + str(len(cols)) + '">' + I18n._("report.no_data") + "</td></tr>"}</tbody></table>
             </body></html>"""
 
         try:

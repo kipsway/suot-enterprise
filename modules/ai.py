@@ -4,14 +4,33 @@ import urllib.error as _urllib_error
 from typing import Any, Dict, List, Optional, Generator
 import io
 import time
+from PyQt5 import sip
 from PyQt5.QtCore import Qt, QTimer, QObject, QEvent
 from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import (QApplication, QDialog, QWidget, QFrame,
-    QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QLineEdit,
-    QPushButton, QComboBox, QSlider, QTextEdit, QScrollArea,
-    QFileDialog, QMessageBox, QSizePolicy)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QLineEdit,
+    QSlider,
+    QTextEdit,
+    QTextBrowser,
+    QScrollArea,
+    QFileDialog,
+    QMessageBox,
+)
+from widgets.glass_button import GlassButton
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 
 from app_core.i18n import I18n
+from app_core.markdown_renderer import markdown_to_html
+from app_core.theme_engine import ThemeEngine
 from app_core.utils import fade_in_widget
 from services.database import DatabaseManager
 from modules.print_engine import PrintEngine
@@ -26,22 +45,54 @@ class AIEngine:
         self.db = DatabaseManager()
         self.provider: str = self.db.get_ai_setting("provider", "openai")
         self.api_url: str = self.db.get_ai_setting("api_url", self.DEFAULT_URL)
-        self.api_key: str = self.db.get_ai_setting("api_key", "")
+        enc_key = self.db.get_ai_setting("api_key", "")
+        self.api_key: str = self.db.decrypt_value(enc_key)
         self.model: str = self.db.get_ai_setting("model", self.DEFAULT_MODEL)
         self.mode: str = self.db.get_ai_setting("mode", "chat")
         self.temperature: float = float(self.db.get_ai_setting("temperature", "0.7"))
+        self._last_image_path: str = ""
+
+    @staticmethod
+    def _is_vision_model(model: str) -> bool:
+        model_lower = model.lower()
+        keywords = ["vision", "gpt-4o", "gemini-2.0", "gemini-1.5", "claude-3"]
+        return any(k in model_lower for k in keywords)
+
+    @staticmethod
+    def _encode_image(filepath: str) -> str:
+        import base64
+
+        with open(filepath, "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
+
+    @staticmethod
+    def _mime_from_ext(path: str) -> str:
+        ext = os.path.splitext(path)[1].lower()
+        mime_map = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+            ".bmp": "image/bmp",
+            ".webp": "image/webp",
+        }
+        return mime_map.get(ext, "image/jpeg")
 
     def save_settings(self) -> None:
         self.db.set_ai_setting("provider", self.provider)
         self.db.set_ai_setting("api_url", self.api_url)
-        self.db.set_ai_setting("api_key", self.api_key)
+        self.db.set_ai_setting("api_key", self.db.encrypt_value(self.api_key))
         self.db.set_ai_setting("model", self.model)
         self.db.set_ai_setting("mode", self.mode)
         self.db.set_ai_setting("temperature", str(self.temperature))
 
     @staticmethod
     def build_system_prompt(db_schema: str = "") -> str:
-        schema_section = f"\n\nActual database schema (auto-detected):\n{db_schema}" if db_schema else ""
+        schema_section = (
+            f"\n\nActual database schema (auto-detected):\n{db_schema}"
+            if db_schema
+            else ""
+        )
         return (
             "You are an AI assistant for an Occupational Safety and Health (OSH) "
             "management system called 'СУОТ Enterprise'. "
@@ -71,33 +122,87 @@ class AIEngine:
             "- No comments inside JSON\n"
             "- Escape special characters properly\n\n"
             "Available actions:\n"
-            "- respond: just reply to user (params: {\"message\": \"...\"})\n"
-            "- search_db: search across tables (params: {\"query\": \"...\", \"table\": \"...\"})\n"
+            '- respond: just reply to user (params: {"message": "..."})\n'
+            '- search_db: search across tables (params: {"query": "...", "table": "..."})\n'
             "- get_stats: get summary statistics\n"
-            "- add_record: add a new record (params: {\"table\": \"...\", \"data\": {\"field1\": \"value1\", ...}})\n"
-            "- modify_record: modify a record (params: {\"table\": \"...\", \"id\": ..., "
-            "\"field\": \"...\", \"value\": \"...\"})\n"
-            "- delete_record: delete a record (params: {\"table\": \"...\", \"id\": ...})\n"
-            "- create_report: generate company report (params: {\"company\": \"...\"})\n"
-            "- rename_column: rename a column (params: {\"table\": \"...\", \"old\": \"...\", "
-            "\"new\": \"...\"})\n"
-            "- add_note: add a note (params: {\"entity_type\": \"...\", \"entity_id\": ..., \"text\": \"...\"})\n"
+            '- add_record: add a new record (params: {"table": "...", "data": {"field1": "value1", ...}})\n'
+            '- modify_record: modify a record (params: {"table": "...", "id": ..., '
+            '"field": "...", "value": "..."})\n'
+            '- delete_record: delete a record (params: {"table": "...", "id": ...})\n'
+            '- create_report: generate company report (params: {"company": "..."})\n'
+            '- rename_column: rename a column (params: {"table": "...", "old": "...", '
+            '"new": "..."})\n'
+            '- add_note: add a note (params: {"entity_type": "...", "entity_id": ..., "text": "..."})\n'
             "For 'modify_record', 'add_record', 'delete_record', 'rename_column' and 'add_note', "
-            "user confirmation is required."
-            + schema_section
+            "user confirmation is required." + schema_section
         )
 
-    def _build_messages(self, history: List[Dict[str, str]],
-                        query: str, schema: str) -> List[Dict[str, str]]:
-        msgs = [{"role": "system", "content": self.build_system_prompt(schema)}]
+    def _build_messages(
+        self, history: List[Dict[str, str]], query: str, schema: str
+    ) -> List[Dict[str, Any]]:
+        msgs: List[Dict[str, Any]] = [
+            {"role": "system", "content": self.build_system_prompt(schema)}
+        ]
         for h in history:
             msgs.append(h)
-        msgs.append({"role": "user", "content": query})
+        if self._is_vision_model(self.model) and self._has_image_marker(query):
+            data = self._resolve_vision_content(query)
+            if data is not None:
+                msgs.append(data)
+            else:
+                msgs.append({"role": "user", "content": query})
+        else:
+            msgs.append({"role": "user", "content": query})
         return msgs
 
-    def send_request(self, history: List[Dict[str, str]],
-                     query: str, schema: str = "") -> Optional[str]:
-        local_noauth = any(x in self.api_url.lower() for x in ["localhost", "127.0.0.1", "ollama"])
+    def _has_image_marker(self, text: str) -> bool:
+        return (
+            "[\u0418\u0437\u043e\u0431\u0440\u0430\u0436\u0435\u043d\u0438\u0435:"
+            in text
+        )
+
+    def _resolve_vision_content(self, text: str) -> Optional[Dict[str, Any]]:
+        import re
+
+        m = re.search(r"\[Изображение:\s*(.+?)\]", text)
+        if not m:
+            return None
+        fname = m.group(1).strip()
+        filepath = self._find_image_file(fname)
+        if not filepath:
+            return None
+        b64 = self._encode_image(filepath)
+        mime = self._mime_from_ext(filepath)
+        clean_text = text[: m.start()].strip() + text[m.end() :].strip()
+        content: list = []
+        if clean_text:
+            content.append({"type": "text", "text": clean_text})
+        content.append(
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+        )
+        return {"role": "user", "content": content}
+
+    def _find_image_file(self, fname: str) -> Optional[str]:
+        if self._last_image_path and os.path.isfile(self._last_image_path):
+            return self._last_image_path
+        media_path = self.db.get_setting("media_path", "media")
+        candidates = [
+            fname,
+            os.path.join(media_path, fname) if media_path else "",
+            os.path.join(os.getcwd(), "media", fname),
+            os.path.join(os.getcwd(), fname),
+        ]
+        for c in candidates:
+            if c and os.path.isfile(c):
+                return c
+        return None
+
+    def send_request(
+        self, history: List[Dict[str, str]], query: str, schema: str = ""
+    ) -> Optional[str]:
+        local_noauth = any(
+            x in self.api_url.lower() for x in ["localhost", "127.0.0.1", "ollama"]
+        )
         if not self.api_key and not local_noauth:
             return None
         try:
@@ -106,13 +211,21 @@ class AIEngine:
 
             if provider == "anthropic":
                 url = f"{self.api_url.rstrip('/')}/messages"
-                payload = json.dumps({
-                    "model": self.model,
-                    "max_tokens": 4000,
-                    "messages": [{"role": m["role"], "content": m["content"]}
-                                 for m in messages if m["role"] != "system"],
-                    "system": next((m["content"] for m in messages if m["role"] == "system"), ""),
-                }).encode("utf-8")
+                payload = json.dumps(
+                    {
+                        "model": self.model,
+                        "max_tokens": 4000,
+                        "messages": [
+                            {"role": m["role"], "content": m["content"]}
+                            for m in messages
+                            if m["role"] != "system"
+                        ],
+                        "system": next(
+                            (m["content"] for m in messages if m["role"] == "system"),
+                            "",
+                        ),
+                    }
+                ).encode("utf-8")
                 headers = {
                     "Content-Type": "application/json",
                     "x-api-key": self.api_key,
@@ -122,16 +235,44 @@ class AIEngine:
                 resp = _urllib_request.urlopen(req, timeout=90)
                 data = json.loads(resp.read().decode("utf-8"))
                 if "content" in data and len(data["content"]) > 0:
-                    return "".join(b.get("text", "") for b in data["content"] if b.get("type") == "text")
+                    return "".join(
+                        b.get("text", "")
+                        for b in data["content"]
+                        if b.get("type") == "text"
+                    )
                 return json.dumps(data, ensure_ascii=False)[:500]
 
             if provider == "gemini":
-                model_name = self.model.split("/")[-1] if "/" in self.model else self.model
+                model_name = (
+                    self.model.split("/")[-1] if "/" in self.model else self.model
+                )
                 url = f"{self.api_url.rstrip('/')}/models/{model_name}:generateContent"
                 gemini_msgs = []
                 for m in messages:
                     role = "user" if m["role"] in ("user", "system") else "model"
-                    gemini_msgs.append({"role": role, "parts": [{"text": m["content"]}]})
+                    if isinstance(m.get("content"), list):
+                        parts = []
+                        for item in m["content"]:
+                            if item["type"] == "text":
+                                parts.append({"text": item["text"]})
+                            elif item["type"] == "image_url":
+                                data_url = item["image_url"]["url"]
+                                if data_url.startswith("data:"):
+                                    _, b64part = data_url.split(",", 1)
+                                    mime = data_url.split(";")[0].split(":")[1]
+                                    parts.append(
+                                        {
+                                            "inline_data": {
+                                                "mime_type": mime,
+                                                "data": b64part,
+                                            }
+                                        }
+                                    )
+                        gemini_msgs.append({"role": role, "parts": parts})
+                    else:
+                        gemini_msgs.append(
+                            {"role": role, "parts": [{"text": m["content"]}]}
+                        )
                 payload = json.dumps({"contents": gemini_msgs}).encode("utf-8")
                 headers = {"Content-Type": "application/json"}
                 if self.api_key:
@@ -147,12 +288,14 @@ class AIEngine:
 
             # OpenAI-compatible (default)
             url = f"{self.api_url.rstrip('/')}/chat/completions"
-            payload = json.dumps({
-                "model": self.model,
-                "messages": messages,
-                "temperature": self.temperature,
-                "max_tokens": 4000,
-            }).encode("utf-8")
+            payload = json.dumps(
+                {
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": self.temperature,
+                    "max_tokens": 4000,
+                }
+            ).encode("utf-8")
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
@@ -170,10 +313,12 @@ class AIEngine:
             return f"Connection Error: {e.reason}"
         except Exception as e:
             import traceback
+
             return f"Error: {str(e)}\n{traceback.format_exc()[:300]}"
 
-    def send_request_stream(self, history: List[Dict[str, str]],
-                            query: str, schema: str = "") -> Generator[str, None, None]:
+    def send_request_stream(
+        self, history: List[Dict[str, str]], query: str, schema: str = ""
+    ) -> Generator[str, None, None]:
         provider = self.provider.lower()
         if provider in ("anthropic", "gemini"):
             result = self.send_request(history, query, schema)
@@ -181,7 +326,9 @@ class AIEngine:
                 yield result
             return
 
-        local_noauth = any(x in self.api_url.lower() for x in ["localhost", "127.0.0.1", "ollama"])
+        local_noauth = any(
+            x in self.api_url.lower() for x in ["localhost", "127.0.0.1", "ollama"]
+        )
         if not self.api_key and not local_noauth:
             yield "[ERROR: No API key configured]"
             return
@@ -189,13 +336,15 @@ class AIEngine:
         try:
             messages = self._build_messages(history, query, schema)
             url = f"{self.api_url.rstrip('/')}/chat/completions"
-            payload = json.dumps({
-                "model": self.model,
-                "messages": messages,
-                "temperature": self.temperature,
-                "max_tokens": 4000,
-                "stream": True,
-            }).encode("utf-8")
+            payload = json.dumps(
+                {
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": self.temperature,
+                    "max_tokens": 4000,
+                    "stream": True,
+                }
+            ).encode("utf-8")
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
@@ -227,6 +376,7 @@ class AIEngine:
             yield f"[Connection Error: {e.reason}]"
         except Exception as e:
             import traceback
+
             yield f"[Error: {str(e)}\n{traceback.format_exc()[:300]}]"
 
     def parse_agent_response(self, response: str) -> Dict[str, Any]:
@@ -238,8 +388,7 @@ class AIEngine:
                     cleaned = cleaned[4:]
             return json.loads(cleaned)
         except Exception:
-            return {"thought": "", "action": "respond",
-                    "params": {"message": response}}
+            return {"thought": "", "action": "respond", "params": {"message": response}}
 
     def execute_action(self, action: str, params: Dict[str, Any]) -> str:
         try:
@@ -270,19 +419,32 @@ class AIEngine:
 
     def _action_search(self, query: str, table: str) -> str:
         results: List[str] = []
-        tables_to_search = [table] if table else ["employees", "violations",
-                                                    "custom_ledger", "companies"]
+        tables_to_search = (
+            [table]
+            if table
+            else ["employees", "violations", "custom_ledger", "companies"]
+        )
         for t in tables_to_search:
             if t == "companies":
                 rows = self.db.fetch_all(
-                    "SELECT id, name, address, contact FROM companies")
+                    "SELECT id, name, address, contact FROM companies"
+                )
             else:
                 rows = self.db.get_json_records(t)
             for r in rows:
                 dj = r.get("data_json", {}) if t != "companies" else r
                 for val in dj.values():
                     if isinstance(val, str) and query.lower() in val.lower():
-                        label = r.get("\u0424\u0418\u041e", r.get("name", r.get("\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435", f"#{r['id']}")))
+                        label = r.get(
+                            "\u0424\u0418\u041e",
+                            r.get(
+                                "name",
+                                r.get(
+                                    "\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435",
+                                    f"#{r['id']}",
+                                ),
+                            ),
+                        )
                         results.append(f"[{t}] {label}: id={r['id']}")
                         break
         if not results:
@@ -296,7 +458,8 @@ class AIEngine:
             f"Violations: {s['violations_total']}\n"
             f"Companies: {s['companies_total']}\n"
             f"Overdue: {s['overdue_total']}\n"
-            f"Total Fines: {s['fines_total']:,.0f} RUB")
+            f"Total Fines: {s['fines_total']:,.0f} RUB"
+        )
 
     def _action_add(self, params: Dict[str, Any]) -> str:
         table = params.get("table", "")
@@ -315,7 +478,9 @@ class AIEngine:
             else:
                 record[c["name"]] = ""
         rec_id = self.db.save_json_record(table, 0, record)
-        self.db.log_event(f"AI added record #{rec_id} to {table}", "INFO", {"table": table})
+        self.db.log_event(
+            f"AI added record #{rec_id} to {table}", "INFO", {"table": table}
+        )
         return f"Record #{rec_id} added to {table}."
 
     def _action_modify(self, params: Dict[str, Any]) -> str:
@@ -332,8 +497,11 @@ class AIEngine:
                 data[field] = value
                 r["data_json"] = data
                 self.db.save_json_record(table, rec_id, data)
-                self.db.log_event(f"AI modified record #{rec_id} in {table}: {field} = {value}",
-                                  "INFO", {"table": table})
+                self.db.log_event(
+                    f"AI modified record #{rec_id} in {table}: {field} = {value}",
+                    "INFO",
+                    {"table": table},
+                )
                 return f"Record #{rec_id} updated: {field} = {value}"
         return f"Record #{rec_id} not found in {table}."
 
@@ -345,11 +513,16 @@ class AIEngine:
         records = self.db.get_json_records(table)
         for r in records:
             if r["id"] == rec_id:
-                self.db.execute("DELETE FROM json_data WHERE id = ? AND category = ?",
-                                (rec_id, table))
+                self.db.execute(
+                    "DELETE FROM json_data WHERE id = ? AND category = ?",
+                    (rec_id, table),
+                )
                 self.db.conn.commit()
-                self.db.log_event(f"AI deleted record #{rec_id} from {table}",
-                                  "INFO", {"table": table})
+                self.db.log_event(
+                    f"AI deleted record #{rec_id} from {table}",
+                    "INFO",
+                    {"table": table},
+                )
                 return f"Record #{rec_id} deleted from {table}."
         return f"Record #{rec_id} not found in {table}."
 
@@ -365,10 +538,14 @@ class AIEngine:
             return "Error: 'table', 'old', and 'new' params required"
         self.db.execute(
             "UPDATE columns_config SET name = ? WHERE category = ? AND name = ?",
-            (new_name, table, old_name))
+            (new_name, table, old_name),
+        )
         self.db.conn.commit()
-        self.db.log_event(f"AI renamed column '{old_name}' to '{new_name}' in {table}",
-                          "INFO", {"table": table})
+        self.db.log_event(
+            f"AI renamed column '{old_name}' to '{new_name}' in {table}",
+            "INFO",
+            {"table": table},
+        )
         return f"Column '{old_name}' renamed to '{new_name}' in {table}."
 
     def _action_add_note(self, params: Dict[str, Any]) -> str:
@@ -377,30 +554,50 @@ class AIEngine:
         text = params.get("text", "")
         if not text:
             return "Error: 'text' param required"
-        note_id = self.db.save_note(entity_type=entity_type, entity_id=entity_id,
-                                     title=text[:50], content=text)
-        self.db.log_event(f"AI added note #{note_id} for {entity_type}:{entity_id}",
-                          "INFO", {"entity_type": entity_type})
+        note_id = self.db.save_note(
+            entity_type=entity_type, entity_id=entity_id, title=text[:50], content=text
+        )
+        self.db.log_event(
+            f"AI added note #{note_id} for {entity_type}:{entity_id}",
+            "INFO",
+            {"entity_type": entity_type},
+        )
         return f"Note #{note_id} added for {entity_type}:{entity_id}."
 
 
-class _BaseAIChat:
+class _BaseAIChat(sip.wrapper):
     """Mixin with shared AI chat logic for both dialog and inline widget."""
 
     def _setup_ai(self) -> None:
         self.db = DatabaseManager()
         self.engine = AIEngine()
         self._history: List[Dict[str, str]] = []
+        self._session_id: str = "default"
         self._attachment_path: str = ""
         self._stream_label: Optional[QLabel] = None
         self._stream_buffer: str = ""
+        self._load_chat_history()
+        if not self.db.get_ai_setting("ollama_suggested", ""):
+            if not self.engine.api_key:
+                self.db.set_ai_setting("ollama_suggested", "1")
+                from PyQt5.QtCore import QTimer
+
+                if isinstance(self, QWidget):
+                    QTimer.singleShot(
+                        0,
+                        lambda: QMessageBox.information(
+                            self,
+                            I18n._("ai.ollama_title"),
+                            I18n._("ai.ollama_suggestion"),
+                        ),
+                    )
 
     def _build_config_form(self) -> None:
         cl = QFormLayout(self._config_panel)
         cl.setContentsMargins(16, 12, 16, 12)
         cl.setSpacing(8)
 
-        self._provider_combo = QComboBox()
+        self._provider_combo = GlassComboBox()
         self._provider_combo.setEditable(True)
         self._provider_combo.setMinimumHeight(36)
         self._provider_combo.addItem("OpenAI", "openai")
@@ -409,27 +606,32 @@ class _BaseAIChat:
         self._provider_combo.addItem("Anthropic", "anthropic")
         self._provider_combo.addItem("Google Gemini", "gemini")
         self._provider_combo.addItem("Groq", "groq")
-        self._provider_combo.addItem("\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 (Local)", "local")
-        self._provider_combo.addItem("\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 (Custom)", "custom")
-        current_provider = getattr(self.engine, 'provider', 'openai')
+        self._provider_combo.addItem(
+            "\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 (Local)", "local"
+        )
+        self._provider_combo.addItem(
+            "\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 (Custom)",
+            "custom",
+        )
+        current_provider = getattr(self.engine, "provider", "openai")
         pidx = self._provider_combo.findData(current_provider)
         if pidx >= 0:
             self._provider_combo.setCurrentIndex(pidx)
         self._provider_combo.currentIndexChanged.connect(self._on_provider_changed)
         cl.addRow(I18n._("ai.provider") + ":", self._provider_combo)
 
-        self._api_url_edit = QLineEdit(self.engine.api_url)
+        self._api_url_edit = GlassLineEdit(self.engine.api_url)
         self._api_url_edit.setPlaceholderText("https://api.openai.com/v1")
         self._api_url_edit.setMinimumHeight(36)
         cl.addRow(I18n._("ai.api_url") + ":", self._api_url_edit)
 
-        self._api_key_edit = QLineEdit(self.engine.api_key)
+        self._api_key_edit = GlassLineEdit(self.engine.api_key)
         self._api_key_edit.setEchoMode(QLineEdit.Password)
         self._api_key_edit.setPlaceholderText("sk-...")
         self._api_key_edit.setMinimumHeight(36)
         cl.addRow(I18n._("ai.api_key") + ":", self._api_key_edit)
 
-        self._model_combo = QComboBox()
+        self._model_combo = GlassComboBox()
         self._model_combo.setEditable(True)
         self._model_combo.setMinimumHeight(36)
         self._populate_models(current_provider)
@@ -443,16 +645,19 @@ class _BaseAIChat:
 
         self._temperature_slider = QSlider(Qt.Horizontal)
         self._temperature_slider.setRange(0, 100)
-        self._temperature_slider.setValue(int(float(getattr(self.engine, 'temperature', 0.7)) * 100))
+        self._temperature_slider.setValue(
+            int(float(getattr(self.engine, "temperature", 0.7)) * 100)
+        )
         self._temp_label = QLabel(f"{self._temperature_slider.value() / 100:.1f}")
         self._temperature_slider.valueChanged.connect(
-            lambda v: self._temp_label.setText(f"{v / 100:.1f}"))
+            lambda v: self._temp_label.setText(f"{v / 100:.1f}")
+        )
         temp_row = QHBoxLayout()
         temp_row.addWidget(self._temperature_slider)
         temp_row.addWidget(self._temp_label)
         cl.addRow(I18n._("ai.temperature") + ":", temp_row)
 
-        self._mode_combo = QComboBox()
+        self._mode_combo = GlassComboBox()
         self._mode_combo.setMinimumHeight(36)
         self._mode_combo.addItem(I18n._("ai.mode_chat"), "chat")
         self._mode_combo.addItem(I18n._("ai.mode_search"), "search")
@@ -462,7 +667,7 @@ class _BaseAIChat:
             self._mode_combo.setCurrentIndex(idx)
         cl.addRow(I18n._("ai.mode") + ":", self._mode_combo)
 
-        save_cfg_btn = QPushButton(I18n._("common.save"))
+        save_cfg_btn = GlassButton(I18n._("common.save"))
         save_cfg_btn.setProperty("success", True)
         save_cfg_btn.setMinimumHeight(36)
         save_cfg_btn.clicked.connect(self._save_config)
@@ -472,9 +677,19 @@ class _BaseAIChat:
         self._model_combo.clear()
         models = {
             "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-            "openrouter": ["openai/gpt-4o", "anthropic/claude-3.5-sonnet", "deepseek/deepseek-r1", "google/gemini-2.0-flash-001", "meta-llama/llama-3.3-70b-instruct"],
+            "openrouter": [
+                "openai/gpt-4o",
+                "anthropic/claude-3.5-sonnet",
+                "deepseek/deepseek-r1",
+                "google/gemini-2.0-flash-001",
+                "meta-llama/llama-3.3-70b-instruct",
+            ],
             "deepseek": ["deepseek-chat", "deepseek-reasoner"],
-            "anthropic": ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"],
+            "anthropic": [
+                "claude-3-5-sonnet-20241022",
+                "claude-3-opus-20240229",
+                "claude-3-haiku-20240307",
+            ],
             "gemini": ["gemini-2.0-flash-001", "gemini-1.5-pro", "gemini-1.5-flash"],
             "groq": ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"],
             "local": ["llama3", "mistral", "qwen2.5", "phi-3", "deepseek-r1"],
@@ -494,7 +709,9 @@ class _BaseAIChat:
             "local": "http://localhost:11434/v1",
             "custom": "",
         }
-        self._api_url_edit.setText(default_urls.get(provider, "https://api.openai.com/v1"))
+        self._api_url_edit.setText(
+            default_urls.get(provider, "https://api.openai.com/v1")
+        )
         self._populate_models(provider)
 
     def _save_config(self) -> None:
@@ -507,67 +724,126 @@ class _BaseAIChat:
         self.engine.save_settings()
         ToastNotification.notify(I18n._("common.success"), "success", 3000)
 
+    def _load_chat_history(self) -> None:
+        try:
+            rows = self.db.get_chat_history(self._session_id, limit=200)
+            for row in rows:
+                self._history.append(
+                    {
+                        "role": row["role"],
+                        "content": row["content"],
+                    }
+                )
+        except Exception:
+            pass
+
+    def _save_chat_session(self, session_id: str = "") -> None:
+        if session_id:
+            self._session_id = session_id
+
     def _clear_history(self) -> None:
         self._history.clear()
+        self.db.clear_chat_history(self._session_id)
         while self._messages_layout.count() > 1:
             item = self._messages_layout.takeAt(0)
             if item and item.widget():
                 item.widget().deleteLater()
 
-    def _add_message_bubble(self, text: str, is_user: bool = False,
-                            is_error: bool = False) -> None:
+    def _add_message_bubble(
+        self, text: str, is_user: bool = False, is_error: bool = False
+    ) -> None:
         bubble = QFrame()
+        dark = getattr(self, "_is_dark", lambda: ThemeEngine._current_theme == "dark")()
+        user_bg = "rgba(33, 150, 243, 0.85)" if not dark else "rgba(33, 150, 243, 0.7)"
+        err_bg = "rgba(244, 67, 54, 0.85)" if not dark else "rgba(244, 67, 54, 0.7)"
+        ai_bg = "rgba(255, 255, 255, 0.6)" if not dark else "rgba(44, 44, 48, 0.8)"
+        ai_color = "#2C3E50" if not dark else "#E0E0E8"
         bubble.setStyleSheet(f"""
             QFrame {{
-                background: {"#2196F3" if is_user else ("#F44336" if is_error else "#E8ECF1")};
+                background: {"qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 " + user_bg + ",stop:1 " + user_bg + ")" if is_user else ("qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 " + err_bg + ",stop:1 " + err_bg + ")" if is_error else "qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 " + ai_bg + ",stop:1 " + ai_bg + ")")};
+                border: 1px solid {"rgba(255,255,255,0.3)" if not dark else "rgba(255,255,255,0.08)"};
                 border-radius: 12px;
                 padding: 10px 14px;
                 margin: {"0 60px 0 0" if is_user else "0 0 0 60px"};
             }}
-            QLabel {{
-                color: {"#FFFFFF" if is_user or is_error else "#2C3E50"};
-                font-size: 13px; background: transparent;
-            }}
         """)
         bl = QHBoxLayout(bubble)
         bl.setContentsMargins(0, 0, 0, 0)
-        label = QLabel(text)
-        label.setWordWrap(True)
-        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        bl.addWidget(label)
+        if is_user:
+            label = QLabel(text)
+            label.setStyleSheet(f"color:#FFFFFF;font-size:13px;background:transparent;")
+            label.setWordWrap(True)
+            label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            bl.addWidget(label)
+        else:
+            html = markdown_to_html(text)
+            browser = QTextBrowser()
+            browser.setHtml(
+                f"<div style='color:{ai_color};font-size:13px;'>{html}</div>"
+            )
+            browser.setOpenExternalLinks(True)
+            browser.setFrameShape(QFrame.NoFrame)
+            browser.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            browser.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            browser.setStyleSheet("background:transparent;")
+            browser.document().setDocumentMargin(0)
+            browser.setTextInteractionFlags(
+                Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse
+            )
+            bl.addWidget(browser, 1)
+            copy_btn = GlassButton("\U0001f4cb")
+            copy_btn.setProperty("flat", True)
+            copy_btn.setFixedSize(24, 24)
+            copy_btn.setToolTip(I18n._("ai.copy"))
+            copy_btn.clicked.connect(lambda checked, t=text: self._copy_text(t))
+            bl.addWidget(copy_btn)
         idx = self._messages_layout.count() - 1
         self._messages_layout.insertWidget(idx, bubble)
         QApplication.processEvents()
         fade_in_widget(bubble, 250)
         QTimer.singleShot(50, self._scroll_to_bottom)
 
+    def _copy_text(self, text: str) -> None:
+        QApplication.clipboard().setText(text)
+        ToastNotification.notify(I18n._("common.copied", "Copied"), "success", 2000)
+
     def _add_stream_bubble(self, initial_text: str = "") -> QLabel:
         bubble = QFrame()
-        bubble.setStyleSheet("""
-            QFrame {
-                background: #E8ECF1;
+        dark = getattr(self, "_is_dark", lambda: ThemeEngine._current_theme == "dark")()
+        ai_bg = "rgba(255, 255, 255, 0.6)" if not dark else "rgba(44, 44, 48, 0.8)"
+        ai_color = "#2C3E50" if not dark else "#E0E0E8"
+        bubble.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 {ai_bg},stop:1 {ai_bg});
+                border: 1px solid {"rgba(255,255,255,0.3)" if not dark else "rgba(255,255,255,0.08)"};
                 border-radius: 12px;
                 padding: 10px 14px;
                 margin: 0 0 0 60px;
-            }
-            QLabel {
-                color: #2C3E50;
+            }}
+            QLabel {{
+                color: {ai_color};
                 font-size: 13px; background: transparent;
-            }
+            }}
         """)
         bl = QHBoxLayout(bubble)
         bl.setContentsMargins(0, 0, 0, 0)
-        label = QLabel(initial_text)
-        label.setWordWrap(True)
-        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        bl.addWidget(label)
+        browser = QTextBrowser()
+        browser.setFrameShape(QFrame.NoFrame)
+        browser.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        browser.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        browser.setStyleSheet(
+            f"background:transparent;color:{ai_color};font-size:13px;"
+        )
+        browser.document().setDocumentMargin(0)
+        browser.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        bl.addWidget(browser, 1)
         idx = self._messages_layout.count() - 1
         self._messages_layout.insertWidget(idx, bubble)
-        self._stream_label = label
+        self._stream_label = browser
         QApplication.processEvents()
         fade_in_widget(bubble, 250)
         QTimer.singleShot(50, self._scroll_to_bottom)
-        return label
+        return browser
 
     def _scroll_to_bottom(self) -> None:
         scrollbar = self._scroll.verticalScrollBar()
@@ -575,8 +851,8 @@ class _BaseAIChat:
 
     def _attach_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, I18n._("ai.attach_file"), "",
-            I18n._("ai.attach_filter"))
+            self, I18n._("ai.attach_file"), "", I18n._("ai.attach_filter")
+        )
         if path:
             self._attachment_path = path
             filename = os.path.basename(path)
@@ -591,10 +867,21 @@ class _BaseAIChat:
             path = self._attachment_path
             fname = os.path.basename(path)
             ext = os.path.splitext(path)[1].lower()
-            img_exts = {'.png', '.jpg', '.jpeg', '.gif', '.bmp'}
-            text_exts = {'.txt', '.py', '.md', '.csv', '.json', '.xml', '.html', '.css', '.js'}
+            img_exts = {".png", ".jpg", ".jpeg", ".gif", ".bmp"}
+            text_exts = {
+                ".txt",
+                ".py",
+                ".md",
+                ".csv",
+                ".json",
+                ".xml",
+                ".html",
+                ".css",
+                ".js",
+            }
             if ext in img_exts:
                 full_text = f"{text}\n\n[\u0418\u0437\u043e\u0431\u0440\u0430\u0436\u0435\u043d\u0438\u0435: {fname}]"
+                self.engine._last_image_path = path
             elif ext in text_exts:
                 try:
                     with open(path, "r", encoding="utf-8", errors="replace") as fh:
@@ -609,6 +896,7 @@ class _BaseAIChat:
         self._input_edit.clear()
         self._add_message_bubble(full_text, is_user=True)
         self._history.append({"role": "user", "content": full_text})
+        self.db.save_chat_message("default", "user", full_text, self.engine.model)
         if not self._send_btn.isEnabled():
             return
         self._send_btn.setEnabled(False)
@@ -621,7 +909,10 @@ class _BaseAIChat:
 
     def _process_ai(self, text: str) -> None:
         try:
-            local_noauth = any(x in self.engine.api_url.lower() for x in ["localhost", "127.0.0.1", "ollama"])
+            local_noauth = any(
+                x in self.engine.api_url.lower()
+                for x in ["localhost", "127.0.0.1", "ollama"]
+            )
             if not self.engine.api_key and not local_noauth:
                 self._add_message_bubble(I18n._("ai.no_key"), is_error=True)
                 self._send_btn.setEnabled(True)
@@ -631,11 +922,12 @@ class _BaseAIChat:
             is_agent = self.engine.mode == "agent"
             schema = self._get_schema_summary() if is_agent else ""
 
-            response = self.engine.send_request(self._history[:-1],
-                                                 text, schema)
+            response = self.engine.send_request(self._history[:-1], text, schema)
             if response is None:
                 self._add_message_bubble(I18n._("ai.no_key"), is_error=True)
-            elif response.startswith("HTTP Error") or response.startswith("Connection Error"):
+            elif response.startswith("HTTP Error") or response.startswith(
+                "Connection Error"
+            ):
                 self._add_message_bubble(response, is_error=True)
             elif response.startswith("Error:"):
                 self._add_message_bubble(response, is_error=True)
@@ -649,8 +941,12 @@ class _BaseAIChat:
             else:
                 self._add_message_bubble(response)
                 self._history.append({"role": "assistant", "content": response})
+                self.db.save_chat_message(
+                    "default", "assistant", response, self.engine.model
+                )
         except Exception as e:
             import traceback
+
             tb = traceback.format_exc()
             self._add_message_bubble(f"Error: {str(e)}\n{tb[:200]}", is_error=True)
         finally:
@@ -659,7 +955,14 @@ class _BaseAIChat:
 
     def _process_ai_stream(self, text: str) -> None:
         try:
-            local_noauth = any(x in self.engine.api_url.lower() for x in ["localhost", "127.0.0.1", "ollama"])
+            local_noauth = any(
+                x in self.engine.api_url.lower()
+                for x in ["localhost", "127.0.0.1", "ollama"]
+            )
+            dark = getattr(
+                self, "_is_dark", lambda: ThemeEngine._current_theme == "dark"
+            )()
+            ai_color = "#2C3E50" if not dark else "#E0E0E8"
             if not self.engine.api_key and not local_noauth:
                 self._add_message_bubble(I18n._("ai.no_key"), is_error=True)
                 self._send_btn.setEnabled(True)
@@ -673,11 +976,19 @@ class _BaseAIChat:
 
             full_response = ""
             last_update = 0.0
-            for token in self.engine.send_request_stream(self._history[:-1], text, schema):
-                if token.startswith("[ERROR") or token.startswith("[HTTP Error") or token.startswith("[Connection Error"):
+            for token in self.engine.send_request_stream(
+                self._history[:-1], text, schema
+            ):
+                if (
+                    token.startswith("[ERROR")
+                    or token.startswith("[HTTP Error")
+                    or token.startswith("[Connection Error")
+                ):
                     full_response = token
                     if self._stream_label:
-                        self._stream_label.setText(full_response)
+                        self._stream_label.setHtml(
+                            f"<div style='color:{ai_color};font-size:13px;'>{full_response}</div>"
+                        )
                     QApplication.processEvents()
                     break
                 full_response += token
@@ -685,11 +996,18 @@ class _BaseAIChat:
                 now = time.time()
                 if now - last_update >= 0.05:
                     if self._stream_label:
-                        self._stream_label.setText(full_response)
+                        html = markdown_to_html(full_response)
+                        self._stream_label.setHtml(
+                            f"<div style='color:{ai_color};font-size:13px;'>{html}</div>"
+                        )
                     QApplication.processEvents()
                     last_update = now
 
-            if full_response.startswith("[ERROR") or full_response.startswith("[HTTP Error") or full_response.startswith("[Connection Error"):
+            if (
+                full_response.startswith("[ERROR")
+                or full_response.startswith("[HTTP Error")
+                or full_response.startswith("[Connection Error")
+            ):
                 display_text = full_response.strip("[]")
                 self._add_message_bubble(display_text, is_error=True)
             elif not full_response.strip():
@@ -701,10 +1019,17 @@ class _BaseAIChat:
                 self._handle_agent_response(full_response)
             else:
                 if self._stream_label:
-                    self._stream_label.setText(full_response)
+                    html = markdown_to_html(full_response)
+                    self._stream_label.setHtml(
+                        f"<div style='color:{ai_color};font-size:13px;'>{html}</div>"
+                    )
                 self._history.append({"role": "assistant", "content": full_response})
+                self.db.save_chat_message(
+                    "default", "assistant", full_response, self.engine.model
+                )
         except Exception as e:
             import traceback
+
             tb = traceback.format_exc()
             self._add_message_bubble(f"Error: {str(e)}\n{tb[:200]}", is_error=True)
         finally:
@@ -729,27 +1054,46 @@ class _BaseAIChat:
 
         if thought:
             self._add_message_bubble(f"\U0001f914 {thought}")
-            self._history.append({"role": "assistant", "content": f"[Thought] {thought}"})
+            self._history.append(
+                {"role": "assistant", "content": f"[Thought] {thought}"}
+            )
+            self.db.save_chat_message(
+                "default", "assistant", f"[Thought] {thought}", self.engine.model
+            )
 
         if action == "respond":
             msg = params.get("message", response)
             self._add_message_bubble(msg)
             self._history.append({"role": "assistant", "content": msg})
+            self.db.save_chat_message("default", "assistant", msg, self.engine.model)
             return
 
-        if action in ("add_record", "modify_record", "delete_record", "rename_column", "add_note"):
+        if action in (
+            "add_record",
+            "modify_record",
+            "delete_record",
+            "rename_column",
+            "add_note",
+        ):
             confirm_text = f"\u26a0\ufe0f AI wants to: {action}\n{json.dumps(params, ensure_ascii=False, indent=2)}"
-            reply = QMessageBox.question(self, I18n._("ai.confirm_action").format(action=action),
-                                         confirm_text,
-                                         QMessageBox.Yes | QMessageBox.No)
+            reply = QMessageBox.question(
+                self,
+                I18n._("ai.confirm_action").format(action=action),
+                confirm_text,
+                QMessageBox.Yes | QMessageBox.No,
+            )
             if reply == QMessageBox.Yes:
                 result = self.engine.execute_action(action, params)
                 self._add_message_bubble(f"\u2705 {result}")
                 self._history.append({"role": "assistant", "content": result})
+                self.db.save_chat_message(
+                    "default", "assistant", result, self.engine.model
+                )
             else:
                 self._add_message_bubble("\u26d4 " + I18n._("ai.action_cancelled"))
-                self._history.append({"role": "assistant",
-                                       "content": I18n._("ai.action_cancelled")})
+                self._history.append(
+                    {"role": "assistant", "content": I18n._("ai.action_cancelled")}
+                )
         else:
             result = self.engine.execute_action(action, params)
             self._add_message_bubble(f"\U0001f4ca {result}")
@@ -757,12 +1101,14 @@ class _BaseAIChat:
 
     def eventFilter(self, obj: QObject, event: Any) -> bool:
         if obj == self._input_edit and event.type() == event.KeyPress:
-            if (event.key() == Qt.Key_Return and
-                    event.modifiers() != Qt.ShiftModifier):
+            if event.key() == Qt.Key_Return and event.modifiers() != Qt.ShiftModifier:
                 if self._send_btn.isEnabled():
                     self._send_message()
                 return True
-        return super().eventFilter(obj, event)
+        try:
+            return super().eventFilter(obj, event)
+        except AttributeError:
+            return False
 
 
 class AIChatDialog(QDialog, _BaseAIChat):
@@ -791,19 +1137,19 @@ class AIChatDialog(QDialog, _BaseAIChat):
         hl.addWidget(heading)
         hl.addStretch()
 
-        self._config_toggle = QPushButton("\u2699")
+        self._config_toggle = GlassButton("\u2699")
         self._config_toggle.setProperty("flat", True)
         self._config_toggle.setFixedSize(32, 32)
         self._config_toggle.setCheckable(True)
         self._config_toggle.toggled.connect(self._toggle_config)
         hl.addWidget(self._config_toggle)
 
-        self._clear_btn = QPushButton(I18n._("ai.clear"))
+        self._clear_btn = GlassButton(I18n._("ai.clear"))
         self._clear_btn.setProperty("flat", True)
         self._clear_btn.clicked.connect(self._clear_history)
         hl.addWidget(self._clear_btn)
 
-        close_btn = QPushButton("\u2715")
+        close_btn = GlassButton("\u2715")
         close_btn.setProperty("flat", True)
         close_btn.setFixedSize(32, 32)
         close_btn.clicked.connect(self.accept)
@@ -822,7 +1168,9 @@ class AIChatDialog(QDialog, _BaseAIChat):
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self._scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self._scroll.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+        )
 
         self._messages_widget = QWidget()
         self._messages_layout = QVBoxLayout(self._messages_widget)
@@ -846,13 +1194,15 @@ class AIChatDialog(QDialog, _BaseAIChat):
         self._input_edit.installEventFilter(self)
         input_layout.addWidget(self._input_edit, 1)
 
-        self._attach_btn = QPushButton("\U0001f4ce")
+        self._attach_btn = GlassButton("\U0001f4ce")
         self._attach_btn.setFixedSize(36, 36)
-        self._attach_btn.setToolTip("\u041f\u0440\u0438\u043a\u0440\u0435\u043f\u0438\u0442\u044c \u0444\u0430\u0439\u043b")
+        self._attach_btn.setToolTip(
+            "\u041f\u0440\u0438\u043a\u0440\u0435\u043f\u0438\u0442\u044c \u0444\u0430\u0439\u043b"
+        )
         self._attach_btn.clicked.connect(self._attach_file)
         input_layout.addWidget(self._attach_btn)
 
-        self._send_btn = QPushButton(I18n._("ai.send"))
+        self._send_btn = GlassButton(I18n._("ai.send"))
         self._send_btn.setProperty("success", True)
         self._send_btn.setFixedHeight(36)
         self._send_btn.clicked.connect(self._send_message)
@@ -866,6 +1216,7 @@ class AIChatDialog(QDialog, _BaseAIChat):
 
 class AIChatInlineWidget(QWidget, _BaseAIChat):
     """Embedded AI chat widget for use as a tab."""
+
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._setup_ai()
@@ -886,7 +1237,9 @@ class AIChatInlineWidget(QWidget, _BaseAIChat):
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self._scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self._scroll.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+        )
 
         self._messages_widget = QWidget()
         self._messages_layout = QVBoxLayout(self._messages_widget)
@@ -910,24 +1263,36 @@ class AIChatInlineWidget(QWidget, _BaseAIChat):
         self._input_edit.installEventFilter(self)
         input_layout.addWidget(self._input_edit, 1)
 
-        self._attach_btn = QPushButton("\U0001f4ce")
+        self._attach_btn = GlassButton("\U0001f4ce")
         self._attach_btn.setFixedSize(36, 36)
         self._attach_btn.setToolTip(I18n._("ai.attach_tooltip"))
         self._attach_btn.clicked.connect(self._attach_file)
         input_layout.addWidget(self._attach_btn)
 
-        self._send_btn = QPushButton(I18n._("ai.send"))
+        self._send_btn = GlassButton(I18n._("ai.send"))
         self._send_btn.setProperty("success", True)
         self._send_btn.setFixedHeight(36)
         self._send_btn.clicked.connect(self._send_message)
         input_layout.addWidget(self._send_btn)
 
-        self._clear_btn = QPushButton(I18n._("ai.clear"))
+        self._settings_btn = GlassButton("\u2699")
+        self._settings_btn.setProperty("flat", True)
+        self._settings_btn.setFixedSize(32, 32)
+        self._settings_btn.setToolTip(I18n._("ai.config"))
+        self._settings_btn.clicked.connect(lambda: self._toggle_config())
+        input_layout.addWidget(self._settings_btn)
+
+        self._clear_btn = GlassButton(I18n._("ai.clear"))
         self._clear_btn.setProperty("flat", True)
         self._clear_btn.clicked.connect(self._clear_history)
         input_layout.addWidget(self._clear_btn)
 
         layout.addWidget(input_frame)
+
+    def _toggle_config(self, visible: Optional[bool] = None) -> None:
+        if visible is None:
+            visible = not self._config_panel.isVisible()
+        self._config_panel.setVisible(visible)
 
     def _save_config(self) -> None:
         super()._save_config()

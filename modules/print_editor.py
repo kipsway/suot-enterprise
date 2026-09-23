@@ -2,23 +2,74 @@ import json, os, re, base64, mimetypes
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from PyQt5.QtCore import Qt, QTimer, QEvent, QPoint, QObject, QSizeF, QSettings, QRegExp
-from PyQt5.QtGui import (QColor, QFont, QFontDatabase, QKeySequence, QPainter, QPen,
-    QTextCharFormat, QTextFormat, QTextListFormat, QSyntaxHighlighter,
-    QTextDocument, QTextCursor, QPixmap, QTransform, QTextLength, QTextTable,
-    QTextFrame, QTextBlockFormat, QIcon, QDesktopServices)
-from PyQt5.QtWidgets import (QApplication, QDialog, QWidget, QFrame,
-    QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QLineEdit,
-    QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox,
-    QSlider, QScrollArea, QTextEdit, QToolButton, QFontComboBox,
-    QColorDialog, QInputDialog, QMessageBox, QFileDialog, QMenu,
-    QTreeWidget, QTreeWidgetItem, QSizePolicy, QShortcut, QDialogButtonBox,
-    QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
-    QTextBrowser, QPlainTextEdit, QGridLayout)
+from PyQt5.QtGui import (
+    QColor,
+    QFont,
+    QFontDatabase,
+    QKeySequence,
+    QPainter,
+    QPen,
+    QTextCharFormat,
+    QTextFormat,
+    QTextListFormat,
+    QSyntaxHighlighter,
+    QTextDocument,
+    QTextCursor,
+    QPixmap,
+    QTransform,
+    QTextLength,
+    QTextTable,
+    QTextFrame,
+    QTextBlockFormat,
+    QIcon,
+    QDesktopServices,
+)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QPushButton,
+    QComboBox,
+    QSpinBox,
+    QDoubleSpinBox,
+    QSlider,
+    QScrollArea,
+    QTextEdit,
+    QToolButton,
+    QFontComboBox,
+    QColorDialog,
+    QInputDialog,
+    QMessageBox,
+    QFileDialog,
+    QMenu,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QSizePolicy,
+    QShortcut,
+    QDialogButtonBox,
+    QGraphicsView,
+    QGraphicsScene,
+    QGraphicsRectItem,
+    QGraphicsTextItem,
+    QTextBrowser,
+    QPlainTextEdit,
+    QGridLayout,
+)
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
+from widgets.glass_button import GlassButton
+from widgets.glass_checkbox import GlassCheckBox
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
 from services.database import DatabaseManager
+from widgets.ribbon import RibbonWidget
 from modules.reminders import ReminderEngine
 from widgets.toast import ToastNotification
 from modules.print_engine import PrintEngine
@@ -42,7 +93,7 @@ class _ViewResizeFilter(QObject):
 class FieldHighlighter(QSyntaxHighlighter):
     def __init__(self, document: QTextDocument) -> None:
         super().__init__(document)
-        self._rule = QRegExp(r'\{[^{}]+\}')
+        self._rule = QRegExp(r"\{[^{}]+\}")
         self._fmt = QTextCharFormat()
         self._fmt.setForeground(QColor("#4B7BFF"))
         self._fmt.setFontWeight(QFont.Bold)
@@ -66,7 +117,8 @@ class RulerWidget(QWidget):
     def update_position(self) -> None:
         eg = self._editor.geometry()
         self.setGeometry(eg.x(), eg.y() - self.height(), eg.width(), self.height())
-        self.show(); self.update()
+        self.show()
+        self.update()
 
     def paintEvent(self, event: Any) -> None:
         if self.width() <= 0:
@@ -90,7 +142,7 @@ class RulerWidget(QWidget):
 
 
 class PageGuideWidget(QWidget):
-    def __init__(self, editor: QTextEdit, owner: 'PrintTemplateEditor') -> None:
+    def __init__(self, editor: QTextEdit, owner: "PrintTemplateEditor") -> None:
         super().__init__(editor.parent())
         self._editor = editor
         self._owner = owner
@@ -121,7 +173,9 @@ class PageGuideWidget(QWidget):
             for i in range(4):
                 alpha = max(0, 20 - i * 5)
                 painter.setPen(QPen(QColor(0, 0, 0, alpha)))
-                painter.drawLine(20 + i, y + 1 + i, max(20, self.width() - 20 - i), y + 1 + i)
+                painter.drawLine(
+                    20 + i, y + 1 + i, max(20, self.width() - 20 - i), y + 1 + i
+                )
             painter.setPen(pen)
             painter.drawLine(18, y, max(18, self.width() - 18), y)
             painter.setPen(QColor("#8E8E93"))
@@ -188,11 +242,23 @@ class PrintTemplateEditor(QDialog):
         }
         self._orientation: str = "portrait"
         settings = QSettings("SUOT", "PrintTemplate")
-        self._page_margin_left = int(settings.value("page_margin_left", self._page_margin_left))
-        self._page_margin_right = int(settings.value("page_margin_right", self._page_margin_right))
-        self._page_margin_top = int(settings.value("page_margin_top", self._page_margin_top))
-        self._page_margin_bottom = int(settings.value("page_margin_bottom", self._page_margin_bottom))
-        self._show_page_shadow = str(settings.value("page_shadow", "true")).lower() in ("1", "true", "yes")
+        self._page_margin_left = int(
+            settings.value("page_margin_left", self._page_margin_left)
+        )
+        self._page_margin_right = int(
+            settings.value("page_margin_right", self._page_margin_right)
+        )
+        self._page_margin_top = int(
+            settings.value("page_margin_top", self._page_margin_top)
+        )
+        self._page_margin_bottom = int(
+            settings.value("page_margin_bottom", self._page_margin_bottom)
+        )
+        self._show_page_shadow = str(settings.value("page_shadow", "true")).lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         self._orientation = settings.value("page_orientation", self._orientation)
         self._build_ui()
         self._load_templates()
@@ -204,10 +270,13 @@ class PrintTemplateEditor(QDialog):
 
     def closeEvent(self, event: Any) -> None:
         if not self._saved:
-            result = QMessageBox.question(self, I18n._("template.edit"),
-                                          I18n._("common.confirm_close"),
-                                          QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-                                          QMessageBox.Cancel)
+            result = QMessageBox.question(
+                self,
+                I18n._("template.edit"),
+                I18n._("common.confirm_close"),
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+                QMessageBox.Cancel,
+            )
             if result == QMessageBox.Save:
                 self._save_template()
                 event.accept()
@@ -218,50 +287,113 @@ class PrintTemplateEditor(QDialog):
         else:
             event.accept()
 
+    def handle_ribbon_action(self, action: str) -> None:
+        editor = getattr(self, "_editor", None)
+        if not editor:
+            return
+        c = editor.textCursor()
+        if action == "bold":
+            editor.setFontWeight(
+                QFont.Bold if editor.fontWeight() != QFont.Bold else QFont.Normal
+            )
+        elif action == "italic":
+            editor.setFontItalic(not editor.fontItalic())
+        elif action == "underline":
+            editor.setFontUnderline(not editor.fontUnderline())
+        elif action.startswith("align_"):
+            flags = {
+                "left": Qt.AlignLeft,
+                "center": Qt.AlignHCenter,
+                "right": Qt.AlignRight,
+                "justify": Qt.AlignJustify,
+            }
+            al = flags.get(action[6:], Qt.AlignLeft)
+            fmt = c.blockFormat()
+            fmt.setAlignment(al)
+            c.setBlockFormat(fmt)
+            editor.setTextCursor(c)
+        elif action == "zoom_in":
+            self._zoom(10)
+        elif action == "zoom_out":
+            self._zoom(-10)
+        elif action == "zoom_reset":
+            self._zoom_level = 100
+            self._apply_zoom()
+        elif action == "insert_image":
+            self._insert_image()
+        elif action == "insert_link":
+            self._insert_link()
+        elif action == "insert_table":
+            self._insert_table()
+
     def _build_ui(self) -> None:
         is_dark_tmpl = ThemeEngine._current_theme == "dark"
         self.setStyleSheet(
-            f"PrintTemplateEditor {{ background: {'#1C1C1E' if is_dark_tmpl else '#F5F5F7'}; }}")
+            f"PrintTemplateEditor {{ background: {'#1C1C1E' if is_dark_tmpl else '#F5F5F7'}; }}"
+        )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(3)
 
+        self._ribbon = RibbonWidget(self)
+        layout.addWidget(self._ribbon)
+
         _rh = 26
+
         def _sep() -> QFrame:
-            s = QFrame(); s.setFrameShape(QFrame.VLine); s.setStyleSheet("color:#D0D4DC;"); return s
+            s = QFrame()
+            s.setFrameShape(QFrame.VLine)
+            s.setStyleSheet("color:#D0D4DC;")
+            return s
+
         def _tb(emoji, tip, cb, w=30) -> QToolButton:
-            b = QToolButton(); b.setText(emoji); b.setToolTip(tip)
-            b.setFixedSize(w, _rh); b.clicked.connect(cb); return b
+            b = QToolButton()
+            b.setText(emoji)
+            b.setToolTip(tip)
+            b.setFixedSize(w, _rh)
+            b.clicked.connect(cb)
+            return b
+
         def _make_btn(text: str, cb, w=70) -> QPushButton:
-            b = QPushButton(text); b.setFixedHeight(_rh); b.setMinimumWidth(w)
-            b.clicked.connect(cb); return b
+            b = GlassButton(text)
+            b.setFixedHeight(_rh)
+            b.setMinimumWidth(w)
+            b.clicked.connect(cb)
+            return b
 
         # ═══ Ряд 1: Тип + Шаблон + Имя + Файл ══════════════════════════
-        row1 = QHBoxLayout(); row1.setSpacing(3)
+        row1 = QHBoxLayout()
+        row1.setSpacing(3)
         row1.addWidget(QLabel(I18n._("print.template") + ":"))
-        self._type_combo = QComboBox()
+        self._type_combo = GlassComboBox()
         self._type_combo.addItem(I18n._("print.order"), "order")
         self._type_combo.addItem(I18n._("print.report"), "report")
         self._type_combo.currentIndexChanged.connect(self._on_type_changed)
-        self._type_combo.setMinimumWidth(90); self._type_combo.setFixedHeight(_rh)
+        self._type_combo.setMinimumWidth(90)
+        self._type_combo.setFixedHeight(_rh)
         row1.addWidget(self._type_combo)
-        self._template_combo = QComboBox()
-        self._template_combo.setMinimumWidth(160); self._template_combo.setFixedHeight(_rh)
+        self._template_combo = GlassComboBox()
+        self._template_combo.setMinimumWidth(160)
+        self._template_combo.setFixedHeight(_rh)
         self._template_combo.currentIndexChanged.connect(self._on_template_changed)
         row1.addWidget(self._template_combo)
-        self._template_name_edit = QLineEdit()
+        self._template_name_edit = GlassLineEdit()
         self._template_name_edit.setPlaceholderText(I18n._("template.name"))
-        self._template_name_edit.setMinimumWidth(140); self._template_name_edit.setFixedHeight(_rh)
+        self._template_name_edit.setMinimumWidth(140)
+        self._template_name_edit.setFixedHeight(_rh)
         row1.addWidget(self._template_name_edit)
-        self._template_search = QLineEdit()
+        self._template_search = GlassLineEdit()
         self._template_search.setPlaceholderText("🔍" + I18n._("common.find"))
-        self._template_search.setFixedHeight(_rh); self._template_search.setMaximumWidth(100)
+        self._template_search.setFixedHeight(_rh)
+        self._template_search.setMaximumWidth(100)
         self._template_search.textChanged.connect(self._filter_templates)
         row1.addWidget(self._template_search)
         row1.addWidget(_sep())
         row1.addWidget(_tb("➕", I18n._("common.add"), self._new_template))
         row1.addWidget(_tb("💾", I18n._("common.save"), self._save_template))
-        row1.addWidget(_tb("📋", I18n._("template.duplicate"), self._duplicate_template))
+        row1.addWidget(
+            _tb("📋", I18n._("template.duplicate"), self._duplicate_template)
+        )
         row1.addWidget(_tb("✏️", I18n._("common.rename"), self._rename_template))
         row1.addWidget(_tb("🗑️", I18n._("common.delete"), self._delete_template))
         row1.addWidget(_tb("✅", I18n._("template.select"), self._select_and_close))
@@ -271,7 +403,8 @@ class PrintTemplateEditor(QDialog):
         layout.addLayout(row1)
 
         # ═══ Ряд 2: Страница + Масштаб ══════════════════════════════════
-        row2 = QHBoxLayout(); row2.setSpacing(3)
+        row2 = QHBoxLayout()
+        row2.setSpacing(3)
         row2.addWidget(QLabel("📄" + I18n._("template.page_settings") + ":"))
         row2.addWidget(_sep())
         # margin spins with compact labels
@@ -284,7 +417,8 @@ class PrintTemplateEditor(QDialog):
             row2.addWidget(QLabel(label))
             spin = QSpinBox()
             spin.setRange(rmin, rmax)
-            spin.setFixedWidth(54); spin.setFixedHeight(_rh)
+            spin.setFixedWidth(54)
+            spin.setFixedHeight(_rh)
             spin.setSuffix("")
             setattr(self, attr, spin)
             row2.addWidget(spin)
@@ -294,35 +428,41 @@ class PrintTemplateEditor(QDialog):
         self._margin_bottom_spin.setValue(self._page_margin_bottom)
         row2.addWidget(_sep())
         row2.addWidget(QLabel(I18n._("template.margin_preset") + ":"))
-        self._margin_preset_combo = QComboBox()
+        self._margin_preset_combo = GlassComboBox()
         self._margin_preset_combo.addItem(I18n._("template.margin_normal"), "normal")
         self._margin_preset_combo.addItem(I18n._("template.margin_narrow"), "narrow")
         self._margin_preset_combo.addItem(I18n._("template.margin_wide"), "wide")
-        self._margin_preset_combo.setMinimumWidth(70); self._margin_preset_combo.setFixedHeight(_rh)
+        self._margin_preset_combo.setMinimumWidth(70)
+        self._margin_preset_combo.setFixedHeight(_rh)
         row2.addWidget(self._margin_preset_combo)
-        self._page_shadow_cb = QCheckBox(I18n._("template.page_shadow"))
+        self._page_shadow_cb = GlassCheckBox(I18n._("template.page_shadow"))
         self._page_shadow_cb.setChecked(self._show_page_shadow)
         self._page_shadow_cb.setFixedHeight(_rh)
         row2.addWidget(self._page_shadow_cb)
         row2.addWidget(_sep())
         row2.addWidget(QLabel(I18n._("print.orientation") + ":"))
-        self._orientation_combo = QComboBox()
+        self._orientation_combo = GlassComboBox()
         self._orientation_combo.addItem(I18n._("print.portrait"), "portrait")
         self._orientation_combo.addItem(I18n._("print.landscape"), "landscape")
-        self._orientation_combo.setMinimumWidth(70); self._orientation_combo.setFixedHeight(_rh)
-        self._orientation_combo.currentIndexChanged.connect(self._on_orientation_changed)
+        self._orientation_combo.setMinimumWidth(70)
+        self._orientation_combo.setFixedHeight(_rh)
+        self._orientation_combo.currentIndexChanged.connect(
+            self._on_orientation_changed
+        )
         row2.addWidget(self._orientation_combo)
         saved_orientation_idx = self._orientation_combo.findData(self._orientation)
         if saved_orientation_idx >= 0:
             self._orientation_combo.setCurrentIndex(saved_orientation_idx)
         row2.addWidget(_sep())
         self._zoom_slider = QSlider(Qt.Horizontal)
-        self._zoom_slider.setRange(10, 400); self._zoom_slider.setValue(self._zoom_level)
-        self._zoom_slider.setFixedWidth(100); self._zoom_slider.setFixedHeight(18)
+        self._zoom_slider.setRange(10, 400)
+        self._zoom_slider.setValue(self._zoom_level)
+        self._zoom_slider.setFixedWidth(100)
+        self._zoom_slider.setFixedHeight(18)
         self._zoom_slider.setToolTip(I18n._("common.zoom"))
         self._zoom_slider.valueChanged.connect(self._apply_zoom_slider)
         row2.addWidget(self._zoom_slider)
-        self._zoom_label = QPushButton()
+        self._zoom_label = GlassButton()
         self._zoom_label.setFixedSize(46, _rh)
         self._zoom_label.setStyleSheet("font-weight:bold; font-size:10px; padding:0;")
         self._zoom_label.setToolTip(I18n._("common.reset_zoom"))
@@ -332,22 +472,45 @@ class PrintTemplateEditor(QDialog):
         layout.addLayout(row2)
 
         # ═══ Ряд 3: Формат ══════════════════════════════════════════════
-        row3 = QHBoxLayout(); row3.setSpacing(3)
+        row3 = QHBoxLayout()
+        row3.setSpacing(3)
         row3.addWidget(QLabel("🎨" + I18n._("common.format") + ":"))
         row3.addWidget(_sep())
-        self._heading_combo = QComboBox()
+        self._heading_combo = GlassComboBox()
         self._heading_combo.addItem(I18n._("common.paragraph"), "p")
         self._heading_combo.addItem(I18n._("template.heading1"), "h1")
         self._heading_combo.addItem(I18n._("template.heading2"), "h2")
         self._heading_combo.addItem(I18n._("template.heading3"), "h3")
-        self._heading_combo.setMinimumWidth(95); self._heading_combo.setFixedHeight(_rh)
+        self._heading_combo.setMinimumWidth(95)
+        self._heading_combo.setFixedHeight(_rh)
         self._heading_combo.currentIndexChanged.connect(self._on_heading_changed)
         row3.addWidget(self._heading_combo)
         row3.addWidget(QLabel(I18n._("common.size") + ":"))
-        self._size_combo = QComboBox()
+        self._size_combo = GlassComboBox()
         self._size_combo.setEditable(True)
-        self._size_combo.setMinimumWidth(48); self._size_combo.setFixedHeight(_rh)
-        for s in ("8","9","10","11","12","14","16","18","20","22","24","28","32","36","40","48","56","64","72"):
+        self._size_combo.setMinimumWidth(48)
+        self._size_combo.setFixedHeight(_rh)
+        for s in (
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "14",
+            "16",
+            "18",
+            "20",
+            "22",
+            "24",
+            "28",
+            "32",
+            "36",
+            "40",
+            "48",
+            "56",
+            "64",
+            "72",
+        ):
             self._size_combo.addItem(s)
         self._size_combo.setCurrentText("12")
         self._size_combo.currentTextChanged.connect(self._on_size_changed)
@@ -360,21 +523,36 @@ class PrintTemplateEditor(QDialog):
             ("U", "Подчёркнутый (Ctrl+U)", "_underline_btn", self._toggle_underline),
             ("S", "Зачёркнутый", "_strike_btn", self._toggle_strikethrough),
         ]:
-            b = QToolButton(); b.setText(txt); b.setCheckable(True);
-            b.setFixedSize(28, _rh); b.setToolTip(tip); b.clicked.connect(cb)
-            if txt == "B": b.setFont(QFont("Segoe UI", 9, QFont.Bold))
-            elif txt == "I": b.setFont(QFont("", -1, -1, True))
-            elif txt == "U": f = QFont("", -1, -1); f.setUnderline(True); b.setFont(f)
-            elif txt == "S": f = QFont("", -1, -1); f.setStrikeOut(True); b.setFont(f)
-            setattr(self, attr, b); row3.addWidget(b)
+            b = QToolButton()
+            b.setText(txt)
+            b.setCheckable(True)
+            b.setFixedSize(28, _rh)
+            b.setToolTip(tip)
+            b.clicked.connect(cb)
+            if txt == "B":
+                b.setFont(QFont("Segoe UI", 9, QFont.Bold))
+            elif txt == "I":
+                b.setFont(QFont("", -1, -1, True))
+            elif txt == "U":
+                f = QFont("", -1, -1)
+                f.setUnderline(True)
+                b.setFont(f)
+            elif txt == "S":
+                f = QFont("", -1, -1)
+                f.setStrikeOut(True)
+                b.setFont(f)
+            setattr(self, attr, b)
+            row3.addWidget(b)
         row3.addWidget(_sep())
         self._font_combo = QFontComboBox()
-        self._font_combo.setMinimumWidth(110); self._font_combo.setFixedHeight(_rh)
+        self._font_combo.setMinimumWidth(110)
+        self._font_combo.setFixedHeight(_rh)
         self._font_combo.setFontFilters(QFontComboBox.AllFonts)
         self._font_combo.currentFontChanged.connect(self._on_font_changed)
         row3.addWidget(self._font_combo)
         self._color_btn = QToolButton()
-        self._color_btn.setText("A"); self._color_btn.setFixedSize(28, _rh)
+        self._color_btn.setText("A")
+        self._color_btn.setFixedSize(28, _rh)
         self._color_btn.setStyleSheet("color:#1a365d; font-weight:bold;")
         self._color_btn.setToolTip(I18n._("common.format"))
         self._color_btn.clicked.connect(self._pick_color)
@@ -385,35 +563,58 @@ class PrintTemplateEditor(QDialog):
             ("≡C", I18n._("common.align_center"), "_align_center_btn", Qt.AlignCenter),
             ("≡R", I18n._("common.align_right"), "_align_right_btn", Qt.AlignRight),
         ]:
-            b = QToolButton(); b.setText(txt); b.setCheckable(True)
-            b.setFixedSize(28, _rh); b.setToolTip(tip)
+            b = QToolButton()
+            b.setText(txt)
+            b.setCheckable(True)
+            b.setFixedSize(28, _rh)
+            b.setToolTip(tip)
             b.clicked.connect(lambda a=align: self._set_alignment(a))
-            setattr(self, attr, b); row3.addWidget(b)
+            setattr(self, attr, b)
+            row3.addWidget(b)
         row3.addWidget(_sep())
         self._bullet_btn = QToolButton()
-        self._bullet_btn.setText("•"); self._bullet_btn.setCheckable(True)
-        self._bullet_btn.setFixedSize(28, _rh); self._bullet_btn.setToolTip("Список")
+        self._bullet_btn.setText("•")
+        self._bullet_btn.setCheckable(True)
+        self._bullet_btn.setFixedSize(28, _rh)
+        self._bullet_btn.setToolTip("Список")
         self._bullet_btn.clicked.connect(self._toggle_bullet)
         row3.addWidget(self._bullet_btn)
         self._number_btn = QToolButton()
-        self._number_btn.setText("1."); self._number_btn.setCheckable(True)
-        self._number_btn.setFixedSize(28, _rh); self._number_btn.setToolTip("Нумерация")
+        self._number_btn.setText("1.")
+        self._number_btn.setCheckable(True)
+        self._number_btn.setFixedSize(28, _rh)
+        self._number_btn.setToolTip("Нумерация")
         self._number_btn.clicked.connect(self._toggle_number)
         row3.addWidget(self._number_btn)
         row3.addWidget(_sep())
         row3.addWidget(_tb("↔→", "Увеличить отступ", self._indent))
         row3.addWidget(_tb("←↔", "Уменьшить отступ", self._unindent))
         row3.addWidget(_sep())
-        row3.addWidget(_tb("↩", I18n._("common.undo") + " (Ctrl+Z)", lambda: self._editor.undo() if hasattr(self, '_editor') else None, 28))
-        row3.addWidget(_tb("↪", I18n._("common.redo") + " (Ctrl+Y)", lambda: self._editor.redo() if hasattr(self, '_editor') else None, 28))
+        row3.addWidget(
+            _tb(
+                "↩",
+                I18n._("common.undo") + " (Ctrl+Z)",
+                lambda: self._editor.undo() if hasattr(self, "_editor") else None,
+                28,
+            )
+        )
+        row3.addWidget(
+            _tb(
+                "↪",
+                I18n._("common.redo") + " (Ctrl+Y)",
+                lambda: self._editor.redo() if hasattr(self, "_editor") else None,
+                28,
+            )
+        )
         row3.addWidget(_sep())
         row3.addWidget(_tb("Aa↓", "нижний регистр", self._case_lower))
         row3.addWidget(_tb("Aa↑", "ВЕРХНИЙ РЕГИСТР", self._case_upper))
         row3.addWidget(_tb("Aa⇔", "Заглавные", self._case_title))
         row3.addWidget(_tb("Ω", "Спецсимволы", self._special_chars))
         row3.addWidget(_sep())
-        self._quick_style_combo = QComboBox()
-        self._quick_style_combo.setFixedHeight(_rh); self._quick_style_combo.setMinimumWidth(110)
+        self._quick_style_combo = GlassComboBox()
+        self._quick_style_combo.setFixedHeight(_rh)
+        self._quick_style_combo.setMinimumWidth(110)
         self._quick_style_combo.addItem("🎨 Стиль...", "")
         self._quick_style_combo.addItem("📋 Цитата", "quote")
         self._quick_style_combo.addItem("⚠️ Предупреждение", "alert")
@@ -423,8 +624,10 @@ class PrintTemplateEditor(QDialog):
         row3.addWidget(_sep())
         row3.addWidget(QLabel("Инт:"))
         self._line_spacing_spin = QDoubleSpinBox()
-        self._line_spacing_spin.setRange(0.5, 3.0); self._line_spacing_spin.setSingleStep(0.1)
-        self._line_spacing_spin.setValue(1.0); self._line_spacing_spin.setFixedWidth(50)
+        self._line_spacing_spin.setRange(0.5, 3.0)
+        self._line_spacing_spin.setSingleStep(0.1)
+        self._line_spacing_spin.setValue(1.0)
+        self._line_spacing_spin.setFixedWidth(50)
         self._line_spacing_spin.setFixedHeight(_rh)
         self._line_spacing_spin.valueChanged.connect(self._apply_line_spacing)
         row3.addWidget(self._line_spacing_spin)
@@ -434,55 +637,89 @@ class PrintTemplateEditor(QDialog):
         row3.addWidget(_tb("▷", "По правому краю", self._align_right, 26))
         row3.addWidget(_tb("⊞", "По ширине", self._align_justify, 26))
         row3.addWidget(_sep())
-        row3.addWidget(_tb("📊", I18n._("stat.document_stats"), self._document_stats, 30))
+        row3.addWidget(
+            _tb("📊", I18n._("stat.document_stats"), self._document_stats, 30)
+        )
         row3.addWidget(_sep())
         row3.addWidget(_tb("📋", "Вставить без форматирования", self._paste_plain, 30))
         row3.addStretch()
         layout.addLayout(row3)
 
         # ═══ Ряд 4: Вставка + Поля ══════════════════════════════════════
-        row4 = QHBoxLayout(); row4.setSpacing(3)
+        row4 = QHBoxLayout()
+        row4.setSpacing(3)
         row4.addWidget(QLabel("📦" + I18n._("template.insert_table") + ":"))
         row4.addWidget(_sep())
-        row4.addWidget(_tb("📊", I18n._("template.insert_table"), self._insert_table, 32))
-        row4.addWidget(_tb("📝", I18n._("template.insert_header"), self._insert_header_block, 32))
-        row4.addWidget(_tb("✍️", I18n._("template.insert_signature"), self._insert_signature_block, 32))
-        row4.addWidget(_tb("🔧", I18n._("template.auto_format"), self._auto_format_document, 32))
+        row4.addWidget(
+            _tb("📊", I18n._("template.insert_table"), self._insert_table, 32)
+        )
+        row4.addWidget(
+            _tb("📝", I18n._("template.insert_header"), self._insert_header_block, 32)
+        )
+        row4.addWidget(
+            _tb(
+                "✍️",
+                I18n._("template.insert_signature"),
+                self._insert_signature_block,
+                32,
+            )
+        )
+        row4.addWidget(
+            _tb("🔧", I18n._("template.auto_format"), self._auto_format_document, 32)
+        )
         row4.addWidget(_tb("↔", I18n._("template.fit_width"), self._fit_width, 32))
         row4.addWidget(_tb("🖼", "Вставить картинку", self._insert_image, 32))
         row4.addWidget(_sep())
-        self._field_search = QLineEdit()
+        self._field_search = GlassLineEdit()
         self._field_search.setPlaceholderText("🔍" + I18n._("common.search") + "...")
-        self._field_search.setMinimumHeight(_rh); self._field_search.setMaximumWidth(100)
+        self._field_search.setMinimumHeight(_rh)
+        self._field_search.setMaximumWidth(100)
         self._field_search.textChanged.connect(self._filter_field_tree)
         row4.addWidget(self._field_search)
-        self._field_combo = QComboBox()
+        self._field_combo = GlassComboBox()
         self._field_combo.setEditable(True)
         self._field_combo.setInsertPolicy(QComboBox.NoInsert)
-        self._field_combo.setMinimumWidth(160); self._field_combo.setFixedHeight(_rh)
+        self._field_combo.setMinimumWidth(160)
+        self._field_combo.setFixedHeight(_rh)
         self._field_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._field_combo.activated[int].connect(self._on_field_combo_selected)
         self._field_combo.lineEdit().setPlaceholderText("🔍 Поле...")
         row4.addWidget(self._field_combo)
         row4.addWidget(_sep())
-        row4.addWidget(_tb("▶", I18n._("template.repeat_start"), self._insert_repeat_block_start))
-        row4.addWidget(_tb("■", I18n._("template.repeat_end"), self._insert_repeat_block_end))
+        row4.addWidget(
+            _tb("▶", I18n._("template.repeat_start"), self._insert_repeat_block_start)
+        )
+        row4.addWidget(
+            _tb("■", I18n._("template.repeat_end"), self._insert_repeat_block_end)
+        )
         row4.addWidget(_sep())
-        self._quick_blocks_combo = QComboBox()
-        self._quick_blocks_combo.setFixedHeight(_rh); self._quick_blocks_combo.setMinimumWidth(110)
+        self._quick_blocks_combo = GlassComboBox()
+        self._quick_blocks_combo.setFixedHeight(_rh)
+        self._quick_blocks_combo.setMinimumWidth(110)
         self._quick_blocks_combo.addItem(I18n._("template.block_title"), "title")
-        self._quick_blocks_combo.addItem(I18n._("template.block_violations"), "violations")
+        self._quick_blocks_combo.addItem(
+            I18n._("template.block_violations"), "violations"
+        )
         self._quick_blocks_combo.addItem(I18n._("template.insert_header"), "header")
-        self._quick_blocks_combo.addItem(I18n._("template.insert_signature"), "signature")
+        self._quick_blocks_combo.addItem(
+            I18n._("template.insert_signature"), "signature"
+        )
         row4.addWidget(self._quick_blocks_combo)
         row4.addWidget(_tb("➕", I18n._("common.add"), self._insert_quick_block))
         row4.addWidget(_sep())
-        row4.addWidget(_tb("👁", I18n._("template.preview_multi"), lambda: self._preview_template(multi_sample=True)))
+        row4.addWidget(
+            _tb(
+                "👁",
+                I18n._("template.preview_multi"),
+                lambda: self._preview_template(multi_sample=True),
+            )
+        )
         row4.addWidget(_tb("🎨", "Фон страницы", self._page_bg_color))
         row4.addWidget(_sep())
         row4.addWidget(QLabel("№:"))
-        self._page_num_fmt = QComboBox()
-        self._page_num_fmt.setFixedHeight(_rh); self._page_num_fmt.setMinimumWidth(80)
+        self._page_num_fmt = GlassComboBox()
+        self._page_num_fmt.setFixedHeight(_rh)
+        self._page_num_fmt.setMinimumWidth(80)
         self._page_num_fmt.addItem("{n}", "n")
         self._page_num_fmt.addItem("{n}/{total}", "n_total")
         self._page_num_fmt.addItem("Стр.{n}", "page_n")
@@ -496,7 +733,9 @@ class PrintTemplateEditor(QDialog):
         self._field_tree.setHeaderHidden(True)
         self._field_tree.setRootIsDecorated(True)
         self._field_tree.setIndentation(16)
-        self._field_tree.itemDoubleClicked.connect(lambda item, _: self._insert_field(item))
+        self._field_tree.itemDoubleClicked.connect(
+            lambda item, _: self._insert_field(item)
+        )
         self._field_tree.setVisible(False)
 
         # ═══ Ряд 5: Редактор ════════════════════════════════════════════
@@ -510,7 +749,8 @@ class PrintTemplateEditor(QDialog):
             "QScrollBar::handle:vertical { background: #B0B0B0; min-height: 24px; border-radius: 5px; margin: 2px; }"
             "QScrollBar::handle:vertical:hover { background: #909090; }"
             "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }")
+            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
+        )
 
         self._editor_container = QWidget()
         self._editor_container.setStyleSheet("background: #E8ECF1;")
@@ -528,13 +768,16 @@ class PrintTemplateEditor(QDialog):
         self._editor.document().setDefaultFont(QFont("Segoe UI", 11))
         self._editor.setStyleSheet(
             "QTextEdit { background: #FFFFFF; color: #2C3E50; border: 1px solid #C0C4CC; "
-            "border-radius: 2px; padding: 40px 50px; font-size: 11pt; }")
+            "border-radius: 2px; padding: 40px 50px; font-size: 11pt; }"
+        )
         self._editor.cursorPositionChanged.connect(self._update_format_buttons)
         self._editor.selectionChanged.connect(self._update_format_buttons)
         self._editor.textChanged.connect(self._update_status)
         self._editor.textChanged.connect(self._sync_editor_height)
-        self._editor.textChanged.connect(lambda: setattr(self, '_saved', False))
-        self._editor.verticalScrollBar().valueChanged.connect(lambda _: self._update_page_guide())
+        self._editor.textChanged.connect(lambda: setattr(self, "_saved", False))
+        self._editor.verticalScrollBar().valueChanged.connect(
+            lambda _: self._update_page_guide()
+        )
         self._editor.textChanged.connect(self._update_word_count)
         self._field_hl = FieldHighlighter(self._editor.document())
         QShortcut(QKeySequence.Save, self, self._save_template)
@@ -552,7 +795,12 @@ class PrintTemplateEditor(QDialog):
             self._editor.setCurrentFont(QFont(saved_font, saved_size))
             self._font_combo.setCurrentFont(QFont(saved_font, saved_size))
         self._size_combo.setCurrentText(str(saved_size))
-        for spin in (self._margin_left_spin, self._margin_right_spin, self._margin_top_spin, self._margin_bottom_spin):
+        for spin in (
+            self._margin_left_spin,
+            self._margin_right_spin,
+            self._margin_top_spin,
+            self._margin_bottom_spin,
+        ):
             spin.valueChanged.connect(self._apply_page_margins)
         self._margin_preset_combo.currentIndexChanged.connect(self._apply_margin_preset)
         self._page_shadow_cb.toggled.connect(self._apply_page_margins)
@@ -565,10 +813,12 @@ class PrintTemplateEditor(QDialog):
         layout.addWidget(self._editor_scroll, 1)
 
         # ═══ Нижняя панель ══════════════════════════════════════════════
-        bottom = QHBoxLayout(); bottom.setSpacing(3)
+        bottom = QHBoxLayout()
+        bottom.setSpacing(3)
         _bot_h = 26
-        self._reset_btn = QPushButton("🔄" + I18n._("template.reset"))
-        self._reset_btn.setFixedHeight(_bot_h); self._reset_btn.setFixedWidth(60)
+        self._reset_btn = GlassButton("🔄" + I18n._("template.reset"))
+        self._reset_btn.setFixedHeight(_bot_h)
+        self._reset_btn.setFixedWidth(60)
         self._reset_btn.clicked.connect(self._reset_template)
         bottom.addWidget(self._reset_btn)
         self._page_nav_label = QLabel("📄")
@@ -576,15 +826,21 @@ class PrintTemplateEditor(QDialog):
         bottom.addWidget(self._page_nav_label)
         self._page_nav_spin = QSpinBox()
         self._page_nav_spin.setPrefix("")
-        self._page_nav_spin.setMinimum(1); self._page_nav_spin.setMaximum(9999)
-        self._page_nav_spin.setFixedWidth(80); self._page_nav_spin.setFixedHeight(_bot_h)
+        self._page_nav_spin.setMinimum(1)
+        self._page_nav_spin.setMaximum(9999)
+        self._page_nav_spin.setFixedWidth(80)
+        self._page_nav_spin.setFixedHeight(_bot_h)
         self._page_nav_spin.valueChanged.connect(self._go_to_page)
         bottom.addWidget(self._page_nav_spin)
         self._status_label = QLabel("")
-        self._status_label.setStyleSheet("color:#8E8E93; font-size:10px; padding:0 4px;")
+        self._status_label.setStyleSheet(
+            "color:#8E8E93; font-size:10px; padding:0 4px;"
+        )
         bottom.addWidget(self._status_label)
         self._word_count_label = QLabel("")
-        self._word_count_label.setStyleSheet("color:#8E8E93; font-size:10px; padding:0 4px;")
+        self._word_count_label.setStyleSheet(
+            "color:#8E8E93; font-size:10px; padding:0 4px;"
+        )
         bottom.addWidget(self._word_count_label, 1)
         for emoji, tip, cb in [
             ("📏", "Линейка", self._toggle_ruler),
@@ -615,28 +871,41 @@ class PrintTemplateEditor(QDialog):
         self._field_combo.addItem("— " + I18n._("common.select") + " —", "")
         template_type = self._type_combo.currentData()
         fields_group = QTreeWidgetItem([I18n._("template.variables_group")])
-        f = fields_group.font(0); f.setBold(True); fields_group.setFont(0, f)
+        f = fields_group.font(0)
+        f.setBold(True)
+        fields_group.setFont(0, f)
         self._field_tree.addTopLevelItem(fields_group)
-        available = self.ORDER_FIELDS if template_type == "order" else self.REPORT_FIELDS
+        available = (
+            self.ORDER_FIELDS if template_type == "order" else self.REPORT_FIELDS
+        )
         for key, label in available:
             item = QTreeWidgetItem([f"{{{key}}} — {label}"])
             item.setData(0, Qt.UserRole, key)
             fields_group.addChild(item)
             self._field_combo.addItem(f"{{{key}}} — {label}", key)
         fields_group.setExpanded(True)
-        for table_key, table_label in [("employees", I18n._("tab.employees")),
-                                       ("violations", I18n._("tab.violations")),
-                                       ("custom_ledger", I18n._("tab.custom_ledger"))]:
+        for table_key, table_label in [
+            ("employees", I18n._("tab.employees")),
+            ("violations", I18n._("tab.violations")),
+            ("custom_ledger", I18n._("tab.custom_ledger")),
+        ]:
             cols = self.db.get_columns_config(table_key)
             if not cols:
                 continue
             ti = QTreeWidgetItem([table_label])
-            ff = ti.font(0); ff.setBold(True); ti.setFont(0, ff)
+            ff = ti.font(0)
+            ff.setBold(True)
+            ti.setFont(0, ff)
             for c in cols:
-                item = QTreeWidgetItem([f"{{{{{table_key}.{c['name']}}}}} — {c['name']}"])
+                item = QTreeWidgetItem(
+                    [f"{{{{{table_key}.{c['name']}}}}} — {c['name']}"]
+                )
                 item.setData(0, Qt.UserRole, f"{table_key}.{c['name']}")
                 ti.addChild(item)
-                self._field_combo.addItem(f"{{{{{table_key}.{c['name']}}}}} — {c['name']}", f"{table_key}.{c['name']}")
+                self._field_combo.addItem(
+                    f"{{{{{table_key}.{c['name']}}}}} — {c['name']}",
+                    f"{table_key}.{c['name']}",
+                )
             self._field_tree.addTopLevelItem(ti)
         self._field_combo.blockSignals(False)
 
@@ -652,7 +921,9 @@ class PrintTemplateEditor(QDialog):
             self._editor.insertPlainText(f"{{{key}}}")
 
     def _toggle_bold(self) -> None:
-        self._editor.setFontWeight(QFont.Bold if self._bold_btn.isChecked() else QFont.Normal)
+        self._editor.setFontWeight(
+            QFont.Bold if self._bold_btn.isChecked() else QFont.Normal
+        )
 
     def _toggle_italic(self) -> None:
         self._editor.setFontItalic(self._italic_btn.isChecked())
@@ -679,15 +950,18 @@ class PrintTemplateEditor(QDialog):
             fmt.setProperty(QTextFormat.BlockTrailingHorizontalRulerWidth, -1)
             cursor.setBlockFormat(fmt)
             cfmt = self._editor.currentCharFormat()
-            cfmt.setFontPointSize(22); cfmt.setFontWeight(QFont.Bold)
+            cfmt.setFontPointSize(22)
+            cfmt.setFontWeight(QFont.Bold)
             self._editor.setCurrentCharFormat(cfmt)
         elif tag == "h2":
             cfmt = self._editor.currentCharFormat()
-            cfmt.setFontPointSize(18); cfmt.setFontWeight(QFont.Bold)
+            cfmt.setFontPointSize(18)
+            cfmt.setFontWeight(QFont.Bold)
             self._editor.setCurrentCharFormat(cfmt)
         elif tag == "h3":
             cfmt = self._editor.currentCharFormat()
-            cfmt.setFontPointSize(14); cfmt.setFontWeight(QFont.Bold)
+            cfmt.setFontPointSize(14)
+            cfmt.setFontWeight(QFont.Bold)
             self._editor.setCurrentCharFormat(cfmt)
 
     def _on_font_changed(self, font: QFont) -> None:
@@ -705,7 +979,9 @@ class PrintTemplateEditor(QDialog):
             pass
 
     def _pick_color(self) -> None:
-        c = QColorDialog.getColor(self._editor.textColor(), self, I18n._("common.format"))
+        c = QColorDialog.getColor(
+            self._editor.textColor(), self, I18n._("common.format")
+        )
         if c.isValid():
             self._editor.setTextColor(c)
             self._color_btn.setStyleSheet(f"color: {c.name()}; font-weight: bold;")
@@ -729,19 +1005,20 @@ class PrintTemplateEditor(QDialog):
         settings.setValue("page_margin_bottom", self._page_margin_bottom)
         settings.setValue("page_shadow", self._show_page_shadow)
         settings.setValue("page_orientation", self._orientation)
-        shadow = "" if not self._show_page_shadow else "selection-background-color:#DCEBFF;"
+        shadow = (
+            "" if not self._show_page_shadow else "selection-background-color:#DCEBFF;"
+        )
         page_border = "border: 1px solid #C0C4CC;"
         if self._show_page_shadow:
             page_border = "border: 1px solid #C7CDD8;"
         self._editor.setStyleSheet(
             "QTextEdit { background: #FFFFFF; color: #2C3E50; "
             f"{page_border} border-radius: 2px; padding: {self._page_margin_top}px {self._page_margin_right}px {self._page_margin_bottom}px {self._page_margin_left}px; "
-            f"font-size: 11pt; {shadow}}}")
+            f"font-size: 11pt; {shadow}}}"
+        )
         container_style = "background: #E8ECF1;"
         if self._show_page_shadow:
-            container_style = (
-                "background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #EEF2F7, stop:1 #E3E7ED);"
-            )
+            container_style = "background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #EEF2F7, stop:1 #E3E7ED);"
         self._editor_container.setStyleSheet(container_style)
         self._sync_editor_height()
 
@@ -753,7 +1030,12 @@ class PrintTemplateEditor(QDialog):
             vals = (90, 90, 70, 70)
         else:
             vals = (60, 60, 50, 50)
-        spins = (self._margin_left_spin, self._margin_right_spin, self._margin_top_spin, self._margin_bottom_spin)
+        spins = (
+            self._margin_left_spin,
+            self._margin_right_spin,
+            self._margin_top_spin,
+            self._margin_bottom_spin,
+        )
         for spin, val in zip(spins, vals):
             spin.blockSignals(True)
             spin.setValue(val)
@@ -763,7 +1045,9 @@ class PrintTemplateEditor(QDialog):
     def _insert_quick_block(self) -> None:
         block = self._quick_blocks_combo.currentData()
         if block == "title":
-            self._editor.insertHtml("<h1 style='text-align:center;'>Документ</h1><p style='text-align:center;'>{company}</p><p><br></p>")
+            self._editor.insertHtml(
+                "<h1 style='text-align:center;'>Документ</h1><p style='text-align:center;'>{company}</p><p><br></p>"
+            )
         elif block == "violations":
             self._insert_repeat_block_start()
             self._insert_repeat_block_end()
@@ -781,7 +1065,9 @@ class PrintTemplateEditor(QDialog):
             "<div style='font-size:9.5pt; color:#6B7280; margin-bottom:10px;'>"
             "Используйте {violation_index} или {violation_number}, чтобы показывать номер предписания внутри списка.</div>"
         )
-        self._editor.insertPlainText("Предписание {violation_index}\nОписание: {description}\nСрок: {deadline}\nМеры: {recommended_action}\nШтраф: {fine}")
+        self._editor.insertPlainText(
+            "Предписание {violation_index}\nОписание: {description}\nСрок: {deadline}\nМеры: {recommended_action}\nШтраф: {fine}"
+        )
         self._sync_editor_height()
 
     def _insert_repeat_block_end(self) -> None:
@@ -798,8 +1084,16 @@ class PrintTemplateEditor(QDialog):
         if not html:
             ToastNotification.notify(I18n._("error.invalid_data"), "error", 3000)
             return
-        base_name = self._template_name_edit.text().strip() or self._template_combo.currentText().rsplit(" ", 1)[0].strip()
-        new_name, ok = QInputDialog.getText(self, I18n._("template.duplicate"), I18n._("template.name"), text=base_name + " (копия)")
+        base_name = (
+            self._template_name_edit.text().strip()
+            or self._template_combo.currentText().rsplit(" ", 1)[0].strip()
+        )
+        new_name, ok = QInputDialog.getText(
+            self,
+            I18n._("template.duplicate"),
+            I18n._("template.name"),
+            text=base_name + " (копия)",
+        )
         if not ok or not new_name.strip():
             return
         template_type = self._type_combo.currentData()
@@ -823,14 +1117,24 @@ class PrintTemplateEditor(QDialog):
         self._align_center_btn.setChecked(a == Qt.AlignCenter)
         self._align_right_btn.setChecked(a == Qt.AlignRight)
         cursor = self._editor.textCursor()
-        self._bullet_btn.setChecked(bool(cursor.currentList()) and cursor.currentList().format().style() == QTextListFormat.ListDisc)
-        self._number_btn.setChecked(bool(cursor.currentList()) and cursor.currentList().format().style() == QTextListFormat.ListDecimal)
+        self._bullet_btn.setChecked(
+            bool(cursor.currentList())
+            and cursor.currentList().format().style() == QTextListFormat.ListDisc
+        )
+        self._number_btn.setChecked(
+            bool(cursor.currentList())
+            and cursor.currentList().format().style() == QTextListFormat.ListDecimal
+        )
         self._heading_combo.blockSignals(True)
         html = self._editor.toHtml()
-        if "<h1>" in html: self._heading_combo.setCurrentIndex(1)
-        elif "<h2>" in html: self._heading_combo.setCurrentIndex(2)
-        elif "<h3>" in html: self._heading_combo.setCurrentIndex(3)
-        else: self._heading_combo.setCurrentIndex(0)
+        if "<h1>" in html:
+            self._heading_combo.setCurrentIndex(1)
+        elif "<h2>" in html:
+            self._heading_combo.setCurrentIndex(2)
+        elif "<h3>" in html:
+            self._heading_combo.setCurrentIndex(3)
+        else:
+            self._heading_combo.setCurrentIndex(0)
         self._heading_combo.blockSignals(False)
 
     def _on_type_changed(self) -> None:
@@ -865,9 +1169,15 @@ class PrintTemplateEditor(QDialog):
             pages = self._editor.document().pageCount()
         except Exception:
             pages = 1
-        name = self._template_name_edit.text().strip() or self._template_combo.currentText() or I18n._("template.untitled")
+        name = (
+            self._template_name_edit.text().strip()
+            or self._template_combo.currentText()
+            or I18n._("template.untitled")
+        )
         repeat_used = " | 🔁" if "ПОВТОРЯЕМЫЙ БЛОК" in plain else ""
-        self._status_label.setText(f"{name}  |  {I18n._('common.count')}: {chars} {I18n._('template.chars')}, {words} {I18n._('template.words')}{repeat_used}")
+        self._status_label.setText(
+            f"{name}  |  {I18n._('common.count')}: {chars} {I18n._('template.chars')}, {words} {I18n._('template.words')}{repeat_used}"
+        )
         self._update_page_nav(keep_position=True)
 
     def _editor_context_menu(self, pos: QPoint) -> None:
@@ -879,14 +1189,28 @@ class PrintTemplateEditor(QDialog):
             QMenu::item:selected { background: #0A84FF; color: #FFFFFF; }
             QMenu::separator { height: 1px; background: #3A3A3C; margin: 4px 10px; }
         """)
-        menu.addAction(I18n._("common.undo"), lambda: self._editor.undo(), QKeySequence.Undo)
-        menu.addAction(I18n._("common.redo"), lambda: self._editor.redo(), QKeySequence.Redo)
+        menu.addAction(
+            I18n._("common.undo"), lambda: self._editor.undo(), QKeySequence.Undo
+        )
+        menu.addAction(
+            I18n._("common.redo"), lambda: self._editor.redo(), QKeySequence.Redo
+        )
         menu.addSeparator()
-        menu.addAction(I18n._("common.cut"), lambda: self._editor.cut(), QKeySequence.Cut)
-        menu.addAction(I18n._("common.copy"), lambda: self._editor.copy(), QKeySequence.Copy)
-        menu.addAction(I18n._("common.paste"), lambda: self._editor.paste(), QKeySequence.Paste)
+        menu.addAction(
+            I18n._("common.cut"), lambda: self._editor.cut(), QKeySequence.Cut
+        )
+        menu.addAction(
+            I18n._("common.copy"), lambda: self._editor.copy(), QKeySequence.Copy
+        )
+        menu.addAction(
+            I18n._("common.paste"), lambda: self._editor.paste(), QKeySequence.Paste
+        )
         menu.addSeparator()
-        menu.addAction(I18n._("common.select_all"), lambda: self._editor.selectAll(), QKeySequence.SelectAll)
+        menu.addAction(
+            I18n._("common.select_all"),
+            lambda: self._editor.selectAll(),
+            QKeySequence.SelectAll,
+        )
         cursor = self._editor.textCursor()
         pos_in_doc = cursor.position()
         root = self._editor.document().rootFrame()
@@ -924,7 +1248,9 @@ class PrintTemplateEditor(QDialog):
             if i == 0:
                 continue
             item_text = self._field_combo.itemText(i)
-            self._field_combo.setItemHidden(i, bool(text) and text.lower() not in item_text.lower())
+            self._field_combo.setItemHidden(
+                i, bool(text) and text.lower() not in item_text.lower()
+            )
         if current > 0 and self._field_combo.isItemHidden(current):
             self._field_combo.setCurrentIndex(0)
         self._field_combo.blockSignals(False)
@@ -942,15 +1268,22 @@ class PrintTemplateEditor(QDialog):
             self._template_name_edit.setText(t.get("name", ""))
 
     def _new_template(self) -> None:
-        name, ok = QInputDialog.getText(self, I18n._("template.register"),
-                                        I18n._("template.name_prompt"))
+        name, ok = QInputDialog.getText(
+            self, I18n._("template.register"), I18n._("template.name_prompt")
+        )
         if not ok or not name.strip():
             return
         template_type = self._type_combo.currentData()
-        t = I18n._("print.order") if template_type == "order" else I18n._("print.report")
+        t = (
+            I18n._("print.order")
+            if template_type == "order"
+            else I18n._("print.report")
+        )
         default_html = f"<h1>{t}</h1><p>« {I18n._('template.edit')} »</p>"
         try:
-            new_id = self.db.save_print_template(name.strip(), template_type, default_html)
+            new_id = self.db.save_print_template(
+                name.strip(), template_type, default_html
+            )
             self._current_id = new_id
             self._load_templates()
             for i in range(self._template_combo.count()):
@@ -968,14 +1301,19 @@ class PrintTemplateEditor(QDialog):
         if not html:
             ToastNotification.notify(I18n._("error.invalid_data"), "error", 3000)
             return
-        name = self._template_name_edit.text().strip() or self._template_combo.currentText().strip()
+        name = (
+            self._template_name_edit.text().strip()
+            or self._template_combo.currentText().strip()
+        )
         if not name:
             ToastNotification.notify(I18n._("error.invalid_data"), "error", 3000)
             return
         template_type = self._type_combo.currentData()
         try:
             if self._current_id:
-                self.db.save_print_template(name, template_type, html, template_id=self._current_id)
+                self.db.save_print_template(
+                    name, template_type, html, template_id=self._current_id
+                )
             else:
                 new_id = self.db.save_print_template(name, template_type, html)
                 self._current_id = new_id
@@ -998,9 +1336,12 @@ class PrintTemplateEditor(QDialog):
     def _delete_template(self) -> None:
         if not self._current_id:
             return
-        reply = QMessageBox.question(self, I18n._("common.confirm"),
-                                     I18n._("template.delete_confirm"),
-                                     QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(
+            self,
+            I18n._("common.confirm"),
+            I18n._("template.delete_confirm"),
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
         self.db.execute("DELETE FROM print_templates WHERE id=?", (self._current_id,))
@@ -1009,15 +1350,19 @@ class PrintTemplateEditor(QDialog):
         ToastNotification.notify(I18n._("common.done"), "success", 3000)
 
     def _reset_template(self) -> None:
-        reply = QMessageBox.question(self, I18n._("common.confirm"),
-                                     I18n._("template.reset") + "?",
-                                     QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(
+            self,
+            I18n._("common.confirm"),
+            I18n._("template.reset") + "?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
         template_type = self._type_combo.currentData()
         defaults = self.db.fetch_one(
             "SELECT * FROM print_templates WHERE template_type=? AND is_default=1",
-            (template_type,))
+            (template_type,),
+        )
         if defaults:
             self._editor.setHtml(defaults.get("html_content", ""))
             ToastNotification.notify(I18n._("common.done"), "success", 3000)
@@ -1028,10 +1373,13 @@ class PrintTemplateEditor(QDialog):
             ToastNotification.notify(I18n._("common.no_data"), "warning", 3000)
             return
         old_name = self._template_combo.currentText().rsplit(" ", 1)[0]
-        new_name, ok = QInputDialog.getText(self, I18n._("common.rename"),
-                                             I18n._("template.name"), text=old_name)
+        new_name, ok = QInputDialog.getText(
+            self, I18n._("common.rename"), I18n._("template.name"), text=old_name
+        )
         if ok and new_name.strip():
-            self.db.execute("UPDATE print_templates SET name=? WHERE id=?", (new_name.strip(), tid))
+            self.db.execute(
+                "UPDATE print_templates SET name=? WHERE id=?", (new_name.strip(), tid)
+            )
             self._template_name_edit.setText(new_name.strip())
             self._load_templates()
             ToastNotification.notify(I18n._("common.done"), "success", 3000)
@@ -1103,13 +1451,13 @@ class PrintTemplateEditor(QDialog):
         return max(1, int(self._editor.width() * (ph / float(pw))))
 
     def _update_page_guide(self) -> None:
-        if not hasattr(self, '_page_guide'):
+        if not hasattr(self, "_page_guide"):
             return
         self._page_guide.setGeometry(self._editor.geometry())
         self._page_guide.show()
         self._page_guide.raise_()
         self._page_guide.update()
-        if hasattr(self, '_ruler'):
+        if hasattr(self, "_ruler"):
             self._ruler.update_position()
 
     def _update_page_nav(self, keep_position: bool = False) -> None:
@@ -1138,7 +1486,9 @@ class PrintTemplateEditor(QDialog):
         super().resizeEvent(event)
         QTimer.singleShot(50, self._update_page_guide)
         if event.oldSize().width() != event.size().width():
-            QTimer.singleShot(200, lambda: (self._update_page_guide(), self._sync_editor_height()))
+            QTimer.singleShot(
+                200, lambda: (self._update_page_guide(), self._sync_editor_height())
+            )
 
     def _sync_editor_height(self) -> None:
         pw, ph = self._orientations[self._orientation]
@@ -1184,39 +1534,57 @@ class PrintTemplateEditor(QDialog):
         preview_label.setStyleSheet("font-weight: bold;")
         lay.addWidget(preview_label)
 
-        rows_hint = QLabel("<b>" + I18n._("template.table_rows") + "</b>  <span style='color:#6B7280;'>" + I18n._("template.table_hint_rows") + "</span>")
+        rows_hint = QLabel(
+            "<b>"
+            + I18n._("template.table_rows")
+            + "</b>  <span style='color:#6B7280;'>"
+            + I18n._("template.table_hint_rows")
+            + "</span>"
+        )
         rows_hint.setWordWrap(True)
         lay.addWidget(rows_hint)
         rl = QHBoxLayout()
-        rs = QSpinBox(); rs.setRange(1, 20); rs.setValue(3)
+        rs = QSpinBox()
+        rs.setRange(1, 20)
+        rs.setValue(3)
         rs.setMinimumHeight(28)
         rs.setStyleSheet(
             "QSpinBox { padding: 4px 28px 4px 8px; border: 1px solid #999; border-radius: 6px; background: #FFFFFF; color: #2C3E50; }"
             "QSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 24px; border-left: 1px solid #999; border-top-right-radius: 6px; }"
             "QSpinBox::up-arrow { width: 8px; height: 8px; }"
             "QSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 24px; border-left: 1px solid #999; border-bottom-right-radius: 6px; }"
-            "QSpinBox::down-arrow { width: 8px; height: 8px; }")
+            "QSpinBox::down-arrow { width: 8px; height: 8px; }"
+        )
         rl.addWidget(rs)
         lay.addLayout(rl)
-        cols_hint = QLabel("<b>" + I18n._("template.table_columns") + "</b>  <span style='color:#6B7280;'>" + I18n._("template.table_hint_columns") + "</span>")
+        cols_hint = QLabel(
+            "<b>"
+            + I18n._("template.table_columns")
+            + "</b>  <span style='color:#6B7280;'>"
+            + I18n._("template.table_hint_columns")
+            + "</span>"
+        )
         cols_hint.setWordWrap(True)
         lay.addWidget(cols_hint)
         cl = QHBoxLayout()
-        cs = QSpinBox(); cs.setRange(1, 10); cs.setValue(3)
+        cs = QSpinBox()
+        cs.setRange(1, 10)
+        cs.setValue(3)
         cs.setMinimumHeight(28)
         cs.setStyleSheet(
             "QSpinBox { padding: 4px 28px 4px 8px; border: 1px solid #999; border-radius: 6px; background: #FFFFFF; color: #2C3E50; }"
             "QSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 24px; border-left: 1px solid #999; border-top-right-radius: 6px; }"
             "QSpinBox::up-arrow { width: 8px; height: 8px; }"
             "QSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 24px; border-left: 1px solid #999; border-bottom-right-radius: 6px; }"
-            "QSpinBox::down-arrow { width: 8px; height: 8px; }")
+            "QSpinBox::down-arrow { width: 8px; height: 8px; }"
+        )
         cl.addWidget(cs)
         lay.addLayout(cl)
         btn_lay = QHBoxLayout()
-        ok_btn = QPushButton(I18n._("common.ok"))
+        ok_btn = GlassButton(I18n._("common.ok"))
         ok_btn.clicked.connect(dlg.accept)
         btn_lay.addWidget(ok_btn)
-        cancel_btn = QPushButton(I18n._("common.cancel"))
+        cancel_btn = GlassButton(I18n._("common.cancel"))
         cancel_btn.clicked.connect(dlg.reject)
         btn_lay.addWidget(cancel_btn)
         lay.addLayout(btn_lay)
@@ -1267,16 +1635,15 @@ class PrintTemplateEditor(QDialog):
         target_table.setFormat(fmt)
         self._sync_editor_height()
 
-
     def _clear_formatting(self) -> None:
         cursor = self._editor.textCursor()
         if cursor.hasSelection():
             html = cursor.selection().toHtml()
-            html = re.sub(r'style="[^"]*"', '', html)
-            html = re.sub(r'<span[^>]*>', '', html)
-            html = re.sub(r'</span>', '', html)
-            html = re.sub(r'<font[^>]*>', '', html)
-            html = re.sub(r'</font>', '', html)
+            html = re.sub(r'style="[^"]*"', "", html)
+            html = re.sub(r"<span[^>]*>", "", html)
+            html = re.sub(r"</span>", "", html)
+            html = re.sub(r"<font[^>]*>", "", html)
+            html = re.sub(r"</font>", "", html)
             cursor.insertHtml(html)
         else:
             dfmt = self._editor.currentCharFormat()
@@ -1302,14 +1669,18 @@ class PrintTemplateEditor(QDialog):
         html = re.sub(
             r"<table(?![^>]*table-layout:fixed)([^>]*)>",
             r"<table\1 style='width:100%;border-collapse:collapse;table-layout:fixed;margin:8px 0;'>",
-            html
+            html,
         )
         html = re.sub(
             r"<td(?![^>]*vertical-align:top)([^>]*)>",
             r"<td\1 style='padding:8px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;'>",
-            html
+            html,
         )
-        html = re.sub(r"<img(?![^>]*max-width:100%)([^>]*)>", r"<img\1 style='max-width:100%;height:auto;display:block;'>", html)
+        html = re.sub(
+            r"<img(?![^>]*max-width:100%)([^>]*)>",
+            r"<img\1 style='max-width:100%;height:auto;display:block;'>",
+            html,
+        )
         html = html.replace("<p></p>", "<p><br></p>")
         self._editor.blockSignals(True)
         self._editor.setHtml(html)
@@ -1341,21 +1712,23 @@ class PrintTemplateEditor(QDialog):
         dlg.setWindowTitle(I18n._("common.find"))
         dlg.setFixedSize(360, 140)
         lay = QVBoxLayout(dlg)
-        search_input = QLineEdit()
+        search_input = GlassLineEdit()
         search_input.setPlaceholderText(I18n._("common.find"))
         lay.addWidget(search_input)
-        case_cb = QCheckBox(I18n._("template.match_case"))
+        case_cb = GlassCheckBox(I18n._("template.match_case"))
         lay.addWidget(case_cb)
         btn_lay = QHBoxLayout()
+
         def _do_find():
             flags = QTextDocument.FindFlags()
             if case_cb.isChecked():
                 flags |= QTextDocument.FindCaseSensitively
             self._editor.find(search_input.text(), flags)
-        find_btn = QPushButton(I18n._("common.find"))
+
+        find_btn = GlassButton(I18n._("common.find"))
         find_btn.clicked.connect(_do_find)
         btn_lay.addWidget(find_btn)
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(dlg.accept)
         btn_lay.addWidget(close_btn)
         lay.addLayout(btn_lay)
@@ -1363,14 +1736,17 @@ class PrintTemplateEditor(QDialog):
         dlg.exec_()
 
     def _insert_separator(self) -> None:
-        self._editor.insertHtml("<hr style='border:none;border-top:1px solid #C0C4CC;margin:12px 0;'>")
+        self._editor.insertHtml(
+            "<hr style='border:none;border-top:1px solid #C0C4CC;margin:12px 0;'>"
+        )
 
     def _insert_page_break(self) -> None:
         self._editor.insertHtml(
             "<div style='page-break-before:always; border-top: 2px dashed #A0A4AC; "
             "margin: 30px 0 10px 0; padding: 4px 0; text-align: center;'>"
             "<span style='background:#E8ECF1; color:#8E8E93; font-size:9pt; "
-            "padding:2px 16px; border-radius:8px;'>📄 A4</span></div>")
+            "padding:2px 16px; border-radius:8px;'>📄 A4</span></div>"
+        )
 
     def _insert_date(self) -> None:
         self._editor.insertPlainText(datetime.now().strftime("%d.%m.%Y"))
@@ -1379,23 +1755,36 @@ class PrintTemplateEditor(QDialog):
         PrintEngine.print_document(self._editor.toHtml(), self)
 
     def _insert_image(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Выберите изображение",
-                                               "", "Изображения (*.png *.jpg *.jpeg *.gif *.bmp)")
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Выберите изображение",
+            "",
+            "Изображения (*.png *.jpg *.jpeg *.gif *.bmp)",
+        )
         if not path:
             return
         size_mb = os.path.getsize(path) / (1024 * 1024)
         if size_mb > 10:
-            QMessageBox.warning(self, "Ошибка",
-                f"Файл слишком большой ({size_mb:.1f} МБ). Максимум 10 МБ.")
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                f"Файл слишком большой ({size_mb:.1f} МБ). Максимум 10 МБ.",
+            )
             return
         with open(path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode("utf-8")
         ext = path.rsplit(".", 1)[-1].lower()
-        mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
-                "gif": "image/gif", "bmp": "image/bmp"}.get(ext, "image/png")
+        mime = {
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "gif": "image/gif",
+            "bmp": "image/bmp",
+        }.get(ext, "image/png")
         self._editor.insertHtml(
             f'<p><img src="data:{mime};base64,{b64}" '
-            f'style="max-width:100%;height:auto;display:block;margin:8px 0;"></p>')
+            f'style="max-width:100%;height:auto;display:block;margin:8px 0;"></p>'
+        )
         self._sync_editor_height()
 
     def _indent(self) -> None:
@@ -1415,8 +1804,9 @@ class PrintTemplateEditor(QDialog):
         self._editor.setTextCursor(cursor)
 
     def _import_template(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Импорт шаблона",
-                                               "", "HTML файлы (*.html *.htm);;Все файлы (*)")
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Импорт шаблона", "", "HTML файлы (*.html *.htm);;Все файлы (*)"
+        )
         if path:
             with open(path, "r", encoding="utf-8") as f:
                 html = f.read()
@@ -1433,16 +1823,19 @@ class PrintTemplateEditor(QDialog):
             ToastNotification.notify(I18n._("error.invalid_data"), "error", 3000)
             return
         name = self._template_name_edit.text().strip() or "template"
-        path, _ = QFileDialog.getSaveFileName(self, "Экспорт шаблона",
-                                               f"{name}.html",
-                                               "HTML файлы (*.html *.htm);;Все файлы (*)")
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Экспорт шаблона",
+            f"{name}.html",
+            "HTML файлы (*.html *.htm);;Все файлы (*)",
+        )
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(html)
             ToastNotification.notify(I18n._("template.exported"), "success", 3000)
 
     def _toggle_ruler(self) -> None:
-        if hasattr(self, '_ruler'):
+        if hasattr(self, "_ruler"):
             self._ruler.setVisible(not self._ruler.isVisible())
             if self._ruler.isVisible():
                 self._ruler.update_position()
@@ -1465,7 +1858,7 @@ class PrintTemplateEditor(QDialog):
         editor.setStyleSheet("font-family:Consolas,'Courier New'; font-size:10pt;")
         editor.setReadOnly(True)
         lay.addWidget(editor, 1)
-        btn = QPushButton(I18n._("common.close"))
+        btn = GlassButton(I18n._("common.close"))
         btn.clicked.connect(dlg.accept)
         hlay = QHBoxLayout()
         hlay.addStretch()
@@ -1474,7 +1867,10 @@ class PrintTemplateEditor(QDialog):
         dlg.exec_()
 
     def _toggle_favorite(self) -> None:
-        name = self._template_name_edit.text().strip() or self._template_combo.currentText().strip()
+        name = (
+            self._template_name_edit.text().strip()
+            or self._template_combo.currentText().strip()
+        )
         if not name:
             ToastNotification.notify(I18n._("template.no_active"), "warning", 3000)
             return
@@ -1485,7 +1881,10 @@ class PrintTemplateEditor(QDialog):
             new_name = "★ " + name
             ToastNotification.notify(I18n._("template.favorite_added"), "success", 3000)
         if self._current_id:
-            self.db.execute("UPDATE print_templates SET name=? WHERE id=?", (new_name, self._current_id))
+            self.db.execute(
+                "UPDATE print_templates SET name=? WHERE id=?",
+                (new_name, self._current_id),
+            )
             self._template_name_edit.setText(new_name)
             self._load_templates()
 
@@ -1514,16 +1913,19 @@ class PrintTemplateEditor(QDialog):
         glay.setSpacing(4)
         row = col = 0
         for ch in glyphs:
-            btn = QPushButton(ch)
+            btn = GlassButton(ch)
             btn.setFixedSize(32, 32)
             btn.setStyleSheet("font-size:14px;")
-            btn.clicked.connect(lambda checked, c=ch: (self._editor.insertPlainText(c), dlg.accept()))
+            btn.clicked.connect(
+                lambda checked, c=ch: (self._editor.insertPlainText(c), dlg.accept())
+            )
             glay.addWidget(btn, row, col)
             col += 1
             if col > 9:
-                col = 0; row += 1
+                col = 0
+                row += 1
         lay.addLayout(glay)
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(dlg.reject)
         lay.addWidget(close_btn)
         dlg.exec_()
@@ -1536,24 +1938,36 @@ class PrintTemplateEditor(QDialog):
         html = self._editor.toHtml()
         cursor = self._editor.textCursor()
         if style == "quote":
-            cursor.insertHtml('<blockquote style="border-left:4px solid #4B7BFF; margin:12px 0; padding:8px 16px; background:#F7F9FC; color:#4B5563;">Цитата</blockquote>')
+            cursor.insertHtml(
+                '<blockquote style="border-left:4px solid #4B7BFF; margin:12px 0; padding:8px 16px; background:#F7F9FC; color:#4B5563;">Цитата</blockquote>'
+            )
         elif style == "alert":
-            cursor.insertHtml('<div style="border:1px solid #FFC107; background:#FFF8E1; border-radius:8px; padding:12px; margin:12px 0; color:#856404;">⚠️ Внимание!</div>')
+            cursor.insertHtml(
+                '<div style="border:1px solid #FFC107; background:#FFF8E1; border-radius:8px; padding:12px; margin:12px 0; color:#856404;">⚠️ Внимание!</div>'
+            )
         elif style == "code":
-            cursor.insertHtml('<pre style="background:#1E1E2E; color:#D4D4D4; border-radius:6px; padding:12px; font-family:Consolas; font-size:10pt;">код</pre>')
+            cursor.insertHtml(
+                '<pre style="background:#1E1E2E; color:#D4D4D4; border-radius:6px; padding:12px; font-family:Consolas; font-size:10pt;">код</pre>'
+            )
         self._sync_editor_height()
 
     def _page_bg_color(self) -> None:
         color = QColorDialog.getColor(QColor("#FFFFFF"), self, "Цвет фона страницы")
         if color.isValid():
             self._editor.setStyleSheet(
-                re.sub(r'background:#[A-Fa-f0-9]{6}', f'background:{color.name()}', self._editor.styleSheet())
-                if 'background:#' in self._editor.styleSheet()
-                else self._editor.styleSheet() + f" QTextEdit {{ background: {color.name()}; }}")
+                re.sub(
+                    r"background:#[A-Fa-f0-9]{6}",
+                    f"background:{color.name()}",
+                    self._editor.styleSheet(),
+                )
+                if "background:#" in self._editor.styleSheet()
+                else self._editor.styleSheet()
+                + f" QTextEdit {{ background: {color.name()}; }}"
+            )
 
     def _filter_templates(self, text: str) -> None:
         if not text:
-            if hasattr(self, '_saved_template_items'):
+            if hasattr(self, "_saved_template_items"):
                 self._template_combo.blockSignals(True)
                 self._template_combo.clear()
                 for name, data in self._saved_template_items:
@@ -1561,9 +1975,11 @@ class PrintTemplateEditor(QDialog):
                 self._template_combo.blockSignals(False)
                 del self._saved_template_items
             return
-        if not hasattr(self, '_saved_template_items'):
-            self._saved_template_items = [(self._template_combo.itemText(i), self._template_combo.itemData(i))
-                                          for i in range(self._template_combo.count())]
+        if not hasattr(self, "_saved_template_items"):
+            self._saved_template_items = [
+                (self._template_combo.itemText(i), self._template_combo.itemData(i))
+                for i in range(self._template_combo.count())
+            ]
         self._template_combo.blockSignals(True)
         self._template_combo.clear()
         for name, data in self._saved_template_items:
@@ -1583,19 +1999,23 @@ class PrintTemplateEditor(QDialog):
         dlg.resize(400, 300)
         lay = QVBoxLayout(dlg)
         notes = QTextEdit()
-        notes.setPlainText(self._template_notes_text if hasattr(self, '_template_notes_text') else "")
+        notes.setPlainText(
+            self._template_notes_text if hasattr(self, "_template_notes_text") else ""
+        )
         notes.setPlaceholderText(I18n._("template.notes_placeholder"))
         lay.addWidget(notes, 1)
         hlay = QHBoxLayout()
-        save_btn = QPushButton(I18n._("common.save"))
+        save_btn = GlassButton(I18n._("common.save"))
+
         def _save_notes():
             self._template_notes_text = notes.toPlainText()
             ToastNotification.notify(I18n._("template.notes_saved"), "success", 2000)
             dlg.accept()
+
         save_btn.clicked.connect(_save_notes)
         hlay.addStretch()
         hlay.addWidget(save_btn)
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(dlg.reject)
         hlay.addWidget(close_btn)
         lay.addLayout(hlay)
@@ -1608,7 +2028,8 @@ class PrintTemplateEditor(QDialog):
         lay = QVBoxLayout(dlg)
         tree = QTreeWidget()
         tree.setHeaderLabels(["Заголовок"])
-        tree.setAnimated(True); tree.setIndentation(12)
+        tree.setAnimated(True)
+        tree.setIndentation(12)
         doc = self._editor.document()
         block = doc.begin()
         level_map = {}
@@ -1635,15 +2056,19 @@ class PrintTemplateEditor(QDialog):
                     if k > level:
                         del level_map[k]
             block = block.next()
+
         def _go_to(pos):
             cursor = self._editor.textCursor()
             cursor.setPosition(pos)
             self._editor.setTextCursor(cursor)
             self._editor.setFocus()
             dlg.accept()
-        tree.itemDoubleClicked.connect(lambda item, col: _go_to(item.data(0, Qt.UserRole)))
+
+        tree.itemDoubleClicked.connect(
+            lambda item, col: _go_to(item.data(0, Qt.UserRole))
+        )
         lay.addWidget(tree, 1)
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(dlg.reject)
         lay.addWidget(close_btn)
         dlg.exec_()
@@ -1657,29 +2082,40 @@ class PrintTemplateEditor(QDialog):
         lay = QVBoxLayout(dlg)
         find_lay = QHBoxLayout()
         find_lay.addWidget(QLabel(I18n._("common.find") + ":"))
-        find_input = QLineEdit()
+        find_input = GlassLineEdit()
         find_input.setPlaceholderText(I18n._("common.find"))
         find_lay.addWidget(find_input, 1)
         lay.addLayout(find_lay)
         repl_lay = QHBoxLayout()
         repl_lay.addWidget(QLabel(I18n._("common.replace") + ":"))
-        repl_input = QLineEdit()
+        repl_input = GlassLineEdit()
         repl_input.setPlaceholderText(I18n._("common.replace"))
         repl_lay.addWidget(repl_input, 1)
         lay.addLayout(repl_lay)
-        case_cb = QCheckBox(I18n._("template.match_case"))
+        case_cb = GlassCheckBox(I18n._("template.match_case"))
         lay.addWidget(case_cb)
         btn_lay = QHBoxLayout()
+
+        def _make_btn(text: str, cb) -> QPushButton:
+            b = QPushButton(text)
+            b.clicked.connect(cb)
+            return b
+
         def _find():
             text = find_input.text()
             if not text:
                 return
-            flags = QTextDocument.FindFlags() if not case_cb.isChecked() else QTextDocument.FindCaseSensitively
+            flags = (
+                QTextDocument.FindFlags()
+                if not case_cb.isChecked()
+                else QTextDocument.FindCaseSensitively
+            )
             if not self._editor.find(text, flags):
                 cursor = self._editor.textCursor()
                 cursor.movePosition(QTextCursor.Start)
                 self._editor.setTextCursor(cursor)
                 self._editor.find(text, flags)
+
         def _replace():
             text = find_input.text()
             if not text:
@@ -1688,6 +2124,7 @@ class PrintTemplateEditor(QDialog):
             if cursor.hasSelection() and cursor.selectedText() == text:
                 cursor.insertText(repl_input.text())
             self._editor.find(text)
+
         def _replace_all():
             text = find_input.text()
             if not text:
@@ -1699,7 +2136,10 @@ class PrintTemplateEditor(QDialog):
             while self._editor.find(text):
                 self._editor.textCursor().insertText(repl_input.text())
                 count += 1
-            ToastNotification.notify(I18n._("common.replaced_count", count=count), "info", 3000)
+            ToastNotification.notify(
+                I18n._("common.replaced_count", count=count), "info", 3000
+            )
+
         btn_lay.addWidget(_make_btn(I18n._("common.find"), _find))
         btn_lay.addWidget(_make_btn(I18n._("common.replace"), _replace))
         btn_lay.addWidget(_make_btn(I18n._("template.replace_all"), _replace_all))
@@ -1774,11 +2214,15 @@ class PrintTemplateEditor(QDialog):
             ToastNotification.notify(I18n._("template.pasted_plain"), "info", 2000)
 
     def _toggle_ruler_units(self) -> None:
-        self._ruler_units = getattr(self, '_ruler_units', 'cm')
-        self._ruler_units = 'in' if self._ruler_units == 'cm' else 'cm'
-        unit_name = I18n._("template.ruler_cm") if self._ruler_units == 'cm' else I18n._("template.ruler_in")
+        self._ruler_units = getattr(self, "_ruler_units", "cm")
+        self._ruler_units = "in" if self._ruler_units == "cm" else "cm"
+        unit_name = (
+            I18n._("template.ruler_cm")
+            if self._ruler_units == "cm"
+            else I18n._("template.ruler_in")
+        )
         ToastNotification.notify(f"{I18n._('common.ruler')}: {unit_name}", "info", 2000)
-        if hasattr(self, '_ruler'):
+        if hasattr(self, "_ruler"):
             self._ruler.update()
 
     def _go_first_page(self) -> None:
@@ -1819,7 +2263,10 @@ class PrintTemplateEditor(QDialog):
             dlg.setWindowTitle(I18n._("template.preview"))
             screen = QApplication.primaryScreen().availableGeometry()
             dlg.resize(int(screen.width() * 0.85), int(screen.height() * 0.85))
-            dlg.move((screen.width() - dlg.width()) // 2, (screen.height() - dlg.height()) // 2)
+            dlg.move(
+                (screen.width() - dlg.width()) // 2,
+                (screen.height() - dlg.height()) // 2,
+            )
             layout = QVBoxLayout(dlg)
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(0)
@@ -1827,7 +2274,8 @@ class PrintTemplateEditor(QDialog):
             pbrowser = QTextBrowser()
             pbrowser.setStyleSheet(
                 "QTextBrowser { background: #FFFFFF; color: #2C3E50; border: none; "
-                "padding: 30px 40px; font-size: 11pt; }")
+                "padding: 30px 40px; font-size: 11pt; }"
+            )
             pbrowser.document().setDefaultFont(QFont("Segoe UI", 11))
 
             raw_html = self._editor.toHtml().strip()
@@ -1836,11 +2284,46 @@ class PrintTemplateEditor(QDialog):
                 if self._type_combo.currentData() == "order":
                     if multi_sample:
                         records = [
-                            {"id": 1, "data_json": {"description": "Описание нарушения 1", "deadline": "01.07.2026", "recommended_action": "Устранить 1", "fine": "1000", "responsible": "Ответственный 1", "company": "ООО Тест", "date": "01.06.2026"}},
-                            {"id": 2, "data_json": {"description": "Описание нарушения 2", "deadline": "05.07.2026", "recommended_action": "Устранить 2", "fine": "2000", "responsible": "Ответственный 2", "company": "ООО Тест", "date": "01.06.2026"}},
-                            {"id": 3, "data_json": {"description": "Описание нарушения 3", "deadline": "10.07.2026", "recommended_action": "Устранить 3", "fine": "3000", "responsible": "Ответственный 3", "company": "ООО Тест", "date": "01.06.2026"}},
+                            {
+                                "id": 1,
+                                "data_json": {
+                                    "description": "Описание нарушения 1",
+                                    "deadline": "01.07.2026",
+                                    "recommended_action": "Устранить 1",
+                                    "fine": "1000",
+                                    "responsible": "Ответственный 1",
+                                    "company": "ООО Тест",
+                                    "date": "01.06.2026",
+                                },
+                            },
+                            {
+                                "id": 2,
+                                "data_json": {
+                                    "description": "Описание нарушения 2",
+                                    "deadline": "05.07.2026",
+                                    "recommended_action": "Устранить 2",
+                                    "fine": "2000",
+                                    "responsible": "Ответственный 2",
+                                    "company": "ООО Тест",
+                                    "date": "01.06.2026",
+                                },
+                            },
+                            {
+                                "id": 3,
+                                "data_json": {
+                                    "description": "Описание нарушения 3",
+                                    "deadline": "10.07.2026",
+                                    "recommended_action": "Устранить 3",
+                                    "fine": "3000",
+                                    "responsible": "Ответственный 3",
+                                    "company": "ООО Тест",
+                                    "date": "01.06.2026",
+                                },
+                            },
                         ]
-                        repeat_start = "ПОВТОРЯЕМЫЙ БЛОК: 1-е, 2-е, 3-е и следующие предписания"
+                        repeat_start = (
+                            "ПОВТОРЯЕМЫЙ БЛОК: 1-е, 2-е, 3-е и следующие предписания"
+                        )
                         repeat_end = "КОНЕЦ ПОВТОРЯЕМОГО БЛОКА"
                         if repeat_start in raw_html and repeat_end in raw_html:
                             before, rest = raw_html.split(repeat_start, 1)
@@ -1849,47 +2332,101 @@ class PrintTemplateEditor(QDialog):
                             for index, rec in enumerate(records, start=1):
                                 rendered_part = block
                                 for key, val in rec["data_json"].items():
-                                    rendered_part = rendered_part.replace(f"{{{key}}}", str(val))
-                                rendered_part = rendered_part.replace("{id}", str(rec["id"]))
-                                rendered_part = rendered_part.replace("{record_number}", str(rec["id"]))
-                                rendered_part = rendered_part.replace("{violation_number}", str(index))
-                                rendered_part = rendered_part.replace("{violation_index}", str(index))
-                                rendered_part = rendered_part.replace("{page_number}", str(index))
+                                    rendered_part = rendered_part.replace(
+                                        f"{{{key}}}", str(val)
+                                    )
+                                rendered_part = rendered_part.replace(
+                                    "{id}", str(rec["id"])
+                                )
+                                rendered_part = rendered_part.replace(
+                                    "{record_number}", str(rec["id"])
+                                )
+                                rendered_part = rendered_part.replace(
+                                    "{violation_number}", str(index)
+                                )
+                                rendered_part = rendered_part.replace(
+                                    "{violation_index}", str(index)
+                                )
+                                rendered_part = rendered_part.replace(
+                                    "{page_number}", str(index)
+                                )
                                 parts.append(rendered_part)
-                            rendered = "<html><body>" + before + "".join(parts) + after + "</body></html>"
+                            rendered = (
+                                "<html><body>"
+                                + before
+                                + "".join(parts)
+                                + after
+                                + "</body></html>"
+                            )
                         else:
                             rendered_parts = []
                             for index, rec in enumerate(records, start=1):
                                 rendered_part = raw_html
                                 for key, val in rec["data_json"].items():
-                                    rendered_part = rendered_part.replace(f"{{{key}}}", str(val))
-                                rendered_part = rendered_part.replace("{id}", str(rec["id"]))
-                                rendered_part = rendered_part.replace("{record_number}", str(rec["id"]))
-                                rendered_part = rendered_part.replace("{violation_number}", str(index))
-                                rendered_part = rendered_part.replace("{violation_index}", str(index))
-                                rendered_part = rendered_part.replace("{page_number}", str(index))
+                                    rendered_part = rendered_part.replace(
+                                        f"{{{key}}}", str(val)
+                                    )
+                                rendered_part = rendered_part.replace(
+                                    "{id}", str(rec["id"])
+                                )
+                                rendered_part = rendered_part.replace(
+                                    "{record_number}", str(rec["id"])
+                                )
+                                rendered_part = rendered_part.replace(
+                                    "{violation_number}", str(index)
+                                )
+                                rendered_part = rendered_part.replace(
+                                    "{violation_index}", str(index)
+                                )
+                                rendered_part = rendered_part.replace(
+                                    "{page_number}", str(index)
+                                )
                                 rendered_parts.append(rendered_part)
-                            rendered = "<html><body>" + rendered_parts[0] + "".join("<div style='page-break-before:always; margin:0; padding:0; height:1px;'></div>" + p for p in rendered_parts[1:]) + "</body></html>"
+                            rendered = (
+                                "<html><body>"
+                                + rendered_parts[0]
+                                + "".join(
+                                    "<div style='page-break-before:always; margin:0; padding:0; height:1px;'></div>"
+                                    + p
+                                    for p in rendered_parts[1:]
+                                )
+                                + "</body></html>"
+                            )
                     else:
-                        sample = {"id": "1", "date": "01.06.2026", "company": "ООО Тест",
-                                  "responsible": "Иванов И.И.", "deadline": "30.07.2026",
-                                  "description": "Тестовое описание нарушения",
-                                  "recommended_action": "Устранить нарушение", "fine": "5000",
-                                  "photos_section": "", "app_name": "SUOT", "generated_at": "01.06.2026",
-                                  "record_number": "1", "page_number": "1"}
-                        rendered = PrintEngine.render_order(sample, photos=[], template_html=raw_html)
+                        sample = {
+                            "id": "1",
+                            "date": "01.06.2026",
+                            "company": "ООО Тест",
+                            "responsible": "Иванов И.И.",
+                            "deadline": "30.07.2026",
+                            "description": "Тестовое описание нарушения",
+                            "recommended_action": "Устранить нарушение",
+                            "fine": "5000",
+                            "photos_section": "",
+                            "app_name": "SUOT",
+                            "generated_at": "01.06.2026",
+                            "record_number": "1",
+                            "page_number": "1",
+                        }
+                        rendered = PrintEngine.render_order(
+                            sample, photos=[], template_html=raw_html
+                        )
                 else:
-                    rendered = PrintEngine.render_report("ООО Тест", template_html=raw_html)
+                    rendered = PrintEngine.render_report(
+                        "ООО Тест", template_html=raw_html
+                    )
                 pbrowser.setHtml(rendered)
             layout.addWidget(pbrowser, 1)
 
             btn_layout = QHBoxLayout()
             btn_layout.setContentsMargins(12, 8, 12, 8)
-            print_btn = QPushButton("🖨 " + I18n._("common.print"))
-            print_btn.clicked.connect(lambda: PrintEngine.print_document(pbrowser.toHtml(), dlg))
+            print_btn = GlassButton("🖨 " + I18n._("common.print"))
+            print_btn.clicked.connect(
+                lambda: PrintEngine.print_document(pbrowser.toHtml(), dlg)
+            )
             btn_layout.addWidget(print_btn)
             btn_layout.addStretch()
-            close_btn = QPushButton(I18n._("common.close"))
+            close_btn = GlassButton(I18n._("common.close"))
             close_btn.clicked.connect(dlg.accept)
             btn_layout.addWidget(close_btn)
             layout.addLayout(btn_layout)

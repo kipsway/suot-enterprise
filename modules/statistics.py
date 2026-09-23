@@ -3,10 +3,20 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                             QPushButton, QTableWidget, QTableWidgetItem,
-                             QHeaderView, QAbstractItemView, QFrame,
-                             QScrollArea, QSplitter)
+from PyQt5.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QFrame,
+    QScrollArea,
+    QSplitter,
+)
 
 from app_core.i18n import I18n
 from services.database import DatabaseManager
@@ -15,8 +25,16 @@ from widgets.charts import BarChart, PieChart, TrendChart
 
 
 CHART_PALETTE = [
-    "#2196F3", "#E74C3C", "#27AE60", "#F39C12", "#9C27B0",
-    "#00BCD4", "#FF5722", "#4CAF50", "#FF9800", "#3F51B5",
+    "#2196F3",
+    "#E74C3C",
+    "#27AE60",
+    "#F39C12",
+    "#9C27B0",
+    "#00BCD4",
+    "#FF5722",
+    "#4CAF50",
+    "#FF9800",
+    "#3F51B5",
 ]
 
 
@@ -53,7 +71,11 @@ class StatisticsTab(QWidget):
             ("stat.fines_total", "fines_total", "#9C27B0", "💰"),
         ]
         for key, skey, color, icon in card_data:
-            val = stats.get(skey, 0) if skey != "fines_total" else f"{stats.get(skey, 0):,.0f} ₽".replace(",", " ")
+            val = (
+                stats.get(skey, 0)
+                if skey != "fines_total"
+                else f"{stats.get(skey, 0):,.0f} ₽".replace(",", " ")
+            )
             card = KpiCard(I18n._(key), str(val), color, icon)
             cards.addWidget(card)
             self._cards[skey] = card
@@ -122,9 +144,14 @@ class StatisticsTab(QWidget):
         co_layout.addWidget(co_heading)
         self._company_table = QTableWidget()
         self._company_table.setColumnCount(4)
-        self._company_table.setHorizontalHeaderLabels([
-            I18n._("company.name"), I18n._("company.employees_count"),
-            I18n._("company.violations_count"), I18n._("company.fines_total")])
+        self._company_table.setHorizontalHeaderLabels(
+            [
+                I18n._("company.name"),
+                I18n._("company.employees_count"),
+                I18n._("company.violations_count"),
+                I18n._("company.fines_total"),
+            ]
+        )
         self._company_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self._company_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._company_table.setAlternatingRowColors(True)
@@ -144,7 +171,9 @@ class StatisticsTab(QWidget):
         overdue_layout.addWidget(ov_heading)
         self._overdue_label = QLabel()
         self._overdue_label.setWordWrap(True)
-        self._overdue_label.setStyleSheet("font-size: 12px; color: #E74C3C; padding: 4px;")
+        self._overdue_label.setStyleSheet(
+            "font-size: 12px; color: #E74C3C; padding: 4px;"
+        )
         overdue_layout.addWidget(self._overdue_label)
         tables_row.addWidget(overdue_frame, 1)
 
@@ -167,7 +196,8 @@ class StatisticsTab(QWidget):
         for skey in self._cards:
             if skey == "fines_total":
                 self._cards[skey].setText(
-                    f"{stats.get(skey, 0):,.0f} ₽".replace(",", " "))
+                    f"{stats.get(skey, 0):,.0f} ₽".replace(",", " ")
+                )
             else:
                 self._cards[skey].setText(str(stats.get(skey, 0)))
 
@@ -194,8 +224,9 @@ class StatisticsTab(QWidget):
                 if dj.get("Фирма") == name:
                     viol_count += 1
                     try:
-                        fines += float(str(dj.get("Штраф", "0"))
-                                       .replace(" ", "").replace(",", "."))
+                        fines += float(
+                            str(dj.get("Штраф", "0")).replace(" ", "").replace(",", ".")
+                        )
                     except Exception:
                         pass
             if viol_count > 0:
@@ -233,15 +264,21 @@ class StatisticsTab(QWidget):
 
         if statuses:
             sorted_statuses = sorted(statuses.items(), key=lambda x: -x[1])
-            self._status_chart.set_data(sorted_statuses, I18n._("stat.status_distribution"))
+            self._status_chart.set_data(
+                sorted_statuses, I18n._("stat.status_distribution")
+            )
 
         if categories:
             sorted_cats = sorted(categories.items(), key=lambda x: -x[1])
-            self._category_chart.set_data(sorted_cats, I18n._("stat.by_category"), "#9C27B0")
+            self._category_chart.set_data(
+                sorted_cats, I18n._("stat.by_category"), "#9C27B0"
+            )
 
         if monthly:
             sorted_months = sorted(monthly.items())
-            self._trend_chart.set_data(sorted_months, I18n._("stat.monthly_trend"), "#27AE60")
+            self._trend_chart.set_data(
+                sorted_months, I18n._("stat.monthly_trend"), "#27AE60"
+            )
 
         # Update company table
         self._company_table.setRowCount(len(company_stats))

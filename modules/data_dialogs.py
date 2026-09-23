@@ -1,20 +1,44 @@
 import os, csv, json, re, tempfile, webbrowser
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor, QFont
-from PyQt5.QtWidgets import (QApplication, QDialog, QWidget, QFrame,
-    QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QLineEdit,
-    QPushButton, QComboBox, QCheckBox, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QTreeWidget, QTreeWidgetItem,
-    QTextBrowser, QPlainTextEdit, QDialogButtonBox, QMessageBox,
-    QFileDialog, QMainWindow, QProgressBar, QGroupBox, QRadioButton)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QComboBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QTextBrowser,
+    QPlainTextEdit,
+    QDialogButtonBox,
+    QMessageBox,
+    QFileDialog,
+    QMainWindow,
+    QProgressBar,
+    QGroupBox,
+    QRadioButton,
+)
 
 from app_core.i18n import I18n
 from app_core.config import RUNTIME_PATHS, AppConfig
 from app_core.utils import JsonUtils
 from services.database import DatabaseManager
 from modules.print_engine import PrintEngine
+from widgets.glass_button import GlassButton
+from widgets.glass_checkbox import GlassCheckBox
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 from widgets.toast import ToastNotification
 
 
@@ -41,10 +65,10 @@ class ImportDialog(QDialog):
         layout.addWidget(heading)
 
         file_layout = QHBoxLayout()
-        self._file_path = QLineEdit()
+        self._file_path = GlassLineEdit()
         self._file_path.setPlaceholderText(I18n._("import.select"))
         file_layout.addWidget(self._file_path, 1)
-        browse_btn = QPushButton("...")
+        browse_btn = GlassButton("...")
         browse_btn.setFixedWidth(40)
         browse_btn.clicked.connect(self._browse_file)
         file_layout.addWidget(browse_btn)
@@ -52,21 +76,21 @@ class ImportDialog(QDialog):
 
         table_layout = QHBoxLayout()
         table_layout.addWidget(QLabel(I18n._("common.table") + ":"))
-        self._table_combo = QComboBox()
+        self._table_combo = GlassComboBox()
         self._populate_table_combo()
         idx = self._table_combo.findData(self._target_table)
         if idx >= 0:
             self._table_combo.setCurrentIndex(idx)
         table_layout.addWidget(self._table_combo)
         table_layout.addStretch()
-        parse_btn = QPushButton(I18n._("common.preview"))
+        parse_btn = GlassButton(I18n._("common.preview"))
         parse_btn.clicked.connect(self._parse_file)
         table_layout.addWidget(parse_btn)
         layout.addLayout(table_layout)
 
         dup_layout = QHBoxLayout()
         dup_layout.addWidget(QLabel(I18n._("import.dup_strategy") + ":"))
-        self._dup_strategy = QComboBox()
+        self._dup_strategy = GlassComboBox()
         self._dup_strategy.addItem(I18n._("import.dup_skip"), "skip")
         self._dup_strategy.addItem(I18n._("import.dup_update"), "update")
         self._dup_strategy.addItem(I18n._("import.dup_create"), "create")
@@ -94,13 +118,13 @@ class ImportDialog(QDialog):
         layout.addWidget(self._progress)
 
         btn_layout = QHBoxLayout()
-        self._import_btn = QPushButton(I18n._("import.execute"))
+        self._import_btn = GlassButton(I18n._("import.execute"))
         self._import_btn.setProperty("success", True)
         self._import_btn.clicked.connect(self._execute_import)
         self._import_btn.setEnabled(False)
         btn_layout.addWidget(self._import_btn)
         btn_layout.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
@@ -121,16 +145,20 @@ class ImportDialog(QDialog):
 
     def _browse_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, I18n._("import.select"), "",
-            "CSV (*.csv);;Excel (*.xlsx *.xls);;All files (*.*)")
+            self,
+            I18n._("import.select"),
+            "",
+            "CSV (*.csv);;Excel (*.xlsx *.xls);;All files (*.*)",
+        )
         if path:
             self._file_path.setText(path)
 
     def _parse_file(self) -> None:
         path = self._file_path.text().strip()
         if not path or not os.path.isfile(path):
-            QMessageBox.warning(self, I18n._("common.error"),
-                                I18n._("error.file_not_found"))
+            QMessageBox.warning(
+                self, I18n._("common.error"), I18n._("error.file_not_found")
+            )
             return
         ext = os.path.splitext(path)[1].lower()
         try:
@@ -139,15 +167,18 @@ class ImportDialog(QDialog):
             elif ext in (".xlsx", ".xls"):
                 self._parse_excel(path)
             else:
-                QMessageBox.warning(self, I18n._("common.error"),
-                                    I18n._("error.import_failed"))
+                QMessageBox.warning(
+                    self, I18n._("common.error"), I18n._("error.import_failed")
+                )
                 return
+            self._source_file = os.path.basename(path)
             self._target_table = self._table_combo.currentData()
             self._build_mapping()
             self._import_btn.setEnabled(True)
         except Exception as e:
-            QMessageBox.critical(self, I18n._("common.error"),
-                                 f"{I18n._('error.import_failed')}: {e}")
+            QMessageBox.critical(
+                self, I18n._("common.error"), f"{I18n._('error.import_failed')}: {e}"
+            )
 
     def _parse_csv(self, path: str) -> None:
         with open(path, "r", encoding="utf-8-sig") as f:
@@ -163,6 +194,7 @@ class ImportDialog(QDialog):
     def _parse_excel(self, path: str) -> None:
         try:
             import openpyxl
+
             wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
             ws = wb.active
             rows_data = list(ws.iter_rows(values_only=True))
@@ -180,8 +212,9 @@ class ImportDialog(QDialog):
             wb.close()
             self._show_preview()
         except ImportError:
-            QMessageBox.warning(self, I18n._("common.error"),
-                                "openpyxl " + I18n._("error.not_found"))
+            QMessageBox.warning(
+                self, I18n._("common.error"), "openpyxl " + I18n._("error.not_found")
+            )
 
     def _show_preview(self) -> None:
         if not self._source_columns or not self._source_data:
@@ -191,8 +224,7 @@ class ImportDialog(QDialog):
         self._preview_table.setRowCount(min(len(self._source_data), 10))
         for i, row in enumerate(self._source_data[:10]):
             for j, col in enumerate(self._source_columns):
-                self._preview_table.setItem(i, j,
-                    QTableWidgetItem(row.get(col, "")))
+                self._preview_table.setItem(i, j, QTableWidgetItem(row.get(col, "")))
         self._preview_table.resizeColumnsToContents()
 
     def _build_mapping(self) -> None:
@@ -214,7 +246,7 @@ class ImportDialog(QDialog):
             arrow.setFixedWidth(20)
             arrow.setAlignment(Qt.AlignCenter)
             row.addWidget(arrow)
-            combo = QComboBox()
+            combo = GlassComboBox()
             combo.addItem("— " + I18n._("import.skip") + " —", "")
             for tn in target_names:
                 combo.addItem(tn, tn)
@@ -230,18 +262,34 @@ class ImportDialog(QDialog):
     def _guess_mapping(self, source: str, targets: List[str]) -> Optional[str]:
         sl = source.lower().strip()
         alias_map = {
-            "фио": "ФИО", "fio": "ФИО", "full name": "ФИО", "name": "ФИО",
-            "должность": "Должность", "position": "Должность",
-            "фирма": "Фирма", "company": "Фирма", "организация": "Фирма",
-            "телефон": "Телефон", "phone": "Телефон",
-            "дата": "Дата", "date": "Дата",
-            "статус": "Статус", "status": "Статус",
-            "описание": "Описание", "description": "Описание",
-            "штраф": "Штраф", "fine": "Штраф", "сумма": "Штраф",
-            "категория": "Категория риска", "category": "Категория риска",
-            "ответственный": "Ответственный", "responsible": "Ответственный",
-            "подразделение": "Подразделение", "department": "Подразделение",
-            "квалификация": "Квалификация", "qualification": "Квалификация",
+            "фио": "ФИО",
+            "fio": "ФИО",
+            "full name": "ФИО",
+            "name": "ФИО",
+            "должность": "Должность",
+            "position": "Должность",
+            "фирма": "Фирма",
+            "company": "Фирма",
+            "организация": "Фирма",
+            "телефон": "Телефон",
+            "phone": "Телефон",
+            "дата": "Дата",
+            "date": "Дата",
+            "статус": "Статус",
+            "status": "Статус",
+            "описание": "Описание",
+            "description": "Описание",
+            "штраф": "Штраф",
+            "fine": "Штраф",
+            "сумма": "Штраф",
+            "категория": "Категория риска",
+            "category": "Категория риска",
+            "ответственный": "Ответственный",
+            "responsible": "Ответственный",
+            "подразделение": "Подразделение",
+            "department": "Подразделение",
+            "квалификация": "Квалификация",
+            "qualification": "Квалификация",
         }
         for alias, target in alias_map.items():
             if alias in sl or sl in alias:
@@ -260,8 +308,9 @@ class ImportDialog(QDialog):
             if dst:
                 target_map[src] = dst
         if not target_map:
-            QMessageBox.warning(self, I18n._("common.warning"),
-                                I18n._("import.execute") + "?")
+            QMessageBox.warning(
+                self, I18n._("common.warning"), I18n._("import.execute") + "?"
+            )
             return
 
         # Auto-create missing columns in target table
@@ -283,7 +332,8 @@ class ImportDialog(QDialog):
                 max_pos += 1
                 self.db.execute(
                     "INSERT INTO columns_config (category, name, type, position) VALUES (?, ?, ?, ?)",
-                    (self._target_table, dst, guessed_type, max_pos))
+                    (self._target_table, dst, guessed_type, max_pos),
+                )
                 self.db.conn.commit()
                 existing_names.add(dst)
 
@@ -323,7 +373,9 @@ class ImportDialog(QDialog):
                     existing = self.db.find_duplicate(self._target_table, record)
                     if existing:
                         if dup_mode == "skip":
-                            import_log.append(f"Строка {row_idx+1}: пропущен (дубликат ID={existing['id']})")
+                            import_log.append(
+                                f"Строка {row_idx + 1}: пропущен (дубликат ID={existing['id']})"
+                            )
                             self._progress.setValue(row_idx + 1)
                             continue
                         merged = dict(existing.get("data_json", {}))
@@ -333,36 +385,69 @@ class ImportDialog(QDialog):
                                     merged[k] = v
                             elif str(v).strip() != "":
                                 merged[k] = v
-                        self.db.save_json_record(self._target_table, existing["id"], merged)
+                        self.db.save_json_record(
+                            self._target_table, existing["id"], merged
+                        )
                         updated += 1
                         action = "updated"
                         target_id = existing["id"]
-                        import_log.append(f"Строка {row_idx+1}: обновлён ID={target_id} | {record.get('ФИО', record.get('Описание', record.get('Наименование', record.get('Наименование СИЗ', '?'))))[:60]}")
+                        import_log.append(
+                            f"Строка {row_idx + 1}: обновлён ID={target_id} | {record.get('ФИО', record.get('Описание', record.get('Наименование', record.get('Наименование СИЗ', '?'))))[:60]}"
+                        )
                         self._progress.setValue(row_idx + 1)
                         continue
 
                 target_id = self.db.save_json_record(self._target_table, 0, record)
                 imported += 1
-                name_field = next((c["name"] for c in self._columns if c["name"] in ("ФИО", "Описание", "Наименование", "Наименование СИЗ", "Сотрудник")), "?")
-                import_log.append(f"Строка {row_idx+1}: создан ID={target_id} | {record.get(name_field, '?')[:60]}")
+                name_field = next(
+                    (
+                        c["name"]
+                        for c in target_cols
+                        if c["name"]
+                        in (
+                            "ФИО",
+                            "Описание",
+                            "Наименование",
+                            "Наименование СИЗ",
+                            "Сотрудник",
+                        )
+                    ),
+                    "?",
+                )
+                import_log.append(
+                    f"Строка {row_idx + 1}: создан ID={target_id} | {record.get(name_field, '?')[:60]}"
+                )
             except Exception as e:
                 errors += 1
-                import_log.append(f"Строка {row_idx+1}: ОШИБКА — {e}")
+                import_log.append(f"Строка {row_idx + 1}: ОШИБКА — {e}")
             self._progress.setValue(row_idx + 1)
             QApplication.processEvents()
 
-        self.db.log_event(f"Import: {imported} records, {updated} updated, {errors} errors",
-                          "INFO", {"table": self._target_table})
+        self.db.log_event(
+            f"Import: {imported} records, {updated} updated, {errors} errors",
+            "INFO",
+            {"table": self._target_table},
+        )
         try:
             self.db.execute(
                 "INSERT INTO import_history (table_name, source_file, imported, updated, errors, details) VALUES (?, ?, ?, ?, ?, ?)",
-                (self._target_table, getattr(self, "_source_file", ""), imported, updated, errors, "\n".join(import_log[:50])))
+                (
+                    self._target_table,
+                    getattr(self, "_source_file", ""),
+                    imported,
+                    updated,
+                    errors,
+                    "\n".join(import_log[:50]),
+                ),
+            )
             self.db.conn.commit()
         except Exception:
             pass
         self._show_import_log_dialog(imported, updated, errors, import_log)
 
-    def _show_import_log_dialog(self, imported: int, updated: int, errors: int, log: List[str]) -> None:
+    def _show_import_log_dialog(
+        self, imported: int, updated: int, errors: int, log: List[str]
+    ) -> None:
         dlg = QDialog(self)
         dlg.setWindowTitle(I18n._("import.log_title"))
         dlg.resize(700, 450)
@@ -382,17 +467,22 @@ class ImportDialog(QDialog):
         layout.addWidget(text, 1)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Save)
         btns.accepted.connect(dlg.accept)
-        btns.button(QDialogButtonBox.Save).clicked.connect(lambda: self._save_import_log(log))
+        btns.button(QDialogButtonBox.Save).clicked.connect(
+            lambda: self._save_import_log(log)
+        )
         layout.addWidget(btns)
         dlg.exec_()
 
     def _save_import_log(self, log: List[str]) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, I18n._("import.save_log"),
-                                              "import_log.txt", "Text (*.txt)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, I18n._("import.save_log"), "import_log.txt", "Text (*.txt)"
+        )
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write("\n".join(log))
-            ToastNotification.notify(I18n._("export.success").format(path=path), "success", 3000)
+            ToastNotification.notify(
+                I18n._("export.success").format(path=path), "success", 3000
+            )
 
 
 class ExportDialog(QDialog):
@@ -431,11 +521,11 @@ class ExportDialog(QDialog):
         form = QFormLayout()
         form.setSpacing(10)
 
-        self._table_combo = QComboBox()
+        self._table_combo = GlassComboBox()
         self._populate_export_tables()
         form.addRow(I18n._("common.table") + ":", self._table_combo)
 
-        self._format_combo = QComboBox()
+        self._format_combo = GlassComboBox()
         self._format_combo.addItem("CSV (.csv)", "csv")
         self._format_combo.addItem("Excel (.xlsx)", "xlsx")
         form.addRow(I18n._("common.format") + ":", self._format_combo)
@@ -443,12 +533,12 @@ class ExportDialog(QDialog):
         layout.addLayout(form)
 
         btn_layout = QHBoxLayout()
-        self._export_btn = QPushButton(I18n._("common.export"))
+        self._export_btn = GlassButton(I18n._("common.export"))
         self._export_btn.setProperty("success", True)
         self._export_btn.clicked.connect(self._do_export)
         btn_layout.addWidget(self._export_btn)
         btn_layout.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
@@ -465,8 +555,11 @@ class ExportDialog(QDialog):
         default_name = f"{table}_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
         default_path = os.path.join(RUNTIME_PATHS.export_dir, default_name)
         path, _ = QFileDialog.getSaveFileName(
-            self, I18n._("common.export"), default_path,
-            "CSV (*.csv)" if fmt == "csv" else "Excel (*.xlsx)")
+            self,
+            I18n._("common.export"),
+            default_path,
+            "CSV (*.csv)" if fmt == "csv" else "Excel (*.xlsx)",
+        )
         if not path:
             return
 
@@ -476,21 +569,27 @@ class ExportDialog(QDialog):
             else:
                 result = self._export_excel(table, path)
             self._status_label.setText(
-                I18n._("export.success").format(path=os.path.basename(result)))
-            ToastNotification.notify(I18n._("export.success").format(
-                path=os.path.basename(result)), "success", 5000)
+                I18n._("export.success").format(path=os.path.basename(result))
+            )
+            ToastNotification.notify(
+                I18n._("export.success").format(path=os.path.basename(result)),
+                "success",
+                5000,
+            )
         except Exception as e:
             self._status_label.setText(I18n._("export.error").format(error=str(e)))
-            ToastNotification.notify(I18n._("export.error").format(error=str(e)),
-                                   "error", 5000)
+            ToastNotification.notify(
+                I18n._("export.error").format(error=str(e)), "error", 5000
+            )
 
     def _export_excel(self, table: str, path: str) -> str:
         try:
             import openpyxl
             from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         except ImportError:
-            QMessageBox.warning(self, I18n._("common.error"),
-                                "openpyxl " + I18n._("error.not_found"))
+            QMessageBox.warning(
+                self, I18n._("common.error"), "openpyxl " + I18n._("error.not_found")
+            )
             return path
 
         records = self.db.get_json_records(table)
@@ -502,14 +601,16 @@ class ExportDialog(QDialog):
         ws.title = table
 
         header_font = Font(bold=True, color="FFFFFF", size=11)
-        header_fill = PatternFill(start_color="1A237E", end_color="1A237E",
-                                  fill_type="solid")
+        header_fill = PatternFill(
+            start_color="1A237E", end_color="1A237E", fill_type="solid"
+        )
         header_align = Alignment(horizontal="center", vertical="center")
         thin_border = Border(
             left=Side(style="thin", color="E0E0E0"),
             right=Side(style="thin", color="E0E0E0"),
             top=Side(style="thin", color="E0E0E0"),
-            bottom=Side(style="thin", color="E0E0E0"))
+            bottom=Side(style="thin", color="E0E0E0"),
+        )
 
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=ci, value=h)
@@ -540,8 +641,9 @@ class ExportDialog(QDialog):
             ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
 
         wb.save(path)
-        self.db.log_event("Excel export completed", "INFO",
-                          {"table": table, "path": path})
+        self.db.log_event(
+            "Excel export completed", "INFO", {"table": table, "path": path}
+        )
         return path
 
 
@@ -565,19 +667,20 @@ class GlobalSearchDialog(QDialog):
         layout.addWidget(heading)
 
         search_layout = QHBoxLayout()
-        self._search_edit = QLineEdit()
+        self._search_edit = GlassLineEdit()
         self._search_edit.setProperty("search", True)
         self._search_edit.setPlaceholderText(I18n._("search.global_placeholder"))
         self._search_edit.textChanged.connect(self._do_search)
         search_layout.addWidget(self._search_edit, 1)
-        self._regex_cb = QCheckBox(I18n._("search.regex"))
+        self._regex_cb = GlassCheckBox(I18n._("search.regex"))
         self._regex_cb.toggled.connect(self._do_search)
         search_layout.addWidget(self._regex_cb)
         layout.addLayout(search_layout)
 
         self._results_tree = QTreeWidget()
-        self._results_tree.setHeaderLabels([I18n._("search.global"),
-                                            I18n._("common.description")])
+        self._results_tree.setHeaderLabels(
+            [I18n._("search.global"), I18n._("common.description")]
+        )
         self._results_tree.setAlternatingRowColors(True)
         self._results_tree.setColumnWidth(0, 200)
         self._results_tree.itemDoubleClicked.connect(self._on_result_clicked)
@@ -587,7 +690,7 @@ class GlobalSearchDialog(QDialog):
         self._info_label.setStyleSheet("font-size: 12px;")
         layout.addWidget(self._info_label)
 
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn, 0, Qt.AlignCenter)
 
@@ -622,7 +725,8 @@ class GlobalSearchDialog(QDialog):
             records = []
             if table == "companies":
                 records_data = self.db.fetch_all(
-                    "SELECT id, name, address, contact, data_json FROM companies")
+                    "SELECT id, name, address, contact, data_json FROM companies"
+                )
                 for r in records_data:
                     rec = dict(r)
                     rec["data_json"] = JsonUtils.loads(r.get("data_json", "{}"))
@@ -669,25 +773,30 @@ class GlobalSearchDialog(QDialog):
                     child.setData(0, Qt.UserRole + 1, rec.get("id", 0))
                 total += len(matched)
 
-        self._info_label.setText(
-            f"{I18n._('common.filter')}: {total}")
+        self._info_label.setText(f"{I18n._('common.filter')}: {total}")
 
     def _on_result_clicked(self, item: QTreeWidgetItem, col: int) -> None:
         table = item.data(0, Qt.UserRole)
         rid = item.data(0, Qt.UserRole + 1)
         if table and rid and isinstance(self.parent(), QMainWindow):
             mw = self.parent()
-            tab_keys = {"employees": "tab.employees", "violations": "tab.violations",
-                        "companies": "tab.companies", "custom_ledger": "tab.custom_ledger",
-                        "incidents": "tab.incidents", "ppe": "tab.ppe",
-                        "training": "tab.training", "permits": "tab.permits"}
+            tab_keys = {
+                "employees": "tab.employees",
+                "violations": "tab.violations",
+                "companies": "tab.companies",
+                "custom_ledger": "tab.custom_ledger",
+                "incidents": "tab.incidents",
+                "ppe": "tab.ppe",
+                "training": "tab.training",
+                "permits": "tab.permits",
+            }
             key = tab_keys.get(table)
-            if key and hasattr(mw, '_tabs_data') and key in mw._tabs_data:
+            if key and hasattr(mw, "_tabs_data") and key in mw._tabs_data:
                 idx, tab_w = mw._tabs_data[key]
                 mw._tab_widget.setCurrentIndex(idx)
-                if hasattr(tab_w, '_load_data'):
+                if hasattr(tab_w, "_load_data"):
                     tab_w._load_data()
-                if hasattr(tab_w, 'focus_record'):
+                if hasattr(tab_w, "focus_record"):
                     tab_w.focus_record(rid)
             ToastNotification.notify(f"{table} #{rid}", "info", 3000)
 
@@ -714,38 +823,38 @@ class ReportDialog(QDialog):
         form = QFormLayout()
         form.setSpacing(10)
 
-        self._company_combo = QComboBox()
+        self._company_combo = GlassComboBox()
         self._company_combo.addItem(I18n._("report.all_companies"), "")
         for c in self.db.get_companies():
             self._company_combo.addItem(c["name"], c["name"])
         form.addRow(I18n._("report.company") + ":", self._company_combo)
 
-        self._include_emp = QCheckBox(I18n._("report.employees"))
+        self._include_emp = GlassCheckBox(I18n._("report.employees"))
         self._include_emp.setChecked(True)
         form.addRow("", self._include_emp)
 
-        self._include_viol = QCheckBox(I18n._("report.violations"))
+        self._include_viol = GlassCheckBox(I18n._("report.violations"))
         self._include_viol.setChecked(True)
         form.addRow("", self._include_viol)
 
-        self._include_fines = QCheckBox(I18n._("report.fines"))
+        self._include_fines = GlassCheckBox(I18n._("report.fines"))
         self._include_fines.setChecked(True)
         form.addRow("", self._include_fines)
 
         layout.addLayout(form)
 
         btn_layout = QHBoxLayout()
-        self._preview_btn = QPushButton(I18n._("common.preview"))
+        self._preview_btn = GlassButton(I18n._("common.preview"))
         self._preview_btn.clicked.connect(self._generate_report)
         btn_layout.addWidget(self._preview_btn)
-        self._export_html_btn = QPushButton(I18n._("export.title") + " HTML")
+        self._export_html_btn = GlassButton(I18n._("export.title") + " HTML")
         self._export_html_btn.clicked.connect(self._export_html)
         btn_layout.addWidget(self._export_html_btn)
-        self._export_excel_btn = QPushButton(I18n._("export.title") + " Excel")
+        self._export_excel_btn = GlassButton(I18n._("export.title") + " Excel")
         self._export_excel_btn.clicked.connect(self._export_excel_report)
         btn_layout.addWidget(self._export_excel_btn)
         btn_layout.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
@@ -762,7 +871,9 @@ class ReportDialog(QDialog):
         include_emp = self._include_emp.isChecked()
         include_viol = self._include_viol.isChecked()
         include_fines = self._include_fines.isChecked()
-        html = PrintEngine.render_report(company, include_emp, include_viol, include_fines)
+        html = PrintEngine.render_report(
+            company, include_emp, include_viol, include_fines
+        )
         self._last_html = html
         preview_path = os.path.join(tempfile.gettempdir(), "suot_report_preview.html")
         with open(preview_path, "w", encoding="utf-8") as f:
@@ -775,23 +886,33 @@ class ReportDialog(QDialog):
         if not self._last_html:
             self._generate_report()
         path, _ = QFileDialog.getSaveFileName(
-            self, I18n._("common.export"),
-            os.path.join(RUNTIME_PATHS.export_dir,
-                         f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"),
-            "HTML (*.html)")
+            self,
+            I18n._("common.export"),
+            os.path.join(
+                RUNTIME_PATHS.export_dir,
+                f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+            ),
+            "HTML (*.html)",
+        )
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(self._last_html)
-            self._status_lbl.setText(I18n._("export.success").format(path=os.path.basename(path)))
+            self._status_lbl.setText(
+                I18n._("export.success").format(path=os.path.basename(path))
+            )
 
     def _export_excel_report(self) -> None:
         if not self._last_html:
             self._generate_report()
         path, _ = QFileDialog.getSaveFileName(
-            self, I18n._("common.export"),
-            os.path.join(RUNTIME_PATHS.export_dir,
-                         f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"),
-            "Excel (*.xlsx)")
+            self,
+            I18n._("common.export"),
+            os.path.join(
+                RUNTIME_PATHS.export_dir,
+                f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+            ),
+            "Excel (*.xlsx)",
+        )
         if not path:
             return
         try:
@@ -807,15 +928,22 @@ class ReportDialog(QDialog):
         ws.title = I18n._("report.title")
 
         header_font = Font(bold=True, color="FFFFFF", size=12)
-        header_fill = PatternFill(start_color="1A237E", end_color="1A237E",
-                                  fill_type="solid")
+        header_fill = PatternFill(
+            start_color="1A237E", end_color="1A237E", fill_type="solid"
+        )
         thin_border = Border(
-            left=Side(style="thin"), right=Side(style="thin"),
-            top=Side(style="thin"), bottom=Side(style="thin"))
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
 
         # Title
-        ws.cell(row=1, column=1,
-                value=f"{I18n._('report.title')} — {company or I18n._('report.all_companies')}")
+        ws.cell(
+            row=1,
+            column=1,
+            value=f"{I18n._('report.title')} — {company or I18n._('report.all_companies')}",
+        )
         ws.cell(row=1, column=1).font = Font(bold=True, size=14)
         ws.merge_cells("A1:E1")
 
@@ -825,9 +953,13 @@ class ReportDialog(QDialog):
 
         # Summary header
         row = 4
-        headers = [I18n._("company.name"), I18n._("company.employees_count"),
-                   I18n._("company.violations_count"), I18n._("company.fines_total"),
-                   I18n._("stat.overdue_total")]
+        headers = [
+            I18n._("company.name"),
+            I18n._("company.employees_count"),
+            I18n._("company.violations_count"),
+            I18n._("company.fines_total"),
+            I18n._("stat.overdue_total"),
+        ]
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=row, column=ci, value=h)
             cell.font = header_font
@@ -842,8 +974,11 @@ class ReportDialog(QDialog):
 
         for ri, comp in enumerate(companies_data, row + 1):
             cname = comp.get("name", "")
-            emp_c = sum(1 for e in self.db.get_json_records("employees")
-                        if e.get("data_json", {}).get("Фирма") == cname)
+            emp_c = sum(
+                1
+                for e in self.db.get_json_records("employees")
+                if e.get("data_json", {}).get("Фирма") == cname
+            )
             viol_c = 0
             fines = 0.0
             overdue = 0
@@ -852,8 +987,9 @@ class ReportDialog(QDialog):
                 if dj.get("Фирма") == cname:
                     viol_c += 1
                     try:
-                        fines += float(str(dj.get("Штраф", "0"))
-                                       .replace(" ", "").replace(",", "."))
+                        fines += float(
+                            str(dj.get("Штраф", "0")).replace(" ", "").replace(",", ".")
+                        )
                     except Exception:
                         pass
                     dl = dj.get("Срок устранения", "")
@@ -874,7 +1010,9 @@ class ReportDialog(QDialog):
         for c in "BCDE":
             ws.column_dimensions[c].width = 18
         wb.save(path)
-        self._status_lbl.setText(I18n._("export.success").format(path=os.path.basename(path)))
+        self._status_lbl.setText(
+            I18n._("export.success").format(path=os.path.basename(path))
+        )
         ToastNotification.notify(I18n._("common.success"), "success", 3000)
 
 
@@ -903,20 +1041,20 @@ class QuickReportDialog(QDialog):
         layout.addWidget(self._browser)
 
         btn_layout = QHBoxLayout()
-        export_btn = QPushButton(I18n._("common.export") + " HTML")
+        export_btn = GlassButton(I18n._("common.export") + " HTML")
         export_btn.clicked.connect(self._export_html)
         btn_layout.addWidget(export_btn)
-        export_excel_btn = QPushButton(I18n._("common.export") + " Excel")
+        export_excel_btn = GlassButton(I18n._("common.export") + " Excel")
         export_excel_btn.clicked.connect(self._export_excel)
         btn_layout.addWidget(export_excel_btn)
-        print_btn = QPushButton(I18n._("common.print"))
+        print_btn = GlassButton(I18n._("common.print"))
         print_btn.clicked.connect(self._print)
         btn_layout.addWidget(print_btn)
-        refresh_btn = QPushButton(I18n._("common.refresh"))
+        refresh_btn = GlassButton(I18n._("common.refresh"))
         refresh_btn.clicked.connect(self._generate)
         btn_layout.addWidget(refresh_btn)
         btn_layout.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
@@ -930,10 +1068,14 @@ class QuickReportDialog(QDialog):
 
     def _export_html(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, I18n._("common.export"),
-            os.path.join(RUNTIME_PATHS.export_dir,
-                         f"quick_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"),
-            "HTML (*.html)")
+            self,
+            I18n._("common.export"),
+            os.path.join(
+                RUNTIME_PATHS.export_dir,
+                f"quick_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+            ),
+            "HTML (*.html)",
+        )
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(self._html)
@@ -946,52 +1088,77 @@ class QuickReportDialog(QDialog):
             QMessageBox.warning(self, I18n._("common.error"), "openpyxl required")
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, I18n._("common.export"),
-            os.path.join(RUNTIME_PATHS.export_dir,
-                         f"quick_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"),
-            "Excel (*.xlsx)")
+            self,
+            I18n._("common.export"),
+            os.path.join(
+                RUNTIME_PATHS.export_dir,
+                f"quick_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+            ),
+            "Excel (*.xlsx)",
+        )
         if path:
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Report"
             now = datetime.now()
-            ws.cell(row=1, column=1, value=f"{I18n._('report.title')} — {now.strftime('%d.%m.%Y')}")
+            ws.cell(
+                row=1,
+                column=1,
+                value=f"{I18n._('report.title')} — {now.strftime('%d.%m.%Y')}",
+            )
             ws.merge_cells("A1:E1")
             ws.cell(row=1, column=1).font = openpyxl.styles.Font(bold=True, size=14)
 
-            headers = [I18n._("company.name"), I18n._("company.employees_count"),
-                       I18n._("company.violations_count"), I18n._("company.fines_total"),
-                       I18n._("stat.overdue_total")]
+            headers = [
+                I18n._("company.name"),
+                I18n._("company.employees_count"),
+                I18n._("company.violations_count"),
+                I18n._("company.fines_total"),
+                I18n._("stat.overdue_total"),
+            ]
             for ci, h in enumerate(headers, 1):
                 cell = ws.cell(row=3, column=ci, value=h)
                 cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
-                cell.fill = openpyxl.styles.PatternFill(start_color="1A237E",
-                                                          end_color="1A237E",
-                                                          fill_type="solid")
+                cell.fill = openpyxl.styles.PatternFill(
+                    start_color="1A237E", end_color="1A237E", fill_type="solid"
+                )
             row = 4
             for comp in self.db.get_companies():
                 cname = comp.get("name", "")
                 data = {"name": cname}
                 ws.cell(row=row, column=1, value=cname)
-                ws.cell(row=row, column=2,
-                        value=sum(1 for e in self.db.get_json_records("employees")
-                                  if e.get("data_json", {}).get("Фирма") == cname))
-                viols = [v for v in self.db.get_json_records("violations")
-                         if v.get("data_json", {}).get("Фирма") == cname]
+                ws.cell(
+                    row=row,
+                    column=2,
+                    value=sum(
+                        1
+                        for e in self.db.get_json_records("employees")
+                        if e.get("data_json", {}).get("Фирма") == cname
+                    ),
+                )
+                viols = [
+                    v
+                    for v in self.db.get_json_records("violations")
+                    if v.get("data_json", {}).get("Фирма") == cname
+                ]
                 ws.cell(row=row, column=3, value=len(viols))
                 fines = 0.0
                 overdue = 0
                 for v in viols:
                     dj = v.get("data_json", {})
                     try:
-                        fines += float(str(dj.get("Штраф", "0"))
-                                       .replace(" ", "").replace(",", "."))
+                        fines += float(
+                            str(dj.get("Штраф", "0")).replace(" ", "").replace(",", ".")
+                        )
                     except Exception:
                         pass
                     dl = dj.get("Срок устранения", "")
                     try:
                         p = dl.split(".")
-                        if len(p) == 3 and datetime(int(p[2]), int(p[1]), int(p[0])) < now:
+                        if (
+                            len(p) == 3
+                            and datetime(int(p[2]), int(p[1]), int(p[0])) < now
+                        ):
                             overdue += 1
                     except Exception:
                         pass

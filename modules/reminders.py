@@ -4,12 +4,23 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import Qt, QPoint, QTimer, QObject
 from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import (QApplication, QWidget, QDialog, QVBoxLayout,
-                             QHBoxLayout, QLabel, QPushButton, QLineEdit,
-                             QCheckBox, QComboBox, QGroupBox, QSplitter,
-                             QTableWidget, QTableWidgetItem, QHeaderView,
-                             QAbstractItemView, QInputDialog, QMessageBox,
-                             QFileDialog, QFrame, QMenu)
+from PyQt5.QtWidgets import (
+    QWidget,
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QGroupBox,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QInputDialog,
+    QMessageBox,
+    QFileDialog,
+    QMenu,
+)
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
@@ -19,6 +30,10 @@ from services.email_service import EmailService
 from services.telegram_bot import TelegramBot
 from services.webhook_service import fire_event
 from widgets.toast import ToastNotification
+from widgets.glass_button import GlassButton
+from widgets.glass_checkbox import GlassCheckBox
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 
 
 class RemindersDialog(QDialog):
@@ -43,10 +58,15 @@ class RemindersDialog(QDialog):
 
         self._table = QTableWidget()
         self._table.setColumnCount(5)
-        self._table.setHorizontalHeaderLabels([
-            I18n._("reminder.title_field"), I18n._("reminder.description"),
-            I18n._("reminder.due_date"), I18n._("reminder.interval"),
-            I18n._("reminder.is_done")])
+        self._table.setHorizontalHeaderLabels(
+            [
+                I18n._("reminder.title_field"),
+                I18n._("reminder.description"),
+                I18n._("reminder.due_date"),
+                I18n._("reminder.interval"),
+                I18n._("reminder.is_done"),
+            ]
+        )
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._table.horizontalHeader().setStretchLastSection(True)
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -56,22 +76,22 @@ class RemindersDialog(QDialog):
         layout.addWidget(wrap_table_with_glow(self._table, self))
 
         btn_layout = QHBoxLayout()
-        self._add_btn = QPushButton(I18n._("reminder.add"))
+        self._add_btn = GlassButton(I18n._("reminder.add"))
         self._add_btn.setProperty("success", True)
         self._add_btn.clicked.connect(self._add_reminder)
         btn_layout.addWidget(self._add_btn)
-        self._edit_btn = QPushButton(I18n._("common.edit"))
+        self._edit_btn = GlassButton(I18n._("common.edit"))
         self._edit_btn.clicked.connect(self._edit_reminder)
         btn_layout.addWidget(self._edit_btn)
-        self._delete_btn = QPushButton(I18n._("reminder.delete"))
+        self._delete_btn = GlassButton(I18n._("reminder.delete"))
         self._delete_btn.setProperty("danger", True)
         self._delete_btn.clicked.connect(self._delete_reminder)
         btn_layout.addWidget(self._delete_btn)
-        self._toggle_btn = QPushButton(I18n._("common.done"))
+        self._toggle_btn = GlassButton(I18n._("common.done"))
         self._toggle_btn.clicked.connect(self._toggle_done)
         btn_layout.addWidget(self._toggle_btn)
         btn_layout.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
@@ -82,33 +102,41 @@ class RemindersDialog(QDialog):
         for i, r in enumerate(reminders):
             self._table.setItem(i, 0, QTableWidgetItem(r.get("title", "")))
             desc = r.get("description", "")
-            self._table.setItem(i, 1, QTableWidgetItem(
-                desc[:60] + ("..." if len(desc) > 60 else "")))
+            self._table.setItem(
+                i, 1, QTableWidgetItem(desc[:60] + ("..." if len(desc) > 60 else ""))
+            )
             self._table.setItem(i, 2, QTableWidgetItem(r.get("due_date", "")))
-            self._table.setItem(i, 3, QTableWidgetItem(f"{r.get('check_interval', 60)}c"))
-            done_item = QTableWidgetItem(
-                "✓" if r.get("is_done") else "☐")
+            self._table.setItem(
+                i, 3, QTableWidgetItem(f"{r.get('check_interval', 60)}c")
+            )
+            done_item = QTableWidgetItem("✓" if r.get("is_done") else "☐")
             done_item.setTextAlignment(Qt.AlignCenter)
             self._table.setItem(i, 4, done_item)
             self._table.item(i, 0).setData(Qt.UserRole, r["id"])
         self._table.resizeColumnsToContents()
 
     def _add_reminder(self) -> None:
-        title, ok = QInputDialog.getText(self, I18n._("reminder.add"),
-                                         I18n._("reminder.title_field"))
+        title, ok = QInputDialog.getText(
+            self, I18n._("reminder.add"), I18n._("reminder.title_field")
+        )
         if not ok or not title:
             return
-        desc, ok2 = QInputDialog.getMultiLineText(self, I18n._("reminder.add"),
-                                                   I18n._("reminder.description"))
+        desc, ok2 = QInputDialog.getMultiLineText(
+            self, I18n._("reminder.add"), I18n._("reminder.description")
+        )
         if not ok2:
             desc = ""
-        due, ok3 = QInputDialog.getText(self, I18n._("reminder.add"),
-                                         I18n._("reminder.due_date"),
-                                         text=datetime.now().strftime("%d.%m.%Y"))
+        due, ok3 = QInputDialog.getText(
+            self,
+            I18n._("reminder.add"),
+            I18n._("reminder.due_date"),
+            text=datetime.now().strftime("%d.%m.%Y"),
+        )
         if not ok3 or not due:
             return
-        interval, ok4 = QInputDialog.getInt(self, I18n._("reminder.add"),
-                                             I18n._("reminder.interval"), 60, 10, 86400)
+        interval, ok4 = QInputDialog.getInt(
+            self, I18n._("reminder.add"), I18n._("reminder.interval"), 60, 10, 86400
+        )
         if not ok4:
             return
         self.db.save_reminder(title.strip(), desc.strip(), due.strip(), interval)
@@ -124,18 +152,19 @@ class RemindersDialog(QDialog):
         desc = self._table.item(row, 1).text()
         due = self._table.item(row, 2).text()
 
-        new_title, ok = QInputDialog.getText(self, I18n._("reminder.edit"),
-                                              I18n._("reminder.title_field"),
-                                              text=title)
+        new_title, ok = QInputDialog.getText(
+            self, I18n._("reminder.edit"), I18n._("reminder.title_field"), text=title
+        )
         if not ok:
             return
-        new_due, ok2 = QInputDialog.getText(self, I18n._("reminder.edit"),
-                                             I18n._("reminder.due_date"),
-                                             text=due)
+        new_due, ok2 = QInputDialog.getText(
+            self, I18n._("reminder.edit"), I18n._("reminder.due_date"), text=due
+        )
         if not ok2:
             return
-        self.db.save_reminder(new_title.strip(), desc, new_due.strip(),
-                              60, reminder_id=rid)
+        self.db.save_reminder(
+            new_title.strip(), desc, new_due.strip(), 60, reminder_id=rid
+        )
         self._load_reminders()
         ToastNotification.notify(I18n._("common.success"), "success", 3000)
 
@@ -144,9 +173,12 @@ class RemindersDialog(QDialog):
         if row < 0:
             return
         rid = self._table.item(row, 0).data(Qt.UserRole)
-        reply = QMessageBox.question(self, I18n._("common.confirm"),
-                                     I18n._("reminder.delete") + "?",
-                                     QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(
+            self,
+            I18n._("common.confirm"),
+            I18n._("reminder.delete") + "?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply == QMessageBox.Yes:
             self.db.delete_reminder(rid)
             self._load_reminders()
@@ -161,9 +193,14 @@ class RemindersDialog(QDialog):
         for r in reminders:
             if r["id"] == rid:
                 new_done = 0 if r.get("is_done") else 1
-                self.db.save_reminder(r["title"], r.get("description", ""),
-                                      r["due_date"], r.get("check_interval", 60),
-                                      is_done=new_done, reminder_id=rid)
+                self.db.save_reminder(
+                    r["title"],
+                    r.get("description", ""),
+                    r["due_date"],
+                    r.get("check_interval", 60),
+                    is_done=new_done,
+                    reminder_id=rid,
+                )
                 break
         self._load_reminders()
 
@@ -194,29 +231,33 @@ class ReminderEngine(QObject):
                         if due <= now and not r.get("is_done"):
                             self._notified.add(rid)
                             title = r.get("title", I18n._("reminder.title"))
-                            ToastNotification.notify(
-                                f"🔔 {title}", "warning", 8000)
+                            ToastNotification.notify(f"🔔 {title}", "warning", 8000)
                             try:
                                 TelegramBot().send_notification(
                                     title,
                                     f"{I18n._('reminder.due_date')}: {r.get('due_date', '')}\n{r.get('description', '')}",
-                                    "warning")
+                                    "warning",
+                                )
                             except Exception:
                                 pass
                             try:
                                 EmailService().send_notification(
                                     title,
                                     f"{I18n._('reminder.due_date')}: {r.get('due_date', '')}\n{r.get('description', '')}",
-                                    "warning")
+                                    "warning",
+                                )
                             except Exception:
                                 pass
                             try:
-                                fire_event("reminder.due", {
-                                    "id": rid,
-                                    "title": title,
-                                    "due_date": r.get("due_date", ""),
-                                    "description": r.get("description", ""),
-                                })
+                                fire_event(
+                                    "reminder.due",
+                                    {
+                                        "id": rid,
+                                        "title": title,
+                                        "due_date": r.get("due_date", ""),
+                                        "description": r.get("description", ""),
+                                    },
+                                )
                             except Exception:
                                 pass
                 except Exception:
@@ -258,7 +299,7 @@ class ExpiringRemindersTab(QWidget):
         layout.addWidget(hint)
 
         quick_layout = QHBoxLayout()
-        self._quick_buttons: Dict[str, QPushButton] = {}
+        self._quick_buttons: Dict[str, GlassButton] = {}
         self._quick_button_labels: Dict[str, str] = {}
         for key, label_key in [
             ("all", "reminder.quick_all"),
@@ -266,7 +307,7 @@ class ExpiringRemindersTab(QWidget):
             ("3days", "reminder.quick_3days"),
             ("30days", "reminder.quick_30days"),
         ]:
-            btn = QPushButton(I18n._(label_key))
+            btn = GlassButton(I18n._(label_key))
             btn.setProperty("flat", True)
             btn.clicked.connect(lambda _=False, k=key: self._set_quick_filter(k))
             quick_layout.addWidget(btn)
@@ -276,12 +317,12 @@ class ExpiringRemindersTab(QWidget):
         layout.addLayout(quick_layout)
 
         filter_layout = QHBoxLayout()
-        self._overdue_only_cb = QCheckBox(I18n._("reminder.overdue_only"))
+        self._overdue_only_cb = GlassCheckBox(I18n._("reminder.overdue_only"))
         self._overdue_only_cb.toggled.connect(self._apply_filters)
         filter_layout.addWidget(self._overdue_only_cb)
         filter_layout.addSpacing(16)
         filter_layout.addWidget(QLabel(I18n._("reminder.sort_order") + ":"))
-        self._sort_combo = QComboBox()
+        self._sort_combo = GlassComboBox()
         self._sort_combo.addItem(I18n._("reminder.sort_priority"), "priority")
         self._sort_combo.addItem(I18n._("reminder.sort_due_asc"), "due_asc")
         self._sort_combo.addItem(I18n._("reminder.sort_due_desc"), "due_desc")
@@ -299,8 +340,12 @@ class ExpiringRemindersTab(QWidget):
         overdue_layout = QVBoxLayout(self._overdue_group)
         self._overdue_table = self._create_table()
         self._overdue_table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self._overdue_table.customContextMenuRequested.connect(lambda pos: self._show_table_menu(self._overdue_table, pos))
-        self._overdue_table.itemDoubleClicked.connect(lambda item: self._open_item_from_table(self._overdue_table, item.row()))
+        self._overdue_table.customContextMenuRequested.connect(
+            lambda pos: self._show_table_menu(self._overdue_table, pos)
+        )
+        self._overdue_table.itemDoubleClicked.connect(
+            lambda item: self._open_item_from_table(self._overdue_table, item.row())
+        )
         overdue_layout.addWidget(self._overdue_table)
         splitter.addWidget(self._overdue_group)
 
@@ -308,25 +353,29 @@ class ExpiringRemindersTab(QWidget):
         upcoming_layout = QVBoxLayout(self._upcoming_group)
         self._upcoming_table = self._create_table()
         self._upcoming_table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self._upcoming_table.customContextMenuRequested.connect(lambda pos: self._show_table_menu(self._upcoming_table, pos))
-        self._upcoming_table.itemDoubleClicked.connect(lambda item: self._open_item_from_table(self._upcoming_table, item.row()))
+        self._upcoming_table.customContextMenuRequested.connect(
+            lambda pos: self._show_table_menu(self._upcoming_table, pos)
+        )
+        self._upcoming_table.itemDoubleClicked.connect(
+            lambda item: self._open_item_from_table(self._upcoming_table, item.row())
+        )
         upcoming_layout.addWidget(self._upcoming_table)
         splitter.addWidget(self._upcoming_group)
         splitter.setSizes([220, 300])
         layout.addWidget(splitter, 1)
 
         btn_layout = QHBoxLayout()
-        self._refresh_btn = QPushButton(I18n._("common.refresh"))
+        self._refresh_btn = GlassButton(I18n._("common.refresh"))
         self._refresh_btn.clicked.connect(self._load_data)
         btn_layout.addWidget(self._refresh_btn)
-        self._export_csv_btn = QPushButton(I18n._("common.export") + " CSV")
+        self._export_csv_btn = GlassButton(I18n._("common.export") + " CSV")
         self._export_csv_btn.clicked.connect(lambda: self._export_reminders("csv"))
         btn_layout.addWidget(self._export_csv_btn)
-        self._export_excel_btn = QPushButton(I18n._("common.export") + " Excel")
+        self._export_excel_btn = GlassButton(I18n._("common.export") + " Excel")
         self._export_excel_btn.clicked.connect(lambda: self._export_reminders("xlsx"))
         btn_layout.addWidget(self._export_excel_btn)
         btn_layout.addStretch()
-        self._open_btn = QPushButton(I18n._("reminder.all"))
+        self._open_btn = GlassButton(I18n._("reminder.all"))
         self._open_btn.clicked.connect(self._open_all)
         btn_layout.addWidget(self._open_btn)
         layout.addLayout(btn_layout)
@@ -340,10 +389,15 @@ class ExpiringRemindersTab(QWidget):
     def _create_table(self) -> QTableWidget:
         table = QTableWidget()
         table.setColumnCount(5)
-        table.setHorizontalHeaderLabels([
-            I18n._("reminder.type"), I18n._("reminder.title_field"),
-            I18n._("reminder.entity"), I18n._("reminder.due_date"),
-            I18n._("reminder.days_left")])
+        table.setHorizontalHeaderLabels(
+            [
+                I18n._("reminder.type"),
+                I18n._("reminder.title_field"),
+                I18n._("reminder.entity"),
+                I18n._("reminder.due_date"),
+                I18n._("reminder.days_left"),
+            ]
+        )
         header = table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
         header.setSectionResizeMode(0, QHeaderView.Stretch)
@@ -381,7 +435,8 @@ class ExpiringRemindersTab(QWidget):
                 f"padding: 6px 12px; border-radius: 6px;"
                 f"background: {accent + ('30' if active else '10')};"
                 f"border: 1px solid {accent if active else accent + '30'};"
-                f"font-weight: {'600' if active else '500'};")
+                f"font-weight: {'600' if active else '500'};"
+            )
 
     def _on_sort_changed(self) -> None:
         self.db.upsert_setting("reminder_sort_order", self._sort_combo.currentData())
@@ -401,16 +456,18 @@ class ExpiringRemindersTab(QWidget):
                         if len(p) == 3:
                             dt = datetime(int(p[2]), int(p[1]), int(p[0]))
                             left = (dt - now).days
-                            self._items.append({
-                                "type": I18n._("tab.employees"),
-                                "title": key,
-                                "entity": dj.get("ФИО", f"#{emp['id']}"),
-                                "due": val,
-                                "days": left,
-                                "_table": "employees",
-                                "_record_id": emp.get("id"),
-                                "_ts": dt.timestamp(),
-                            })
+                            self._items.append(
+                                {
+                                    "type": I18n._("tab.employees"),
+                                    "title": key,
+                                    "entity": dj.get("ФИО", f"#{emp['id']}"),
+                                    "due": val,
+                                    "days": left,
+                                    "_table": "employees",
+                                    "_record_id": emp.get("id"),
+                                    "_ts": dt.timestamp(),
+                                }
+                            )
                     except Exception:
                         pass
 
@@ -424,16 +481,18 @@ class ExpiringRemindersTab(QWidget):
                         if len(p) == 3:
                             dt = datetime(int(p[2]), int(p[1]), int(p[0]))
                             left = (dt - now).days
-                            self._items.append({
-                                "type": I18n._("tab.violations"),
-                                "title": key,
-                                "entity": f"#{viol['id']} {dj.get('Описание', '')[:30]}",
-                                "due": val,
-                                "days": left,
-                                "_table": "violations",
-                                "_record_id": viol.get("id"),
-                                "_ts": dt.timestamp(),
-                            })
+                            self._items.append(
+                                {
+                                    "type": I18n._("tab.violations"),
+                                    "title": key,
+                                    "entity": f"#{viol['id']} {dj.get('Описание', '')[:30]}",
+                                    "due": val,
+                                    "days": left,
+                                    "_table": "violations",
+                                    "_record_id": viol.get("id"),
+                                    "_ts": dt.timestamp(),
+                                }
+                            )
                     except Exception:
                         pass
 
@@ -445,22 +504,26 @@ class ExpiringRemindersTab(QWidget):
                     if len(p) == 3:
                         dt = datetime(int(p[2]), int(p[1]), int(p[0]))
                         left = (dt - now).days
-                        self._items.append({
-                            "type": I18n._("reminder.title"),
-                            "title": r.get("title", ""),
-                            "entity": "",
-                            "due": due_str,
-                            "days": left,
-                            "_table": "reminders",
-                            "_record_id": r.get("id"),
-                            "_id": r["id"],
-                            "_done": r.get("is_done", False),
-                            "_ts": dt.timestamp(),
-                        })
+                        self._items.append(
+                            {
+                                "type": I18n._("reminder.title"),
+                                "title": r.get("title", ""),
+                                "entity": "",
+                                "due": due_str,
+                                "days": left,
+                                "_table": "reminders",
+                                "_record_id": r.get("id"),
+                                "_id": r["id"],
+                                "_done": r.get("is_done", False),
+                                "_ts": dt.timestamp(),
+                            }
+                        )
                 except Exception:
                     pass
         except Exception:
-            import traceback; traceback.print_exc()
+            import traceback
+
+            traceback.print_exc()
 
         self._apply_filters()
 
@@ -474,10 +537,17 @@ class ExpiringRemindersTab(QWidget):
         elif quick == "30days":
             items = [item for item in items if 0 <= item.get("days", 999) <= 30]
 
-        if getattr(self, "_overdue_only_cb", None) and self._overdue_only_cb.isChecked():
+        if (
+            getattr(self, "_overdue_only_cb", None)
+            and self._overdue_only_cb.isChecked()
+        ):
             items = [item for item in items if item.get("days", 999) < 0]
 
-        sort_mode = self._sort_combo.currentData() if hasattr(self, "_sort_combo") else "priority"
+        sort_mode = (
+            self._sort_combo.currentData()
+            if hasattr(self, "_sort_combo")
+            else "priority"
+        )
 
         def _sort_key(item: Dict[str, Any]) -> Tuple[int, int, float]:
             d = int(item.get("days", 999))
@@ -495,9 +565,17 @@ class ExpiringRemindersTab(QWidget):
         upcoming_items = [item for item in items if item.get("days", 999) >= 0]
         self._fill_table(self._overdue_table, overdue_items)
         self._fill_table(self._upcoming_table, upcoming_items)
-        self._overdue_group.setTitle(f"{I18n._('reminder.overdue_section')} ({len(overdue_items)})")
-        self._upcoming_group.setTitle(f"{I18n._('reminder.upcoming_section')} ({len(upcoming_items)})")
-        self._overdue_group.setVisible(bool(overdue_items) or quick in ("all", "overdue") or self._overdue_only_cb.isChecked())
+        self._overdue_group.setTitle(
+            f"{I18n._('reminder.overdue_section')} ({len(overdue_items)})"
+        )
+        self._upcoming_group.setTitle(
+            f"{I18n._('reminder.upcoming_section')} ({len(upcoming_items)})"
+        )
+        self._overdue_group.setVisible(
+            bool(overdue_items)
+            or quick in ("all", "overdue")
+            or self._overdue_only_cb.isChecked()
+        )
         self._upcoming_group.setVisible(not self._overdue_only_cb.isChecked())
         self._update_quick_filter_buttons()
 
@@ -517,13 +595,25 @@ class ExpiringRemindersTab(QWidget):
                 days_str = I18n._("reminder.overdue").format(days=abs(days))
                 row_bg = QColor("#582525" if is_dark else "#f8d7da")
             elif days <= 3:
-                days_str = I18n._("reminder.today") if days == 0 else I18n._("reminder.days_format").format(days=days)
+                days_str = (
+                    I18n._("reminder.today")
+                    if days == 0
+                    else I18n._("reminder.days_format").format(days=days)
+                )
                 row_bg = QColor("#614d17" if is_dark else "#fff3cd")
             else:
                 days_str = I18n._("reminder.days_format").format(days=days)
                 row_bg = QColor("#254b32" if is_dark else "#d4edda")
-            row_fg = QColor("#FFFFFF") if row_bg.lightness() < 140 else QColor("#1E1E2E")
-            values = [prefix + item["type"], item["title"], item["entity"], item["due"], days_str]
+            row_fg = (
+                QColor("#FFFFFF") if row_bg.lightness() < 140 else QColor("#1E1E2E")
+            )
+            values = [
+                prefix + item["type"],
+                item["title"],
+                item["entity"],
+                item["due"],
+                days_str,
+            ]
             for col, value in enumerate(values):
                 cell = QTableWidgetItem(value)
                 cell.setBackground(row_bg)
@@ -568,56 +658,111 @@ class ExpiringRemindersTab(QWidget):
         if not items:
             return
         if fmt == "csv":
-            path, _ = QFileDialog.getSaveFileName(self, I18n._("export.title"),
-                                                  "reminders.csv", "CSV (*.csv)")
+            path, _ = QFileDialog.getSaveFileName(
+                self, I18n._("export.title"), "reminders.csv", "CSV (*.csv)"
+            )
             if not path:
                 return
             try:
                 with open(path, "w", newline="", encoding="utf-8-sig") as f:
                     w = csv.writer(f)
-                    w.writerow([I18n._("reminder.type"), I18n._("reminder.title_field"),
-                                I18n._("reminder.entity"), I18n._("reminder.due_date"),
-                                I18n._("reminder.days_left")])
+                    w.writerow(
+                        [
+                            I18n._("reminder.type"),
+                            I18n._("reminder.title_field"),
+                            I18n._("reminder.entity"),
+                            I18n._("reminder.due_date"),
+                            I18n._("reminder.days_left"),
+                        ]
+                    )
                     for item in items:
                         days = item.get("days", 0)
-                        days_str = I18n._("reminder.overdue").format(days=abs(days)) if days < 0 else (
-                            I18n._("reminder.today") if days == 0 else I18n._("reminder.days_format").format(days=days))
-                        w.writerow([item.get("type", ""), item.get("title", ""), item.get("entity", ""), item.get("due", ""), days_str])
-                ToastNotification.notify(I18n._("export.success").format(path=path), "success", 3000)
+                        days_str = (
+                            I18n._("reminder.overdue").format(days=abs(days))
+                            if days < 0
+                            else (
+                                I18n._("reminder.today")
+                                if days == 0
+                                else I18n._("reminder.days_format").format(days=days)
+                            )
+                        )
+                        w.writerow(
+                            [
+                                item.get("type", ""),
+                                item.get("title", ""),
+                                item.get("entity", ""),
+                                item.get("due", ""),
+                                days_str,
+                            ]
+                        )
+                ToastNotification.notify(
+                    I18n._("export.success").format(path=path), "success", 3000
+                )
             except Exception as e:
-                ToastNotification.notify(I18n._("export.error").format(error=str(e)), "error", 5000)
+                ToastNotification.notify(
+                    I18n._("export.error").format(error=str(e)), "error", 5000
+                )
             return
-        path, _ = QFileDialog.getSaveFileName(self, I18n._("export.title"),
-                                              "reminders.xlsx", "Excel (*.xlsx)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, I18n._("export.title"), "reminders.xlsx", "Excel (*.xlsx)"
+        )
         if not path:
             return
         try:
             import openpyxl
+
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Reminders"
-            headers = [I18n._("reminder.type"), I18n._("reminder.title_field"),
-                       I18n._("reminder.entity"), I18n._("reminder.due_date"),
-                       I18n._("reminder.days_left")]
+            headers = [
+                I18n._("reminder.type"),
+                I18n._("reminder.title_field"),
+                I18n._("reminder.entity"),
+                I18n._("reminder.due_date"),
+                I18n._("reminder.days_left"),
+            ]
             for c, h in enumerate(headers, 1):
                 ws.cell(row=1, column=c, value=h)
             for r, item in enumerate(items, 2):
                 days = item.get("days", 0)
-                days_str = I18n._("reminder.overdue").format(days=abs(days)) if days < 0 else (
-                    I18n._("reminder.today") if days == 0 else I18n._("reminder.days_format").format(days=days))
-                vals = [item.get("type", ""), item.get("title", ""), item.get("entity", ""), item.get("due", ""), days_str]
+                days_str = (
+                    I18n._("reminder.overdue").format(days=abs(days))
+                    if days < 0
+                    else (
+                        I18n._("reminder.today")
+                        if days == 0
+                        else I18n._("reminder.days_format").format(days=days)
+                    )
+                )
+                vals = [
+                    item.get("type", ""),
+                    item.get("title", ""),
+                    item.get("entity", ""),
+                    item.get("due", ""),
+                    days_str,
+                ]
                 for c, v in enumerate(vals, 1):
                     ws.cell(row=r, column=c, value=v)
             wb.save(path)
-            ToastNotification.notify(I18n._("export.success").format(path=path), "success", 3000)
+            ToastNotification.notify(
+                I18n._("export.success").format(path=path), "success", 3000
+            )
         except Exception as e:
-            ToastNotification.notify(I18n._("export.error").format(error=str(e)), "error", 5000)
+            ToastNotification.notify(
+                I18n._("export.error").format(error=str(e)), "error", 5000
+            )
 
     def has_expiring(self) -> bool:
         return any(item.get("days", 999) <= 3 for item in getattr(self, "_items", []))
 
     def get_expiring_count(self) -> int:
-        return len([item for item in getattr(self, "_items", []) if item.get("days", 999) <= 30])
+        return len(
+            [
+                item
+                for item in getattr(self, "_items", [])
+                if item.get("days", 999) <= 30
+            ]
+        )
 
     def _open_all(self) -> None:
         RemindersDialog(self).exec_()
@@ -631,8 +776,12 @@ class ReminderFloatingDialog(QDialog):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowFlags(
-            Qt.Window | Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint |
-            Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
+            Qt.Window
+            | Qt.WindowStaysOnTopHint
+            | Qt.WindowCloseButtonHint
+            | Qt.WindowMinimizeButtonHint
+            | Qt.WindowMaximizeButtonHint
+        )
         self.setWindowTitle(I18n._("reminder.title"))
         self.setMinimumSize(500, 350)
         self.resize(600, 400)
@@ -645,10 +794,15 @@ class ReminderFloatingDialog(QDialog):
         layout.addWidget(heading)
         self._table = QTableWidget()
         self._table.setColumnCount(5)
-        self._table.setHorizontalHeaderLabels([
-            I18n._("reminder.type"), I18n._("reminder.title_field"),
-            I18n._("reminder.entity"), I18n._("reminder.due_date"),
-            I18n._("reminder.days_left")])
+        self._table.setHorizontalHeaderLabels(
+            [
+                I18n._("reminder.type"),
+                I18n._("reminder.title_field"),
+                I18n._("reminder.entity"),
+                I18n._("reminder.due_date"),
+                I18n._("reminder.days_left"),
+            ]
+        )
         hdr = self._table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.Interactive)
         hdr.setStretchLastSection(True)
@@ -659,7 +813,7 @@ class ReminderFloatingDialog(QDialog):
         layout.addWidget(self._table, 1)
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.close)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
@@ -679,8 +833,16 @@ class ReminderFloatingDialog(QDialog):
                             dt = datetime(int(p[2]), int(p[1]), int(p[0]))
                             left = (dt - now).days
                             if left <= 30:
-                                items.append(("👤 " + I18n._("tab.employees"), key,
-                                              dj.get("ФИО", f"#{emp['id']}"), val, left, dt.timestamp()))
+                                items.append(
+                                    (
+                                        "👤 " + I18n._("tab.employees"),
+                                        key,
+                                        dj.get("ФИО", f"#{emp['id']}"),
+                                        val,
+                                        left,
+                                        dt.timestamp(),
+                                    )
+                                )
                     except Exception:
                         pass
             for viol in self.db.get_json_records("violations"):
@@ -693,8 +855,16 @@ class ReminderFloatingDialog(QDialog):
                             dt = datetime(int(p[2]), int(p[1]), int(p[0]))
                             left = (dt - now).days
                             if left <= 30:
-                                items.append(("⚠ " + I18n._("tab.violations"), key,
-                                              f"#{viol['id']}", val, left, dt.timestamp()))
+                                items.append(
+                                    (
+                                        "⚠ " + I18n._("tab.violations"),
+                                        key,
+                                        f"#{viol['id']}",
+                                        val,
+                                        left,
+                                        dt.timestamp(),
+                                    )
+                                )
                     except Exception:
                         pass
         except Exception:

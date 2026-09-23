@@ -4,12 +4,24 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtGui import QColor, QFont, QTextCharFormat
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                             QPushButton, QTableWidget, QTableWidgetItem,
-                             QHeaderView, QAbstractItemView, QFrame,
-                             QCalendarWidget, QSplitter, QComboBox,
-                             QCheckBox, QGroupBox, QInputDialog,
-                             QMessageBox)
+from PyQt5.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QFrame,
+    QCalendarWidget,
+    QSplitter,
+    QInputDialog,
+    QMessageBox,
+)
+
+from widgets.glass_button import GlassButton
+from widgets.glass_checkbox import GlassCheckBox
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
@@ -59,15 +71,15 @@ class CalendarTab(QWidget):
 
         filter_layout = QHBoxLayout()
         filter_layout.addWidget(QLabel(I18n._("calendar.show") + ":"))
-        self._filter_violations = QCheckBox(I18n._("tab.violations"))
+        self._filter_violations = GlassCheckBox(I18n._("tab.violations"))
         self._filter_violations.setChecked(True)
         self._filter_violations.toggled.connect(self._refresh)
         filter_layout.addWidget(self._filter_violations)
-        self._filter_medical = QCheckBox(I18n._("calendar.medical"))
+        self._filter_medical = GlassCheckBox(I18n._("calendar.medical"))
         self._filter_medical.setChecked(True)
         self._filter_medical.toggled.connect(self._refresh)
         filter_layout.addWidget(self._filter_medical)
-        self._filter_reminders = QCheckBox(I18n._("tab.reminders"))
+        self._filter_reminders = GlassCheckBox(I18n._("tab.reminders"))
         self._filter_reminders.setChecked(True)
         self._filter_reminders.toggled.connect(self._refresh)
         filter_layout.addWidget(self._filter_reminders)
@@ -88,9 +100,14 @@ class CalendarTab(QWidget):
 
         self._event_table = QTableWidget()
         self._event_table.setColumnCount(4)
-        self._event_table.setHorizontalHeaderLabels([
-            I18n._("calendar.event_type"), I18n._("calendar.event_title"),
-            I18n._("calendar.event_detail"), I18n._("common.status")])
+        self._event_table.setHorizontalHeaderLabels(
+            [
+                I18n._("calendar.event_type"),
+                I18n._("calendar.event_title"),
+                I18n._("calendar.event_detail"),
+                I18n._("common.status"),
+            ]
+        )
         hdr = self._event_table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.Interactive)
         hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -103,12 +120,12 @@ class CalendarTab(QWidget):
         ev_layout.addWidget(self._event_table, 1)
 
         btn_layout = QHBoxLayout()
-        self._add_reminder_btn = QPushButton(I18n._("calendar.add_reminder"))
+        self._add_reminder_btn = GlassButton(I18n._("calendar.add_reminder"))
         self._add_reminder_btn.setProperty("success", True)
         self._add_reminder_btn.clicked.connect(self._add_reminder_for_date)
         btn_layout.addWidget(self._add_reminder_btn)
         btn_layout.addStretch()
-        self._refresh_btn = QPushButton(I18n._("common.refresh"))
+        self._refresh_btn = GlassButton(I18n._("common.refresh"))
         self._refresh_btn.clicked.connect(self._refresh)
         btn_layout.addWidget(self._refresh_btn)
         ev_layout.addLayout(btn_layout)
@@ -136,17 +153,21 @@ class CalendarTab(QWidget):
                             dt = datetime(int(p[2]), int(p[1]), int(p[0]))
                             key = dt.strftime("%Y-%m-%d")
                             status = dj.get("Статус", "")
-                            self._events[key].append({
-                                "type": "violation",
-                                "title": I18n._("calendar.deadline"),
-                                "detail": str(dj.get("Описание", f"#{viol['id']}"))[:50],
-                                "status": status,
-                                "date": deadline,
-                                "_table": "violations",
-                                "_id": viol["id"],
-                                "_dt": dt,
-                                "_status": status,
-                            })
+                            self._events[key].append(
+                                {
+                                    "type": "violation",
+                                    "title": I18n._("calendar.deadline"),
+                                    "detail": str(dj.get("Описание", f"#{viol['id']}"))[
+                                        :50
+                                    ],
+                                    "status": status,
+                                    "date": deadline,
+                                    "_table": "violations",
+                                    "_id": viol["id"],
+                                    "_dt": dt,
+                                    "_status": status,
+                                }
+                            )
                     except Exception:
                         pass
 
@@ -161,16 +182,18 @@ class CalendarTab(QWidget):
                         if len(p) == 3:
                             dt = datetime(int(p[2]), int(p[1]), int(p[0]))
                             key = dt.strftime("%Y-%m-%d")
-                            self._events[key].append({
-                                "type": "medical",
-                                "title": I18n._("calendar.medical"),
-                                "detail": str(dj.get("ФИО", f"#{emp['id']}"))[:50],
-                                "status": "",
-                                "date": med,
-                                "_table": "employees",
-                                "_id": emp["id"],
-                                "_dt": dt,
-                            })
+                            self._events[key].append(
+                                {
+                                    "type": "medical",
+                                    "title": I18n._("calendar.medical"),
+                                    "detail": str(dj.get("ФИО", f"#{emp['id']}"))[:50],
+                                    "status": "",
+                                    "date": med,
+                                    "_table": "employees",
+                                    "_id": emp["id"],
+                                    "_dt": dt,
+                                }
+                            )
                     except Exception:
                         pass
 
@@ -184,17 +207,19 @@ class CalendarTab(QWidget):
                         if len(p) == 3:
                             dt = datetime(int(p[2]), int(p[1]), int(p[0]))
                             key = dt.strftime("%Y-%m-%d")
-                            self._events[key].append({
-                                "type": "reminder",
-                                "title": str(r.get("title", ""))[:50],
-                                "detail": str(r.get("description", ""))[:50],
-                                "status": "✓" if r.get("is_done") else "☐",
-                                "date": due,
-                                "_table": "reminders",
-                                "_id": r["id"],
-                                "_dt": dt,
-                                "_done": r.get("is_done", False),
-                            })
+                            self._events[key].append(
+                                {
+                                    "type": "reminder",
+                                    "title": str(r.get("title", ""))[:50],
+                                    "detail": str(r.get("description", ""))[:50],
+                                    "status": "✓" if r.get("is_done") else "☐",
+                                    "date": due,
+                                    "_table": "reminders",
+                                    "_id": r["id"],
+                                    "_dt": dt,
+                                    "_done": r.get("is_done", False),
+                                }
+                            )
                     except Exception:
                         pass
 
@@ -216,8 +241,11 @@ class CalendarTab(QWidget):
                 continue
             has_overdue = any(
                 e.get("_status") == "Просрочено"
-                or (e.get("_dt") and e["_dt"] < datetime.now()
-                    and e.get("_status") != "Исполнено")
+                or (
+                    e.get("_dt")
+                    and e["_dt"] < datetime.now()
+                    and e.get("_status") != "Исполнено"
+                )
                 for e in events
             )
             has_violation = any(e["type"] == "violation" for e in events)
@@ -250,13 +278,15 @@ class CalendarTab(QWidget):
     def _on_date_selected(self, qd: QDate) -> None:
         date_str = qd.toString("yyyy-MM-dd")
         self._selected_date_label.setText(
-            I18n._("calendar.events_for").format(
-                date=qd.toString("dd.MM.yyyy (dddd)")))
+            I18n._("calendar.events_for").format(date=qd.toString("dd.MM.yyyy (dddd)"))
+        )
         events = self._events.get(date_str, [])
-        events.sort(key=lambda e: (
-            0 if e.get("_status") == "Просрочено" else 1,
-            e.get("_dt", datetime.max) if e.get("_dt") else datetime.max,
-        ))
+        events.sort(
+            key=lambda e: (
+                0 if e.get("_status") == "Просрочено" else 1,
+                e.get("_dt", datetime.max) if e.get("_dt") else datetime.max,
+            )
+        )
         self._event_table.setRowCount(len(events))
         icon_map = {
             "violation": "⚠",
@@ -265,8 +295,7 @@ class CalendarTab(QWidget):
         }
         for i, ev in enumerate(events):
             icon = icon_map.get(ev["type"], "📌")
-            self._event_table.setItem(i, 0, QTableWidgetItem(
-                f"{icon} {ev['title']}"))
+            self._event_table.setItem(i, 0, QTableWidgetItem(f"{icon} {ev['title']}"))
             self._event_table.setItem(i, 1, QTableWidgetItem(ev["detail"]))
             self._event_table.setItem(i, 2, QTableWidgetItem(ev["date"]))
             status = ev.get("status", "")
@@ -294,31 +323,31 @@ class CalendarTab(QWidget):
         if table and rid:
             mw = self.window()
             if mw and hasattr(mw, "open_reminder_target"):
-                mw.open_reminder_target({
-                    "_table": table,
-                    "_record_id": rid,
-                })
+                mw.open_reminder_target(
+                    {
+                        "_table": table,
+                        "_record_id": rid,
+                    }
+                )
 
     def _add_reminder_for_date(self) -> None:
         qd = self._calendar.selectedDate()
         default_date = qd.toString("dd.MM.yyyy")
 
         title, ok = QInputDialog.getText(
-            self, I18n._("reminder.add"),
-            I18n._("reminder.title_field"))
+            self, I18n._("reminder.add"), I18n._("reminder.title_field")
+        )
         if not ok or not title:
             return
 
         desc, ok2 = QInputDialog.getMultiLineText(
-            self, I18n._("reminder.add"),
-            I18n._("reminder.description"))
+            self, I18n._("reminder.add"), I18n._("reminder.description")
+        )
         if not ok2:
             desc = ""
 
-        self.db.save_reminder(
-            title.strip(), desc.strip(), default_date, 60)
-        ToastNotification.notify(
-            I18n._("calendar.reminder_added"), "success", 3000)
+        self.db.save_reminder(title.strip(), desc.strip(), default_date, 60)
+        ToastNotification.notify(I18n._("calendar.reminder_added"), "success", 3000)
         self._load_events()
 
     def _refresh(self) -> None:

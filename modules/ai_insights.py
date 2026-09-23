@@ -2,15 +2,25 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import (QWidget, QFrame, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QTextBrowser, QScrollArea, QMessageBox,
-    QGroupBox, QGridLayout, QApplication, QSizePolicy)
+from PyQt5.QtWidgets import (
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QScrollArea,
+    QGridLayout,
+    QApplication,
+)
+
+from widgets.glass_button import GlassButton
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
 from app_core.utils import apply_glass_style
 from services.database import DatabaseManager
 from modules.ai import AIEngine
+from services.predictive import PredictiveModel
 from widgets.toast import ToastNotification
 
 
@@ -32,12 +42,12 @@ class AIInsightsWidget(QWidget):
         header_row.addWidget(heading)
         header_row.addStretch()
 
-        self._refresh_btn = QPushButton("🔄 " + I18n._("common.refresh"))
+        self._refresh_btn = GlassButton("🔄 " + I18n._("common.refresh"))
         self._refresh_btn.setProperty("small", True)
         self._refresh_btn.clicked.connect(self._generate_insights)
         header_row.addWidget(self._refresh_btn)
 
-        self._ai_btn = QPushButton("🤖 " + I18n._("ai.generate_insights"))
+        self._ai_btn = GlassButton("🤖 " + I18n._("ai.generate_insights"))
         self._ai_btn.setProperty("small", True)
         self._ai_btn.clicked.connect(self._generate_ai_insights)
         header_row.addWidget(self._ai_btn)
@@ -81,11 +91,36 @@ class AIInsightsWidget(QWidget):
         grid = QGridLayout()
         grid.setSpacing(12)
         kpis = [
-            ("👤", I18n._("stat.employees_total"), str(stats["employees_total"]), "#2196F3"),
-            ("⚠", I18n._("stat.violations_total"), str(stats["violations_total"]), "#FF3B30"),
-            ("🏢", I18n._("stat.companies_total"), str(stats["companies_total"]), "#34C759"),
-            ("⏰", I18n._("stat.overdue_total"), str(stats["overdue_total"]), "#FF9500"),
-            ("💰", I18n._("stat.fines_total"), f"{stats['fines_total']:,.0f} ₽".replace(",", " "), "#AF52DE"),
+            (
+                "👤",
+                I18n._("stat.employees_total"),
+                str(stats["employees_total"]),
+                "#2196F3",
+            ),
+            (
+                "⚠",
+                I18n._("stat.violations_total"),
+                str(stats["violations_total"]),
+                "#FF3B30",
+            ),
+            (
+                "🏢",
+                I18n._("stat.companies_total"),
+                str(stats["companies_total"]),
+                "#34C759",
+            ),
+            (
+                "⏰",
+                I18n._("stat.overdue_total"),
+                str(stats["overdue_total"]),
+                "#FF9500",
+            ),
+            (
+                "💰",
+                I18n._("stat.fines_total"),
+                f"{stats['fines_total']:,.0f} ₽".replace(",", " "),
+                "#AF52DE",
+            ),
         ]
         for i, (icon, label, value, color) in enumerate(kpis):
             cell = QFrame()
@@ -130,7 +165,8 @@ class AIInsightsWidget(QWidget):
         recent_card = self._make_card("📋 " + I18n._("dashboard.recent"))
         recent_layout = recent_card.findChild(QVBoxLayout)
         recent = self.db.fetch_all(
-            "SELECT event, created_at FROM audit_log ORDER BY id DESC LIMIT 10")
+            "SELECT event, created_at FROM audit_log ORDER BY id DESC LIMIT 10"
+        )
         if recent:
             for r in recent:
                 ts = r["created_at"][:16] if r["created_at"] else ""
@@ -147,9 +183,37 @@ class AIInsightsWidget(QWidget):
         self._ai_card = self._make_card("🤖 " + I18n._("ai.insights"))
         self._ai_content = QLabel(I18n._("ai.insights_hint"))
         self._ai_content.setWordWrap(True)
-        self._ai_content.setStyleSheet("font-size: 13px; color: #8E8E93; padding: 8px 0;")
+        self._ai_content.setStyleSheet(
+            "font-size: 13px; color: #8E8E93; padding: 8px 0;"
+        )
         self._ai_card.findChild(QVBoxLayout).addWidget(self._ai_content)
         self._content_layout.addWidget(self._ai_card)
+
+        # Predictive risk
+        try:
+            pm = PredictiveModel()
+            risk = pm.risk_score()
+            risk_card = self._make_card("📊 Прогноз рисков")
+            risk_layout = risk_card.findChild(QVBoxLayout)
+            level_colors = {"low": "#34C759", "medium": "#FF9500", "high": "#FF3B30"}
+            lvl_color = level_colors.get(risk["level"], "#8E8E93")
+            risk_lbl = QLabel(
+                f"Общий риск: <b style='color:{lvl_color}'>{risk['total_risk']}</b> "
+                f"(уровень: <b style='color:{lvl_color}'>{risk['level']}</b>)"
+            )
+            risk_lbl.setStyleSheet("font-size: 14px; padding: 4px 0;")
+            risk_layout.addWidget(risk_lbl)
+            for b in risk.get("breakdown", []):
+                bc = level_colors.get(b["trend"], "#8E8E93")
+                bl = QLabel(
+                    f"• {b['table']}: {b['count']} зап. "
+                    f"(вклад: {b['contribution']}, тренд: <span style='color:{bc}'>{b['trend']}</span>)"
+                )
+                bl.setStyleSheet("font-size: 12px; padding: 2px 0;")
+                risk_layout.addWidget(bl)
+            self._content_layout.addWidget(risk_card)
+        except Exception:
+            pass
 
         self._content_layout.addStretch()
 
@@ -181,8 +245,10 @@ class AIInsightsWidget(QWidget):
         self._ai_btn.setText("⏳ " + I18n._("ai.thinking"))
         QApplication.processEvents()
 
-        local_noauth = any(x in self._engine.api_url.lower()
-                          for x in ["localhost", "127.0.0.1", "ollama"])
+        local_noauth = any(
+            x in self._engine.api_url.lower()
+            for x in ["localhost", "127.0.0.1", "ollama"]
+        )
         if not self._engine.api_key and not local_noauth:
             self._ai_content.setText("⚠️ " + I18n._("ai.no_key"))
             self._ai_btn.setEnabled(True)
@@ -207,7 +273,9 @@ class AIInsightsWidget(QWidget):
 
         try:
             response = self._engine.send_request([], prompt)
-            if response and not response.startswith(("HTTP Error", "Connection Error", "Error:")):
+            if response and not response.startswith(
+                ("HTTP Error", "Connection Error", "Error:")
+            ):
                 self._ai_content.setText(response)
                 self._ai_content.setStyleSheet("font-size: 13px; padding: 8px 0;")
             else:

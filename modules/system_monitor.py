@@ -2,8 +2,15 @@ import os
 from typing import Optional, Any
 
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import (QFrame, QVBoxLayout, QHBoxLayout, QFormLayout,
-                             QLabel, QPushButton, QGridLayout)
+from PyQt5.QtWidgets import (
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QPushButton,
+    QGridLayout,
+)
 
 from app_core.i18n import I18n
 from app_core.config import RUNTIME_PATHS
@@ -31,7 +38,9 @@ class SystemMonitorWidget(QFrame):
         # Database section
         db_group = QFrame()
         db_group.setProperty("card", True)
-        db_group.setStyleSheet("QFrame[card=true] { background: transparent; border: 1px solid #ddd; }")
+        db_group.setStyleSheet(
+            "QFrame[card=true] { background: transparent; border: 1px solid #ddd; }"
+        )
         dbl = QVBoxLayout(db_group)
         dbl.setContentsMargins(12, 10, 12, 10)
         dbl.setSpacing(6)
@@ -40,7 +49,15 @@ class SystemMonitorWidget(QFrame):
         dbl.addWidget(db_heading)
         db_form = QFormLayout()
         db_form.setSpacing(4)
-        for key in ("db_path", "db_size", "cache_entries", "audit_entries", "users", "active_reminders", "active_webhooks"):
+        for key in (
+            "db_path",
+            "db_size",
+            "cache_entries",
+            "audit_entries",
+            "users",
+            "active_reminders",
+            "active_webhooks",
+        ):
             lbl = QLabel("—")
             lbl.setStyleSheet("font-size: 12px; font-family: monospace;")
             db_form.addRow(I18n._(f"monitor.{key}") + ":", lbl)
@@ -51,7 +68,9 @@ class SystemMonitorWidget(QFrame):
         # Tables section
         tables_group = QFrame()
         tables_group.setProperty("card", True)
-        tables_group.setStyleSheet("QFrame[card=true] { background: transparent; border: 1px solid #ddd; }")
+        tables_group.setStyleSheet(
+            "QFrame[card=true] { background: transparent; border: 1px solid #ddd; }"
+        )
         tl = QVBoxLayout(tables_group)
         tl.setContentsMargins(12, 10, 12, 10)
         tl.setSpacing(6)
@@ -67,7 +86,9 @@ class SystemMonitorWidget(QFrame):
         # Storage section
         storage_group = QFrame()
         storage_group.setProperty("card", True)
-        storage_group.setStyleSheet("QFrame[card=true] { background: transparent; border: 1px solid #ddd; }")
+        storage_group.setStyleSheet(
+            "QFrame[card=true] { background: transparent; border: 1px solid #ddd; }"
+        )
         sl = QVBoxLayout(storage_group)
         sl.setContentsMargins(12, 10, 12, 10)
         sl.setSpacing(6)
@@ -99,7 +120,9 @@ class SystemMonitorWidget(QFrame):
         self._labels["users"].setText(str(health.get("users", 0)))
         self._labels["active_reminders"].setText(str(health.get("active_reminders", 0)))
         self._labels["active_webhooks"].setText(str(health.get("active_webhooks", 0)))
-        self._labels["media_size"].setText(self._fmt_size(health.get("media_size_bytes", 0)))
+        self._labels["media_size"].setText(
+            self._fmt_size(health.get("media_size_bytes", 0))
+        )
 
         tables = health.get("tables", {})
         self._clear_grid(self._tables_grid)
@@ -108,7 +131,9 @@ class SystemMonitorWidget(QFrame):
             name_lbl = QLabel(tbl)
             name_lbl.setStyleSheet("font-size: 12px; font-family: monospace;")
             cnt_lbl = QLabel(str(cnt))
-            cnt_lbl.setStyleSheet("font-size: 12px; font-family: monospace; font-weight: 600;")
+            cnt_lbl.setStyleSheet(
+                "font-size: 12px; font-family: monospace; font-weight: 600;"
+            )
             self._tables_grid.addWidget(name_lbl, i, 0)
             self._tables_grid.addWidget(cnt_lbl, i, 1)
 

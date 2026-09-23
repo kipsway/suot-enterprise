@@ -4,24 +4,48 @@ from typing import Any, Dict, List, Optional
 
 from PyQt5.QtCore import Qt, QPoint, QTimer
 from PyQt5.QtGui import QColor, QCursor
-from PyQt5.QtWidgets import (QApplication, QDialog, QWidget, QFrame,
-                             QVBoxLayout, QHBoxLayout, QFormLayout,
-                             QLabel, QLineEdit, QPushButton, QComboBox,
-                             QSpinBox, QScrollArea, QTableWidget,
-                             QTableWidgetItem, QHeaderView, QAbstractItemView,
-                             QDialogButtonBox, QMenu, QInputDialog, QMessageBox,
-                             QFileDialog)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QComboBox,
+    QSpinBox,
+    QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QDialogButtonBox,
+    QMenu,
+    QInputDialog,
+    QMessageBox,
+    QFileDialog,
+)
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
-from app_core.utils import (wrap_table_with_glow, get_date_indicator_bg,
-                            get_status_indicator_bg, get_valid_until_bg)
+from app_core.utils import (
+    wrap_table_with_glow,
+    get_date_indicator_bg,
+    get_status_indicator_bg,
+    get_valid_until_bg,
+)
 from services.database import DatabaseManager
 from widgets.bulk_actions import build_bulk_toolbar, count_selected
 from widgets.toast import ToastNotification
 from widgets.photos import PhotoGalleryDialog
 from widgets.dropzone import DropZone
 from modules.textbook import TextbookLineEdit, DateAwareLineEdit
+from widgets.glass_button import GlassButton
+from widgets.export_helpers import add_export_buttons
+from widgets.record_links import RecordLinksDialog
+from widgets.glass_line_edit import GlassLineEdit
+from widgets.glass_combo_box import GlassComboBox
 
 from modules.print_engine import PrintEngine
 from modules.notes import NotesDialog
@@ -29,9 +53,12 @@ from widgets.audit_trail import AuditTrailDialog
 
 
 class EmployeeEditDialog(QDialog):
-    def __init__(self, data: Dict[str, Any] = None,
-                 columns: List[Dict[str, Any]] = None,
-                 parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        data: Dict[str, Any] = None,
+        columns: List[Dict[str, Any]] = None,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self._data = dict(data or {})
@@ -74,15 +101,24 @@ class EmployeeEditDialog(QDialog):
                 w.setRange(0, 999999999)
                 w.setMinimumHeight(36)
                 try:
-                    w.setValue(int(float(str(value).replace(" ", "").replace(",", "."))))
+                    w.setValue(
+                        int(float(str(value).replace(" ", "").replace(",", ".")))
+                    )
                 except Exception:
                     w.setValue(0)
-            elif typ in ("Дата", "Годен до", "Дата проведения", "Date", "Date of", "Valid until"):
+            elif typ in (
+                "Дата",
+                "Годен до",
+                "Дата проведения",
+                "Date",
+                "Date of",
+                "Valid until",
+            ):
                 w = DateAwareLineEdit(placeholder="ДД.ММ.ГГГГ")
                 w.setMinimumHeight(36)
                 w.setText(str(value))
             elif typ == "Статус":
-                w = QComboBox()
+                w = GlassComboBox()
                 w.setMinimumHeight(36)
                 statuses = ["Активен", "Архив", "В отпуске", "Уволен"]
                 w.addItems(statuses)
@@ -98,14 +134,13 @@ class EmployeeEditDialog(QDialog):
 
         self._dropzone = DropZone()
         self._dropzone.set_photos(self._photo_paths)
-        self._dropzone.on_change(lambda paths: setattr(self, '_photo_paths', paths))
+        self._dropzone.on_change(lambda paths: setattr(self, "_photo_paths", paths))
         form.addRow("", self._dropzone)
 
         scroll.setWidget(container)
         layout.addWidget(scroll, 1)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -132,8 +167,7 @@ class EmployeeEditDialog(QDialog):
 
 
 class EmployeeTableWidget(QWidget):
-    def __init__(self, parent: Optional[QWidget] = None,
-                 user_id: int = 0) -> None:
+    def __init__(self, parent: Optional[QWidget] = None, user_id: int = 0) -> None:
         super().__init__(parent)
         self.db = DatabaseManager()
         self._user_id = user_id
@@ -157,7 +191,7 @@ class EmployeeTableWidget(QWidget):
         toolbar = QHBoxLayout()
         toolbar.setSpacing(10)
 
-        self._search_edit = QLineEdit()
+        self._search_edit = GlassLineEdit()
         self._search_edit.setProperty("search", True)
         self._search_edit.setPlaceholderText(I18n._("search.placeholder"))
         self._search_edit.setMinimumHeight(36)
@@ -168,71 +202,64 @@ class EmployeeTableWidget(QWidget):
         self._search_edit.textChanged.connect(self._search_timer.start)
         toolbar.addWidget(self._search_edit, 1)
 
-        self._company_filter = QComboBox()
+        self._company_filter = GlassComboBox()
         self._company_filter.setMinimumHeight(36)
         self._company_filter.setMinimumWidth(180)
         self._company_filter.currentIndexChanged.connect(self._apply_filter)
         toolbar.addWidget(self._company_filter)
 
-        self._add_btn = QPushButton(I18n._("emp.add"))
+        self._add_btn = GlassButton(I18n._("emp.add"))
         self._add_btn.clicked.connect(self._add_record)
         toolbar.addWidget(self._add_btn)
 
-        self._edit_btn = QPushButton(I18n._("common.edit"))
+        self._edit_btn = GlassButton(I18n._("common.edit"))
         self._edit_btn.clicked.connect(self._edit_selected)
         toolbar.addWidget(self._edit_btn)
 
-        self._delete_btn = QPushButton(I18n._("common.delete"))
+        self._delete_btn = GlassButton(I18n._("common.delete"))
         self._delete_btn.clicked.connect(self._delete_selected)
         toolbar.addWidget(self._delete_btn)
 
-        self._photos_btn = QPushButton("📷 " + I18n._("emp.photo"))
+        self._photos_btn = GlassButton("📷 " + I18n._("emp.photo"))
         self._photos_btn.setProperty("flat", True)
         self._photos_btn.clicked.connect(self._open_photos)
         toolbar.addWidget(self._photos_btn)
 
-        self._notes_btn = QPushButton("📝 " + I18n._("common.notes"))
+        self._notes_btn = GlassButton("📝 " + I18n._("common.notes"))
         self._notes_btn.setProperty("flat", True)
         self._notes_btn.clicked.connect(self._open_notes)
         toolbar.addWidget(self._notes_btn)
 
-        self._export_btn = QPushButton("📤 " + I18n._("export.title"))
+        self._links_btn = GlassButton("🔗 Связать")
+        self._links_btn.setProperty("flat", True)
+        self._links_btn.clicked.connect(self._open_links)
+        toolbar.addWidget(self._links_btn)
+
+        self._export_btn = GlassButton("📤 " + I18n._("export.title"))
         self._export_btn.setProperty("flat", True)
         self._export_btn.clicked.connect(self._export_selected)
         toolbar.addWidget(self._export_btn)
 
-        self._pdf_btn = QPushButton("📄 " + I18n._("pdf.export"))
+        add_export_buttons(
+            toolbar, lambda: self._records, lambda: self._columns, "employees", self
+        )
+
+        self._pdf_btn = GlassButton("📄 " + I18n._("pdf.export"))
         self._pdf_btn.setProperty("flat", True)
         self._pdf_btn.clicked.connect(self._export_pdf)
         toolbar.addWidget(self._pdf_btn)
 
-        self._print_btn = QPushButton("🖨 " + I18n._("print.any_table"))
+        self._print_btn = GlassButton("🖨 " + I18n._("print.any_table"))
         self._print_btn.setProperty("flat", True)
         self._print_btn.clicked.connect(self._print_selected)
         toolbar.addWidget(self._print_btn)
 
-        self._refresh_btn = QPushButton(I18n._("common.refresh"))
+        self._refresh_btn = GlassButton(I18n._("common.refresh"))
         self._refresh_btn.setProperty("flat", True)
         self._refresh_btn.clicked.connect(self._load_data)
         toolbar.addWidget(self._refresh_btn)
 
         layout.addLayout(toolbar)
-
-        bulk_bar = QHBoxLayout()
-        sel_label = QLabel()
-        sel_label.setStyleSheet("font-size: 12px; padding: 2px 0;")
-        bulk_bar.addWidget(sel_label)
-        bulk_bar.addStretch()
-        bulk_bar_inner = build_bulk_toolbar(self._table, "employees",
-                                             on_refresh=self._load_data)
-        for i in range(bulk_bar_inner.count()):
-            w = bulk_bar_inner.itemAt(i).widget()
-            if w:
-                bulk_bar.addWidget(w)
-        self._table.itemSelectionChanged.connect(
-            lambda: sel_label.setText(
-                f"{I18n._('bulk.selected')}: {count_selected(self._table)}"))
-        layout.addLayout(bulk_bar)
 
         self._table = QTableWidget()
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -246,9 +273,11 @@ class EmployeeTableWidget(QWidget):
         self._table.horizontalHeader().sectionClicked.connect(self._on_header_clicked)
         self._table.horizontalHeader().setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.horizontalHeader().customContextMenuRequested.connect(
-            self._on_header_context_menu)
+            self._on_header_context_menu
+        )
         self._table.horizontalHeader().sectionDoubleClicked.connect(
-            lambda idx: self._table.resizeColumnToContents(idx))
+            lambda idx: self._table.resizeColumnToContents(idx)
+        )
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.itemChanged.connect(self._on_item_changed)
         self._table.itemDoubleClicked.connect(lambda: self._edit_selected())
@@ -257,6 +286,26 @@ class EmployeeTableWidget(QWidget):
         self._table.setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_table_context_menu)
         self._table.verticalHeader().setDefaultSectionSize(36)
+
+        bulk_bar = QHBoxLayout()
+        sel_label = QLabel()
+        sel_label.setStyleSheet("font-size: 12px; padding: 2px 0;")
+        bulk_bar.addWidget(sel_label)
+        bulk_bar.addStretch()
+        bulk_bar_inner = build_bulk_toolbar(
+            self._table, "employees", on_refresh=self._load_data
+        )
+        for i in range(bulk_bar_inner.count()):
+            w = bulk_bar_inner.itemAt(i).widget()
+            if w:
+                bulk_bar.addWidget(w)
+        self._table.itemSelectionChanged.connect(
+            lambda: sel_label.setText(
+                f"{I18n._('bulk.selected')}: {count_selected(self._table)}"
+            )
+        )
+        layout.addLayout(bulk_bar)
+
         layout.addWidget(wrap_table_with_glow(self._table, self))
 
         self._info_label = QLabel()
@@ -265,8 +314,7 @@ class EmployeeTableWidget(QWidget):
 
     def _load_data(self) -> None:
         self._columns = self.db.get_columns_config("employees")
-        records = self.db.get_json_records("employees",
-                                           user_id=self._user_id)
+        records = self.db.get_json_records("employees", user_id=self._user_id)
         self._all_records = records
         self._search_edit.clear()
         self._populate_filter()
@@ -366,7 +414,14 @@ class EmployeeTableWidget(QWidget):
                 elif typ == "Статус":
                     item.setText(str(value))
                     item.setTextAlignment(Qt.AlignCenter)
-                elif typ in ("Дата", "Годен до", "Дата проведения", "Date", "Date of", "Valid until"):
+                elif typ in (
+                    "Дата",
+                    "Годен до",
+                    "Дата проведения",
+                    "Date",
+                    "Date of",
+                    "Valid until",
+                ):
                     item.setText(str(value))
                     item.setTextAlignment(Qt.AlignCenter)
                 elif name == "ID":
@@ -388,9 +443,9 @@ class EmployeeTableWidget(QWidget):
         self._table.blockSignals(False)
         self._update_info()
 
-    def _get_cell_color(self, typ: str, value: str,
-                        data: Dict[str, Any],
-                        field_name: str) -> Optional[QColor]:
+    def _get_cell_color(
+        self, typ: str, value: str, data: Dict[str, Any], field_name: str
+    ) -> Optional[QColor]:
         is_dark = ThemeEngine._current_theme == "dark"
         now = datetime.now()
 
@@ -417,11 +472,11 @@ class EmployeeTableWidget(QWidget):
         self._info_label.setText(text)
         try:
             p = self.parent()
-            if p and hasattr(p, 'setTabText'):
+            if p and hasattr(p, "setTabText"):
                 tw = p
             else:
-                tw = getattr(p, 'parent', lambda: None)() if p else None
-            if tw and hasattr(tw, 'setTabText'):
+                tw = getattr(p, "parent", lambda: None)() if p else None
+            if tw and hasattr(tw, "setTabText"):
                 for i in range(tw.count()):
                     if tw.widget(i) is self:
                         tw.setTabText(i, f"{I18n._('tab.employees')} ({total})")
@@ -444,7 +499,9 @@ class EmployeeTableWidget(QWidget):
 
     def _sort_data(self) -> None:
         if self._sort_col < 0 or self._sort_col >= len(self._columns):
-            self._records.sort(key=lambda r: str(r.get("data_json", {}).get("ФИО", "")).lower())
+            self._records.sort(
+                key=lambda r: str(r.get("data_json", {}).get("ФИО", "")).lower()
+            )
             return
         col = self._columns[self._sort_col]
         name = col["name"]
@@ -479,15 +536,19 @@ class EmployeeTableWidget(QWidget):
                 duplicate = self.db.find_employee_duplicate(data, user_id=self._user_id)
                 if duplicate:
                     merged = dict(duplicate.get("data_json", {}))
-                    merged.update({k: v for k, v in data.items() if str(v).strip() != ""})
-                    self.db.save_json_record("employees", duplicate["id"], merged,
-                                             user_id=self._user_id)
+                    merged.update(
+                        {k: v for k, v in data.items() if str(v).strip() != ""}
+                    )
+                    self.db.save_json_record(
+                        "employees", duplicate["id"], merged, user_id=self._user_id
+                    )
                     self._load_data()
-                    ToastNotification.notify(I18n._("emp.duplicate_updated"), "success", 3000)
+                    ToastNotification.notify(
+                        I18n._("emp.duplicate_updated"), "success", 3000
+                    )
                     self.db.merge_duplicates("employees")
                     return
-                self.db.save_json_record("employees", 0, data,
-                                         user_id=self._user_id)
+                self.db.save_json_record("employees", 0, data, user_id=self._user_id)
                 self.db.merge_duplicates("employees")
                 self._load_data()
                 ToastNotification.notify(I18n._("common.success"), "success", 3000)
@@ -500,12 +561,17 @@ class EmployeeTableWidget(QWidget):
         if dlg.exec_() == QDialog.Accepted:
             data = dlg.get_data()
             try:
-                duplicate = self.db.find_employee_duplicate(data, exclude_id=record["id"], user_id=self._user_id)
+                duplicate = self.db.find_employee_duplicate(
+                    data, exclude_id=record["id"], user_id=self._user_id
+                )
                 if duplicate:
-                    QMessageBox.warning(self, I18n._("common.warning"), I18n._("emp.duplicate_found"))
+                    QMessageBox.warning(
+                        self, I18n._("common.warning"), I18n._("emp.duplicate_found")
+                    )
                     return
-                self.db.save_json_record("employees", record["id"], data,
-                                         user_id=self._user_id)
+                self.db.save_json_record(
+                    "employees", record["id"], data, user_id=self._user_id
+                )
                 self.db.merge_duplicates("employees")
                 self._load_data()
                 ToastNotification.notify(I18n._("common.success"), "success", 3000)
@@ -527,24 +593,31 @@ class EmployeeTableWidget(QWidget):
             return
         if len(rows) > 3:
             backup_reply = QMessageBox.question(
-                self, I18n._("common.confirm"),
-                I18n._("emp.backup_before_delete") if hasattr(I18n, "_") else
-                f"Создать резервную копию перед удалением {len(rows)} записей?",
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
+                self,
+                I18n._("common.confirm"),
+                I18n._("emp.backup_before_delete")
+                if hasattr(I18n, "_")
+                else f"Создать резервную копию перед удалением {len(rows)} записей?",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+            )
             if backup_reply == QMessageBox.Cancel:
                 return
             if backup_reply == QMessageBox.Yes:
                 try:
                     self.db.create_backup()
-                    ToastNotification.notify(I18n._("toast.backup_created"), "info", 3000)
+                    ToastNotification.notify(
+                        I18n._("toast.backup_created"), "info", 3000
+                    )
                 except Exception:
                     pass
         reply = QMessageBox.question(
-            self, I18n._("common.confirm"),
-            I18n._("emp.delete_confirm").format(
-                count=len(rows)) if hasattr(I18n, "_") else
-            f"{I18n._('common.delete')} {len(rows)} {I18n._('emp.fio')}?",
-            QMessageBox.Yes | QMessageBox.No)
+            self,
+            I18n._("common.confirm"),
+            I18n._("emp.delete_confirm").format(count=len(rows))
+            if hasattr(I18n, "_")
+            else f"{I18n._('common.delete')} {len(rows)} {I18n._('emp.fio')}?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
         for row in sorted(rows, reverse=True):
@@ -562,21 +635,28 @@ class EmployeeTableWidget(QWidget):
             return
         rec = self._records[row]
         dj = rec.get("data_json", {})
-        path, _ = QFileDialog.getSaveFileName(self, I18n._("pdf.export"),
-                                               f"employee_{rec['id']}.pdf",
-                                               "PDF (*.pdf)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, I18n._("pdf.export"), f"employee_{rec['id']}.pdf", "PDF (*.pdf)"
+        )
         if not path:
             return
         rows_html = "".join(
             f"<tr><td><b>{c['name']}</b></td><td>{str(dj.get(c['name'], ''))}</td></tr>"
-            for c in self._columns)
-        html = (f"<h2>{I18n._('tab.employees')} #{rec['id']}</h2>"
-                f"<table border='1' cellpadding='4' style='border-collapse:collapse;width:100%'>"
-                f"{rows_html}</table>")
+            for c in self._columns
+        )
+        html = (
+            f"<h2>{I18n._('tab.employees')} #{rec['id']}</h2>"
+            f"<table border='1' cellpadding='4' style='border-collapse:collapse;width:100%'>"
+            f"{rows_html}</table>"
+        )
         if PrintEngine.export_to_pdf(html, path, self):
-            ToastNotification.notify(I18n._("pdf.success").format(path=path), "success", 3000)
+            ToastNotification.notify(
+                I18n._("pdf.success").format(path=path), "success", 3000
+            )
         else:
-            ToastNotification.notify(I18n._("export.error").format(error="PDF"), "error", 5000)
+            ToastNotification.notify(
+                I18n._("export.error").format(error="PDF"), "error", 5000
+            )
 
     def _export_selected(self) -> None:
         row = self._table.currentRow()
@@ -585,9 +665,9 @@ class EmployeeTableWidget(QWidget):
             return
         rec = self._records[row]
         dj = rec.get("data_json", {})
-        path, _ = QFileDialog.getSaveFileName(self, I18n._("export.title"),
-                                               f"record_{rec['id']}.csv",
-                                               "CSV (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, I18n._("export.title"), f"record_{rec['id']}.csv", "CSV (*.csv)"
+        )
         if not path:
             return
         try:
@@ -596,9 +676,13 @@ class EmployeeTableWidget(QWidget):
                 w.writerow([c["name"] for c in self._columns])
                 row_data = [dj.get(c["name"], "") for c in self._columns]
                 w.writerow(row_data)
-            ToastNotification.notify(I18n._("export.success").format(path=path), "success", 3000)
+            ToastNotification.notify(
+                I18n._("export.success").format(path=path), "success", 3000
+            )
         except Exception as e:
-            ToastNotification.notify(I18n._("export.error").format(error=str(e)), "error", 5000)
+            ToastNotification.notify(
+                I18n._("export.error").format(error=str(e)), "error", 5000
+            )
 
     def _print_selected(self) -> None:
         rows = sorted(set(idx.row() for idx in self._table.selectedIndexes()))
@@ -628,8 +712,9 @@ class EmployeeTableWidget(QWidget):
             new_photos = dlg.get_photos()
             dj["Фото"] = new_photos
             try:
-                self.db.save_json_record("employees", rec["id"], dj,
-                                         user_id=self._user_id)
+                self.db.save_json_record(
+                    "employees", rec["id"], dj, user_id=self._user_id
+                )
                 self._load_data()
             except Exception:
                 ToastNotification.notify(I18n._("error.generic"), "error", 5000)
@@ -650,8 +735,7 @@ class EmployeeTableWidget(QWidget):
         new_value = item.text().strip()
         dj[name] = new_value
         try:
-            self.db.save_json_record("employees", rec["id"], dj,
-                                     user_id=self._user_id)
+            self.db.save_json_record("employees", rec["id"], dj, user_id=self._user_id)
         except Exception:
             traceback.print_exc()
 
@@ -662,6 +746,16 @@ class EmployeeTableWidget(QWidget):
             return
         rec = self._records[row]
         dlg = NotesDialog("employees", rec["id"], "", self)
+        dlg.exec_()
+
+    def _open_links(self) -> None:
+        row = self._table.currentRow()
+        if row < 0 or row >= len(self._records):
+            ToastNotification.notify(I18n._("common.no_selection"), "warning", 3000)
+            return
+        rec = self._records[row]
+        name = rec.get("data_json", {}).get("ФИО", f"#{rec['id']}")
+        dlg = RecordLinksDialog("employees", rec["id"], name, self)
         dlg.exec_()
 
     def _on_header_context_menu(self, pos: QPoint) -> None:
@@ -687,26 +781,36 @@ class EmployeeTableWidget(QWidget):
 
     def _rename_column(self, col: Dict[str, Any]) -> None:
         new_name, ok = QInputDialog.getText(
-            self, I18n._("column.rename"), I18n._("column.rename_prompt"),
-            text=col["name"])
+            self,
+            I18n._("column.rename"),
+            I18n._("column.rename_prompt"),
+            text=col["name"],
+        )
         if ok and new_name:
             if self.db.rename_column("employees", col["name"], new_name):
                 self._load_data()
                 ToastNotification.notify(I18n._("common.success"), "success", 3000)
             else:
-                QMessageBox.warning(self, I18n._("common.warning"),
-                                    I18n._("column.duplicate_error"))
+                QMessageBox.warning(
+                    self, I18n._("common.warning"), I18n._("column.duplicate_error")
+                )
 
     def _add_column(self) -> None:
         name, ok = QInputDialog.getText(
-            self, I18n._("column.add"), I18n._("column.add_prompt"))
+            self, I18n._("column.add"), I18n._("column.add_prompt")
+        )
         if ok and name:
-            types = [I18n._("column.type_text"), I18n._("column.type_number"),
-                     I18n._("column.type_date"), I18n._("column.type_date_conducted"),
-                     I18n._("column.type_status"), I18n._("column.type_media")]
+            types = [
+                I18n._("column.type_text"),
+                I18n._("column.type_number"),
+                I18n._("column.type_date"),
+                I18n._("column.type_date_conducted"),
+                I18n._("column.type_status"),
+                I18n._("column.type_media"),
+            ]
             typ, ok2 = QInputDialog.getItem(
-                self, I18n._("column.change_type"), "",
-                types, 0, False)
+                self, I18n._("column.change_type"), "", types, 0, False
+            )
             if ok2 and typ:
                 type_map = {
                     I18n._("column.type_text"): "Текст",
@@ -723,21 +827,30 @@ class EmployeeTableWidget(QWidget):
 
     def _delete_column(self, col: Dict[str, Any]) -> None:
         reply = QMessageBox.question(
-            self, I18n._("common.confirm"),
+            self,
+            I18n._("common.confirm"),
             f"{I18n._('column.delete')}: '{col['name']}'?",
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply == QMessageBox.Yes:
             if self.db.delete_column("employees", col["name"]):
                 self._load_data()
-                ToastNotification.notify(I18n._("toast.delete_success"), "success", 3000)
+                ToastNotification.notify(
+                    I18n._("toast.delete_success"), "success", 3000
+                )
 
     def _change_column_type(self, col: Dict[str, Any]) -> None:
-        types = [I18n._("column.type_text"), I18n._("column.type_number"),
-                 I18n._("column.type_date"), I18n._("column.type_date_conducted"),
-                 I18n._("column.type_status"), I18n._("column.type_media")]
+        types = [
+            I18n._("column.type_text"),
+            I18n._("column.type_number"),
+            I18n._("column.type_date"),
+            I18n._("column.type_date_conducted"),
+            I18n._("column.type_status"),
+            I18n._("column.type_media"),
+        ]
         typ, ok = QInputDialog.getItem(
-            self, I18n._("column.change_type"), "",
-            types, 0, False)
+            self, I18n._("column.change_type"), "", types, 0, False
+        )
         if ok and typ:
             type_map = {
                 I18n._("column.type_text"): "Текст",
@@ -752,7 +865,8 @@ class EmployeeTableWidget(QWidget):
                 self.db.create_backup()
                 self.db.conn.execute(
                     "UPDATE columns_config SET type=? WHERE category=? AND name=?",
-                    (mapped_type, "employees", col["name"]))
+                    (mapped_type, "employees", col["name"]),
+                )
                 self.db.conn.commit()
                 self._load_data()
                 ToastNotification.notify(I18n._("common.success"), "success", 3000)

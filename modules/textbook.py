@@ -3,10 +3,23 @@ from typing import Any, Dict, List, Tuple, Optional
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QKeyEvent
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                             QLineEdit, QTextEdit, QPushButton, QTableWidget,
-                             QTableWidgetItem, QHeaderView, QAbstractItemView,
-                             QInputDialog, QMessageBox, QWidget)
+from PyQt5.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QTextEdit,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QInputDialog,
+    QMessageBox,
+    QWidget,
+)
+
+from widgets.glass_button import GlassButton
+from widgets.glass_line_edit import GlassLineEdit
 
 from app_core.i18n import I18n
 from app_core.utils import wrap_table_with_glow
@@ -84,9 +97,8 @@ class TextbookEngine:
             return False
 
 
-class TextbookLineEdit(QLineEdit):
-    def __init__(self, parent: Optional[QWidget] = None,
-                 placeholder: str = "") -> None:
+class TextbookLineEdit(GlassLineEdit):
+    def __init__(self, parent: Optional[QWidget] = None, placeholder: str = "") -> None:
         super().__init__(parent)
         if placeholder:
             self.setPlaceholderText(placeholder)
@@ -121,7 +133,9 @@ class TextbookTextEdit(QTextEdit):
                     replacement, replaced = TextbookEngine.process(last_word)
                     if replaced:
                         words[-1] = replacement
-                        self.setPlainText(" ".join(words).replace("\n ", "\n").replace(" \n", "\n"))
+                        self.setPlainText(
+                            " ".join(words).replace("\n ", "\n").replace(" \n", "\n")
+                        )
                         cursor = self.textCursor()
                         cursor.movePosition(cursor.End)
                         self.setTextCursor(cursor)
@@ -150,30 +164,31 @@ class TextbookDialog(QDialog):
         hint.setStyleSheet("font-size: 12px;")
         layout.addWidget(hint)
 
-        self._search_edit = QLineEdit()
+        self._search_edit = GlassLineEdit()
         self._search_edit.setPlaceholderText(I18n._("common.search_hint"))
         self._search_edit.textChanged.connect(self._filter_rules)
         layout.addWidget(self._search_edit)
 
         self._table = QTableWidget()
         self._table.setColumnCount(2)
-        self._table.setHorizontalHeaderLabels([
-            I18n._("textbook.shortcode"), I18n._("textbook.fulltext")])
+        self._table.setHorizontalHeaderLabels(
+            [I18n._("textbook.shortcode"), I18n._("textbook.fulltext")]
+        )
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
         layout.addWidget(wrap_table_with_glow(self._table, self))
 
         btn_layout = QHBoxLayout()
-        add_btn = QPushButton(I18n._("textbook.add"))
+        add_btn = GlassButton(I18n._("textbook.add"))
         add_btn.clicked.connect(self._add_rule)
         btn_layout.addWidget(add_btn)
-        del_btn = QPushButton(I18n._("textbook.delete"))
+        del_btn = GlassButton(I18n._("textbook.delete"))
         del_btn.setProperty("danger", True)
         del_btn.clicked.connect(self._delete_rule)
         btn_layout.addWidget(del_btn)
         btn_layout.addStretch()
-        close_btn = QPushButton(I18n._("common.close"))
+        close_btn = GlassButton(I18n._("common.close"))
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
@@ -186,8 +201,9 @@ class TextbookDialog(QDialog):
         query = self._search_edit.text().strip().lower()
         rules = self._all_rules
         if query:
-            rules = [(c, t) for c, t in rules
-                     if query in c.lower() or query in t.lower()]
+            rules = [
+                (c, t) for c, t in rules if query in c.lower() or query in t.lower()
+            ]
         self._table.setRowCount(len(rules))
         for i, (code, text) in enumerate(rules):
             code_item = QTableWidgetItem(code)
@@ -205,11 +221,13 @@ class TextbookDialog(QDialog):
 
     def _add_rule(self) -> None:
         code, ok = QInputDialog.getText(
-            self, I18n._("textbook.add"), I18n._("textbook.shortcode"))
+            self, I18n._("textbook.add"), I18n._("textbook.shortcode")
+        )
         if not ok or not code:
             return
         text, ok2 = QInputDialog.getMultiLineText(
-            self, I18n._("textbook.add"), I18n._("textbook.fulltext"))
+            self, I18n._("textbook.add"), I18n._("textbook.fulltext")
+        )
         if ok2 and text:
             TextbookEngine.add_rule(code.strip(), text.strip())
             self._load_rules()
@@ -221,9 +239,11 @@ class TextbookDialog(QDialog):
             return
         code = self._table.item(row, 0).text()
         reply = QMessageBox.question(
-            self, I18n._("common.confirm"),
+            self,
+            I18n._("common.confirm"),
             f"{I18n._('common.delete')}: '{code}'?",
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply == QMessageBox.Yes:
             TextbookEngine.delete_rule(code)
             self._load_rules()
@@ -237,12 +257,14 @@ def auto_format_date(text: str) -> str:
     def _replacer(m: re.Match) -> str:
         month, day, year = m.group(1), m.group(2), m.group(3)
         return f"{day}.{month}.{year}"
+
     return DATE_PATTERN.sub(_replacer, text)
 
 
-class DateAwareLineEdit(QLineEdit):
-    def __init__(self, parent: Optional[QWidget] = None,
-                 placeholder: str = "ДД.ММ.ГГГГ") -> None:
+class DateAwareLineEdit(GlassLineEdit):
+    def __init__(
+        self, parent: Optional[QWidget] = None, placeholder: str = "ДД.ММ.ГГГГ"
+    ) -> None:
         super().__init__(parent)
         self.setPlaceholderText(placeholder)
 

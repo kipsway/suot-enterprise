@@ -1,9 +1,19 @@
 from typing import Optional
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                             QLineEdit, QTextEdit, QPushButton, QListWidget,
-                             QListWidgetItem, QMessageBox, QWidget)
+from PyQt5.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QTextEdit,
+    QPushButton,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QWidget,
+)
 
 from app_core.i18n import I18n
 from services.database import DatabaseManager
@@ -11,15 +21,23 @@ from widgets.toast import ToastNotification
 
 
 class NotesDialog(QDialog):
-    def __init__(self, entity_type: str = "global", entity_id: int = 0,
-                 entity_name: str = "", parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        entity_type: str = "global",
+        entity_id: int = 0,
+        entity_name: str = "",
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.db = DatabaseManager()
         self._entity_type = entity_type
         self._entity_id = entity_id
-        self.setWindowTitle(f"{I18n._('notes.title')} — {entity_name}" if entity_name
-                            else I18n._("notes.title"))
+        self.setWindowTitle(
+            f"{I18n._('notes.title')} — {entity_name}"
+            if entity_name
+            else I18n._("notes.title")
+        )
         self.setMinimumSize(600, 450)
         self.resize(700, 500)
         self._build_ui()
@@ -80,12 +98,23 @@ class NotesDialog(QDialog):
         notes = self.db.get_notes(self._entity_type, self._entity_id)
         for n in notes:
             content = n.get("content", "")
-            preview = content[:80].replace("<", "&lt;").replace(">", "&gt;").replace("\n", " ") if content else ""
+            preview = (
+                content[:80]
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\n", " ")
+                if content
+                else ""
+            )
             title = n.get("title") or I18n._("notes.title") + f" #{n['id']}"
             item = QListWidgetItem(f"{title} — {preview}" if preview else title)
             item.setData(Qt.UserRole, n["id"])
             item.setData(Qt.UserRole + 1, content)
-            item.setToolTip(content[:200].replace("<", "&lt;").replace(">", "&gt;") if content else "")
+            item.setToolTip(
+                content[:200].replace("<", "&lt;").replace(">", "&gt;")
+                if content
+                else ""
+            )
             self._list.addItem(item)
 
     def _on_note_selected(self, item: QListWidgetItem) -> None:
@@ -104,8 +133,13 @@ class NotesDialog(QDialog):
             return
         title = I18n._("notes.title") + f" #{self._current_note_id or ''}"
         try:
-            self.db.save_note(self._entity_type, self._entity_id,
-                              title, content, self._current_note_id or 0)
+            self.db.save_note(
+                self._entity_type,
+                self._entity_id,
+                title,
+                content,
+                self._current_note_id or 0,
+            )
             self._load_notes()
             ToastNotification.notify(I18n._("common.success"), "success", 3000)
         except Exception:
@@ -114,9 +148,12 @@ class NotesDialog(QDialog):
     def _delete_note(self) -> None:
         if not self._current_note_id:
             return
-        reply = QMessageBox.question(self, I18n._("common.confirm"),
-                                     I18n._("notes.delete") + "?",
-                                     QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(
+            self,
+            I18n._("common.confirm"),
+            I18n._("notes.delete") + "?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply == QMessageBox.Yes:
             self.db.delete_note(self._current_note_id)
             self._current_note_id = None

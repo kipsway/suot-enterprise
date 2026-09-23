@@ -1,22 +1,83 @@
 import json, os, sys, subprocess, webbrowser, shutil, tempfile, zipfile
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
-from PyQt5.QtCore import (Qt, QTimer, QPoint, QEvent, QSize, QUrl,
-    QObject, QProcess, QPropertyAnimation, QEasingCurve)
-from PyQt5.QtGui import (QColor, QFont, QIcon, QPixmap, QPalette,
-    QDesktopServices, QCursor, QPainter,
-    QLinearGradient, QBrush, QPen, QKeySequence)
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QFrame,
-    QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QComboBox, QTabWidget, QScrollArea, QMessageBox, QInputDialog,
-    QFileDialog, QDialog, QTreeWidget, QTreeWidgetItem, QSplitter,
-    QToolButton, QMenu, QAction, QDialogButtonBox, QSystemTrayIcon,
-    QSizePolicy, QGraphicsDropShadowEffect, QStackedWidget,
-    QListWidget, QListWidgetItem, QCheckBox, QSpinBox, QSlider,
-    QButtonGroup, QRadioButton, QGridLayout, QFormLayout, QTextEdit,
-    QTextBrowser, QHeaderView, QAbstractItemView, QTableWidget,
-    QTableWidgetItem, QGroupBox, QProgressBar, QStatusBar,
-    QDockWidget, QMenuBar, QToolBar, QShortcut)
+from PyQt5.QtCore import (
+    Qt,
+    QTimer,
+    QPoint,
+    QEvent,
+    QSize,
+    QUrl,
+    QObject,
+    QProcess,
+    QPropertyAnimation,
+    QEasingCurve,
+)
+from PyQt5.QtGui import (
+    QColor,
+    QFont,
+    QIcon,
+    QPixmap,
+    QPalette,
+    QDesktopServices,
+    QCursor,
+    QPainter,
+    QLinearGradient,
+    QBrush,
+    QPen,
+    QKeySequence,
+)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QComboBox,
+    QTabWidget,
+    QScrollArea,
+    QMessageBox,
+    QInputDialog,
+    QFileDialog,
+    QDialog,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QSplitter,
+    QToolButton,
+    QMenu,
+    QAction,
+    QDialogButtonBox,
+    QSystemTrayIcon,
+    QSizePolicy,
+    QGraphicsDropShadowEffect,
+    QStackedWidget,
+    QListWidget,
+    QListWidgetItem,
+    QCheckBox,
+    QSpinBox,
+    QSlider,
+    QButtonGroup,
+    QRadioButton,
+    QGridLayout,
+    QFormLayout,
+    QTextEdit,
+    QTextBrowser,
+    QHeaderView,
+    QAbstractItemView,
+    QTableWidget,
+    QTableWidgetItem,
+    QGroupBox,
+    QProgressBar,
+    QStatusBar,
+    QDockWidget,
+    QMenuBar,
+    QToolBar,
+    QShortcut,
+)
 
 from app_core.config import RUNTIME_PATHS, AppConfig
 from app_core.i18n import I18n
@@ -29,7 +90,6 @@ from services.rest_api import RESTAPIServer
 from services.telegram_bot import TelegramBot
 from widgets.toast import ToastNotification
 from modules.login import LoginDialog
-from modules.dashboard import DashboardTab
 from modules.employees import EmployeeTableWidget, EmployeeEditDialog
 from modules.violations import ViolationsTableWidget, ViolationEditDialog
 from modules.violations_type import ViolationTypeDialog
@@ -38,9 +98,21 @@ from modules.ledger import CustomLedgerTableWidget, CustomLedgerEditDialog
 from modules.textbook import TextbookDialog, TextbookLineEdit
 from modules.statistics import StatisticsTab
 from modules.notes import NotesDialog
-from modules.reminders import RemindersDialog, ReminderEngine, ExpiringRemindersTab, ReminderFloatingDialog
+from modules.reminders import (
+    RemindersDialog,
+    ReminderEngine,
+    ExpiringRemindersTab,
+    ReminderFloatingDialog,
+)
 from modules.print_engine import PrintEngine
-from modules.data_dialogs import ImportDialog, ExportDialog, GlobalSearchDialog, ReportDialog, QuickReportDialog
+from modules.data_dialogs import (
+    ImportDialog,
+    ExportDialog,
+    GlobalSearchDialog,
+    ReportDialog,
+    QuickReportDialog,
+)
+from widgets.glass_button import GlassButton
 from modules.ai import AIChatDialog, AIChatInlineWidget, AIEngine
 from modules.ai_insights import AIInsightsWidget
 from modules.calendar_tab import CalendarTab
@@ -50,6 +122,17 @@ from modules.training import TrainingTableWidget
 from modules.permits import PermitsTableWidget
 from modules.timeline import TimelineTab
 from modules.settings import SettingsDialog, UsersDialog, AuditTab, HotkeyManager
+from modules.work_orders import WorkOrdersTableWidget
+from modules.ppe_inspection import PPEInspectionWidget
+from widgets.omnibox import Omnibox
+from widgets.onboarding import OnboardingDialog
+from widgets.ai_report import AIReportDialog
+from services.permissions import UserPermissions
+from widgets.home_page import HomePage
+from modules.protocols import ProtocolsTab
+from modules.checklists import ChecklistsTab
+from modules.capa import CAPATab
+from modules.risk_assessment import RiskAssessmentTab
 from modules.tools import FineKinneyCalculator, TextbookManagerDialog, PrintDialog
 from modules.print_editor import PrintTemplateEditor
 
@@ -59,9 +142,12 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.db = DatabaseManager()
         self._user = user or {}
+        role = self._user.get("role", "Inspector")
+        self._perms = UserPermissions(role)
         self._build_ui()
         self._setup_toolbar()
         self._load_settings()
+        self._apply_permissions()
         self._populate_dashboard()
         self._init_auto_save()
         self._hotkeys = HotkeyManager(self)
@@ -69,6 +155,73 @@ class MainWindow(QMainWindow):
         self._telegram_bot.start()
         self._rest_api = RESTAPIServer()
         self._rest_api.start()
+
+        from services.tray_manager import TrayManager
+
+        self._tray = TrayManager.instance(self)
+        self._tray.init(on_show=self._show_from_tray, on_quit=self._quit_app)
+
+        self._omnibox = Omnibox(self)
+        self._omnibox.recordSelected.connect(self._omnibox_navigate_record)
+        self._omnibox.commandTriggered.connect(self._omnibox_command)
+        self._omnibox.tabNavigated.connect(self._omnibox_navigate_tab)
+        omnibox_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        omnibox_shortcut.activated.connect(self._open_omnibox)
+
+        from app_core.plugin_system import PluginManager
+        from app_core.config import RUNTIME_PATHS
+
+        self._plugin_manager = PluginManager(RUNTIME_PATHS.plugins_dir)
+        self._plugin_manager.discover_plugins()
+        self._plugin_manager.trigger("startup")
+
+    def _open_omnibox(self) -> None:
+        self._omnibox.show_at()
+
+    def _omnibox_navigate_record(self, table: str, rid: int) -> None:
+        tab_map = {
+            "employees": "tab.employees",
+            "violations": "tab.violations",
+            "custom_ledger": "tab.custom_ledger",
+            "incidents": "tab.incidents",
+            "ppe": "tab.ppe",
+            "training": "tab.training",
+            "permits": "tab.permits",
+        }
+        key = tab_map.get(table)
+        if key and key in self._tabs_data:
+            idx, widget = self._tabs_data[key]
+            self._tab_widget.setCurrentIndex(idx)
+            if hasattr(widget, "focus_record"):
+                widget.focus_record(rid)
+
+    def _omnibox_navigate_tab(self, tab_key: str) -> None:
+        if tab_key in self._tabs_data:
+            idx, _ = self._tabs_data[tab_key]
+            self._tab_widget.setCurrentIndex(idx)
+
+    def _omnibox_command(self, action: str) -> None:
+        cmds = {
+            "ai": self._open_ai_chat,
+            "settings": self._open_settings,
+            "backup": self._open_backup_dialog,
+            "calc": self._open_risk_calc,
+            "search": self._open_global_search,
+            "report": self._open_ai_report,
+            "export": self._open_export_dialog,
+        }
+        fn = cmds.get(action)
+        if fn:
+            fn()
+
+    def _show_from_tray(self) -> None:
+        self.showNormal()
+        self.activateWindow()
+        self.raise_()
+
+    def _quit_app(self) -> None:
+        self._tray.shutdown()
+        QApplication.quit()
 
     def _btn_text(self, key: str, fallback: str) -> str:
         custom = self.db.get_setting(key, "")
@@ -91,7 +244,13 @@ class MainWindow(QMainWindow):
             self._rest_api.stop()
         except Exception:
             pass
-        event.accept()
+
+        if hasattr(self, "_tray") and self._tray.is_available():
+            event.ignore()
+            self.hide()
+            self._tray.notify("SUOT Enterprise", "Приложение свёрнуто в трей")
+        else:
+            event.accept()
 
     def _build_ui(self) -> None:
         self.setWindowTitle(I18n._("app.name"))
@@ -100,13 +259,16 @@ class MainWindow(QMainWindow):
         center = QApplication.primaryScreen().availableGeometry().center()
         self.move(center.x() - 700, center.y() - 425)
 
-        self._tab_widget = QTabWidget()
-        self._tab_widget.setDocumentMode(True)
-        self._tab_widget.setMovable(True)
-        self._tab_widget.setTabsClosable(False)
+        from widgets.browser_tabs import BrowserTabWidget
+
+        self._tab_widget = BrowserTabWidget()
+        self._tab_widget._session_path = os.path.join(
+            RUNTIME_PATHS.app_dir, "session.json"
+        )
         self._tab_widget.tabBar().setContextMenuPolicy(Qt.CustomContextMenu)
         self._tab_widget.tabBar().customContextMenuRequested.connect(
-            self._on_tab_context_menu)
+            self._on_tab_context_menu
+        )
         self.setCentralWidget(self._tab_widget)
 
         self._status = QStatusBar()
@@ -126,14 +288,22 @@ class MainWindow(QMainWindow):
             btn.setText(icon)
             btn.setToolTip(tip)
             btn.clicked.connect(slot)
-            btn.setStyleSheet("QToolButton { padding: 4px 6px; font-size: 13px; min-width: 22px; }")
+            btn.setStyleSheet(
+                "QToolButton { padding: 4px 6px; font-size: 13px; min-width: 22px; }"
+            )
             tb.addWidget(btn)
             return btn
 
-        self._theme_btn = tb_btn("☀" if ThemeEngine._current_theme == "light" else "☾",
-               I18n._("settings.theme"), self._toggle_theme)
-        self._lang_btn = tb_btn("RU" if I18n.current() == "ru" else "EN",
-               I18n._("settings.language"), self._toggle_lang)
+        self._theme_btn = tb_btn(
+            "☀" if ThemeEngine._current_theme == "light" else "☾",
+            I18n._("settings.theme"),
+            self._toggle_theme,
+        )
+        self._lang_btn = tb_btn(
+            "RU" if I18n.current() == "ru" else "EN",
+            I18n._("settings.language"),
+            self._toggle_lang,
+        )
         tb.addSeparator()
         user_name = self._user.get("username", "?")
         role = self._user.get("role", "")
@@ -155,6 +325,7 @@ class MainWindow(QMainWindow):
         tb_btn("⚠️", I18n._("risk.title"), self._open_risk_calc)
         tb.addSeparator()
         tb_btn("🤖", I18n._("ai.title"), self._open_ai_chat)
+        tb_btn("📈", "AI-отчёт", self._open_ai_report)
         tb_btn("🩺", I18n._("ai.diagnostics"), self._open_ai_diagnostics)
         tb.addSeparator()
         tb_btn("💾", I18n._("common.backup"), self._open_backup_dialog)
@@ -172,7 +343,8 @@ class MainWindow(QMainWindow):
     def _load_settings(self) -> None:
         self._tabs_data: Dict[str, Tuple[int, QWidget]] = {}
         self._tab_widget.clear()
-        self.dashboard_tab = DashboardTab()
+        self.dashboard_tab = HomePage(user=self._user)
+        self.dashboard_tab.navigateTo.connect(self._omnibox_navigate_tab)
 
         uid = self._user.get("id", 0)
 
@@ -188,25 +360,37 @@ class MainWindow(QMainWindow):
 
         self._reminders_tab = ExpiringRemindersTab()
         self._calendar_tab = CalendarTab()
+        self._work_orders_tab = WorkOrdersTableWidget(user_id=uid)
+        self._ppe_inspection_tab = PPEInspectionWidget(user_id=uid)
         self._incidents_tab = IncidentsTableWidget(user_id=uid)
         self._ppe_tab = PPETableWidget(user_id=uid)
         self._training_tab = TrainingTableWidget(user_id=uid)
         self._permits_tab = PermitsTableWidget(user_id=uid)
+        self._protocols_tab = ProtocolsTab()
+        self._checklists_tab = ChecklistsTab()
+        self._capa_tab = CAPATab()
+        self._risk_tab = RiskAssessmentTab()
 
         tab_defs = [
             ("tab.dashboard", self.dashboard_tab),
             ("tab.employees", self._employees_tab),
+            ("tab.training", self._training_tab),
+            ("tab.ppe", self._ppe_tab),
+            ("tab.ppe_inspection", self._ppe_inspection_tab),
+            ("tab.permits", self._permits_tab),
             ("tab.violations", self._violations_tab),
+            ("tab.incidents", self._incidents_tab),
+            ("tab.risk", self._risk_tab),
+            ("tab.work_orders", self._work_orders_tab),
             ("tab.companies", self._companies_tab),
             ("tab.custom_ledger", self._custom_ledger_tab),
+            ("tab.protocols", self._protocols_tab),
+            ("tab.checklists", self._checklists_tab),
+            ("tab.capa", self._capa_tab),
             ("tab.statistics", self._statistics_tab),
             ("tab.timeline", self._timeline_tab),
-            ("tab.reminders", self._reminders_tab),
             ("tab.calendar", self._calendar_tab),
-            ("tab.incidents", self._incidents_tab),
-            ("tab.ppe", self._ppe_tab),
-            ("tab.training", self._training_tab),
-            ("tab.permits", self._permits_tab),
+            ("tab.reminders", self._reminders_tab),
             ("tab.ai", self._ai_tab),
             ("tab.ai_insights", self._ai_insights_tab),
         ]
@@ -223,12 +407,52 @@ class MainWindow(QMainWindow):
         self._update_tab_badges()
         self._update_status()
 
-        self._tab_widget.tabBar().setExpanding(True)
-        self._tab_widget.tabBar().setUsesScrollButtons(True)
         try:
-            self._tab_widget.tabBar().setElideMode(Qt.ElideRight)
+            self._tab_widget.tabBar().lock_tab(0)
         except Exception:
             pass
+        try:
+            self._tab_widget.tabBar().tabRemoved.connect(self._on_tab_removed)
+        except (AttributeError, TypeError):
+            pass
+
+        QTimer.singleShot(500, self._show_onboarding)
+
+    def _show_onboarding(self) -> None:
+        if self.db.get_setting("onboarding_complete", "0") != "1":
+            dlg = OnboardingDialog(self)
+            if dlg.exec_() == OnboardingDialog.Accepted:
+                self.db.upsert_setting("onboarding_complete", "1")
+
+    def check_permission(self, module: str, action: str = "view") -> bool:
+        return self._perms.can(module, action)
+
+    def _apply_permissions(self) -> None:
+        p = self._perms
+
+        tab_perm_map = {
+            "tab.settings": "settings.view",
+            "tab.users": "users.view",
+            "tab.audit": "audit.view",
+            "tab.ai": "ai.view",
+            "tab.ai_insights": "analytics.view",
+            "tab.statistics": "analytics.view",
+            "tab.backup": "backup.view",
+        }
+
+        for key, perm in tab_perm_map.items():
+            if key in self._tabs_data:
+                idx, _ = self._tabs_data[key]
+                mod, act = perm.split(".")
+                if not p.can(mod, act):
+                    self._tab_widget.setTabVisible(idx, False)
+
+        action_perm = {
+            "_global_search": True,
+            "_print_templates": "print.view",
+            "_import": "import.create",
+            "_export": "export.create",
+        }
 
     def _show_startup_reminders(self) -> None:
         try:
@@ -247,7 +471,10 @@ class MainWindow(QMainWindow):
             pass
 
     def _populate_dashboard(self) -> None:
-        self.dashboard_tab._refresh()
+        if hasattr(self.dashboard_tab, "_refresh"):
+            self.dashboard_tab._refresh()
+        elif hasattr(self.dashboard_tab, "_rebuild"):
+            self.dashboard_tab._rebuild()
 
     def _init_auto_save(self) -> None:
         self._auto_backup_timer = QTimer(self)
@@ -278,6 +505,7 @@ class MainWindow(QMainWindow):
                     for b in backups[max_keep:]:
                         self.db.delete_backup(b["id"])
             from widgets.toast import ToastNotification
+
             ToastNotification.notify(f"💾 {path.split(os.sep)[-1]}", "success", 3000)
             self.db.log_event(f"Auto-backup: {path}", "INFO")
         except Exception:
@@ -289,7 +517,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_reminders(self) -> None:
         try:
-            if hasattr(self, '_reminders_tab'):
+            if hasattr(self, "_reminders_tab"):
                 self._reminders_tab._load_data()
                 self._update_tab_badges()
         except Exception:
@@ -297,7 +525,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_current_tab(self) -> None:
         idx = self._tab_widget.currentIndex()
-        if not hasattr(self, '_tabs_data'):
+        if not hasattr(self, "_tabs_data"):
             return
         for key, (i, widget) in self._tabs_data.items():
             if i == idx:
@@ -313,7 +541,7 @@ class MainWindow(QMainWindow):
                 break
 
     def _update_tab_badges(self) -> None:
-        if not hasattr(self, '_tabs_data'):
+        if not hasattr(self, "_tabs_data"):
             return
         try:
             emp_count = self.db.get_table_count("employees")
@@ -325,11 +553,23 @@ class MainWindow(QMainWindow):
             ppe_count = self.db.get_table_count("ppe")
             training_count = self.db.get_table_count("training")
             permit_count = self.db.get_table_count("permits")
-            remind_count = self._reminders_tab.get_expiring_count() if hasattr(self, '_reminders_tab') else 0
-            open_incidents = self.db.count_overdue("incidents", "Срок устранения", "Статус", "Открыто")
-            overdue_ppe = self.db.count_overdue("ppe", "Срок замены", "Статус", "Просрочено")
-            expired_training = self.db.count_overdue("training", "Срок действия", "Статус", "Просрочено")
-            active_permits = self.db.count_overdue("permits", "Дата окончания", "Статус", "Активно")
+            remind_count = (
+                self._reminders_tab.get_expiring_count()
+                if hasattr(self, "_reminders_tab")
+                else 0
+            )
+            open_incidents = self.db.count_overdue(
+                "incidents", "Срок устранения", "Статус", "Открыто"
+            )
+            overdue_ppe = self.db.count_overdue(
+                "ppe", "Срок замены", "Статус", "Просрочено"
+            )
+            expired_training = self.db.count_overdue(
+                "training", "Срок действия", "Статус", "Просрочено"
+            )
+            active_permits = self.db.count_overdue(
+                "permits", "Дата окончания", "Статус", "Активно"
+            )
         except Exception:
             return
         for key, (idx, widget) in self._tabs_data.items():
@@ -347,7 +587,9 @@ class MainWindow(QMainWindow):
             elif key == "tab.reminders" and remind_count:
                 self._tab_widget.setTabText(idx, f"{label} ({remind_count})")
             elif key == "tab.incidents" and open_incidents:
-                self._tab_widget.setTabText(idx, f"{label} ({incident_count}⚠{open_incidents})")
+                self._tab_widget.setTabText(
+                    idx, f"{label} ({incident_count}⚠{open_incidents})"
+                )
             elif key == "tab.incidents":
                 self._tab_widget.setTabText(idx, f"{label} ({incident_count})")
             elif key == "tab.ppe" and overdue_ppe:
@@ -355,11 +597,15 @@ class MainWindow(QMainWindow):
             elif key == "tab.ppe":
                 self._tab_widget.setTabText(idx, f"{label} ({ppe_count})")
             elif key == "tab.training" and expired_training:
-                self._tab_widget.setTabText(idx, f"{label} ({training_count}⚠{expired_training})")
+                self._tab_widget.setTabText(
+                    idx, f"{label} ({training_count}⚠{expired_training})"
+                )
             elif key == "tab.training":
                 self._tab_widget.setTabText(idx, f"{label} ({training_count})")
             elif key == "tab.permits" and active_permits:
-                self._tab_widget.setTabText(idx, f"{label} ({permit_count}⚠{active_permits})")
+                self._tab_widget.setTabText(
+                    idx, f"{label} ({permit_count}⚠{active_permits})"
+                )
             elif key == "tab.permits":
                 self._tab_widget.setTabText(idx, f"{label} ({permit_count})")
             else:
@@ -390,12 +636,26 @@ class MainWindow(QMainWindow):
         self._rebuild_tabs_data()
 
     def _rebuild_tabs_data(self) -> None:
-        attr_map = {getattr(self, f"_{k.split('.')[1]}_tab", None): k
-                    for k in ("tab.dashboard", "tab.employees", "tab.violations",
-                              "tab.companies", "tab.custom_ledger", "tab.statistics",
-                              "tab.timeline", "tab.reminders", "tab.calendar",
-                              "tab.incidents", "tab.ppe", "tab.training",
-                              "tab.permits", "tab.ai", "tab.ai_insights")}
+        attr_map = {
+            getattr(self, f"_{k.split('.')[1]}_tab", None): k
+            for k in (
+                "tab.dashboard",
+                "tab.employees",
+                "tab.violations",
+                "tab.companies",
+                "tab.custom_ledger",
+                "tab.statistics",
+                "tab.timeline",
+                "tab.reminders",
+                "tab.calendar",
+                "tab.incidents",
+                "tab.ppe",
+                "tab.training",
+                "tab.permits",
+                "tab.ai",
+                "tab.ai_insights",
+            )
+        }
         self._tabs_data.clear()
         for i in range(self._tab_widget.count()):
             w = self._tab_widget.widget(i)
@@ -403,8 +663,12 @@ class MainWindow(QMainWindow):
             if key:
                 self._tabs_data[key] = (i, w)
 
+    def _on_tab_removed(self, index: int) -> None:
+        self._rebuild_tabs_data()
+        self._update_tab_badges()
+
     def _tab_name_by_index(self) -> Dict[int, str]:
-        if not hasattr(self, '_tabs_data'):
+        if not hasattr(self, "_tabs_data"):
             return {}
         return {idx: key.split(".")[1] for key, (idx, _) in self._tabs_data.items()}
 
@@ -434,10 +698,12 @@ class MainWindow(QMainWindow):
         db = DatabaseManager()
         text_lower = text.lower()
         seen = set()
-        for table, label_key in [("employees", "tab.employees"),
-                                  ("violations", "tab.violations"),
-                                  ("custom_ledger", "tab.custom_ledger"),
-                                  ("companies", "company.title")]:
+        for table, label_key in [
+            ("employees", "tab.employees"),
+            ("violations", "tab.violations"),
+            ("custom_ledger", "tab.custom_ledger"),
+            ("companies", "company.title"),
+        ]:
             for rec in db.get_json_records(table):
                 dj = rec.get("data_json", {})
                 rid = rec.get("id", 0)
@@ -450,8 +716,15 @@ class MainWindow(QMainWindow):
                             break
         for note in db.get_notes():
             if text_lower in note.get("text", "").lower():
-                results.append(("notes", "common.notes", note.get("id", 0),
-                                I18n._("common.notes"), note.get("text", "")[:80]))
+                results.append(
+                    (
+                        "notes",
+                        "common.notes",
+                        note.get("id", 0),
+                        I18n._("common.notes"),
+                        note.get("text", "")[:80],
+                    )
+                )
         results.sort(key=lambda r: r[4])
         self._show_search_results(text, results)
 
@@ -464,13 +737,16 @@ class MainWindow(QMainWindow):
         dlg.resize(600, 500)
         lay = QVBoxLayout(dlg)
         tree = QTreeWidget()
-        tree.setHeaderLabels([I18n._("common.table"), I18n._("common.field"), I18n._("common.value")])
+        tree.setHeaderLabels(
+            [I18n._("common.table"), I18n._("common.field"), I18n._("common.value")]
+        )
         tree.setRootIsDecorated(False)
         tree.setAlternatingRowColors(True)
         tree.itemDoubleClicked.connect(lambda item, _: self._navigate_to_record(item))
         for table, label_key, rid, field, value in results:
             QTreeWidgetItem(tree, [I18n._(label_key), field, value]).setData(
-                0, Qt.UserRole, (table, rid))
+                0, Qt.UserRole, (table, rid)
+            )
         lay.addWidget(tree)
         close_btn = QPushButton(I18n._("common.close"))
         close_btn.clicked.connect(dlg.accept)
@@ -482,30 +758,41 @@ class MainWindow(QMainWindow):
         if not data:
             return
         table, rid = data
-        tab_key = {"employees": "tab.employees", "violations": "tab.violations",
-                   "custom_ledger": "tab.custom_ledger", "notes": "tab.notes",
-                   "companies": "tab.companies"}.get(table)
+        tab_key = {
+            "employees": "tab.employees",
+            "violations": "tab.violations",
+            "custom_ledger": "tab.custom_ledger",
+            "notes": "tab.notes",
+            "companies": "tab.companies",
+        }.get(table)
         if tab_key and tab_key in self._tabs_data:
             idx, widget = self._tabs_data[tab_key]
             self._tab_widget.setCurrentIndex(idx)
-            if hasattr(widget, 'focus_record'):
+            if hasattr(widget, "focus_record"):
                 widget.focus_record(rid)
-            elif hasattr(widget, 'focus_note'):
+            elif hasattr(widget, "focus_note"):
                 widget.focus_note(rid)
 
     def _open_ai_chat(self) -> None:
         db = DatabaseManager()
         key = db.get_ai_setting("api_key", "")
         if not key:
-            QMessageBox.information(self, I18n._("ai.title"),
-                                    I18n._("ai.no_key"))
+            QMessageBox.information(self, I18n._("ai.title"), I18n._("ai.no_key"))
         dlg = AIChatDialog(self)
         dlg.exec_()
         self._refresh_current_tab()
 
+    def _open_ai_report(self) -> None:
+        dlg = AIReportDialog(self)
+        dlg.exec_()
+
     def _open_global_notes(self) -> None:
-        NotesDialog(entity_type="global", entity_id=0,
-                    entity_name=I18n._("tab.dashboard"), parent=self).exec_()
+        NotesDialog(
+            entity_type="global",
+            entity_id=0,
+            entity_name=I18n._("tab.dashboard"),
+            parent=self,
+        ).exec_()
 
     def _open_import_dialog(self) -> None:
         dlg = ImportDialog("", self)
@@ -556,132 +843,132 @@ class MainWindow(QMainWindow):
             li {{ margin: 3px 0; color: {text}; line-height: 1.6; }}
             .tag {{ display: inline-block; background: {a}22; color: {at}; padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }}
         </style>
-        <h2>{I18n._('app.name')}</h2>
-        <p class="subtitle">{I18n._('help.version')} {AppConfig.APP_VERSION} &middot; {I18n._('app.copyright')}</p>
+        <h2>{I18n._("app.name")}</h2>
+        <p class="subtitle">{I18n._("help.version")} {AppConfig.APP_VERSION} &middot; {I18n._("app.copyright")}</p>
 
         <div class="section">
-        <h3>{I18n._('help.shortcuts')}</h3>
+        <h3>{I18n._("help.shortcuts")}</h3>
         <table class="shortcuts">
-        <tr><td><b>Ctrl+&uarr;/&darr;</b></td><td>{I18n._('help.nav_table')}</td></tr>
-        <tr><td><b>Ctrl+F</b></td><td>{I18n._('help.search')}</td></tr>
-        <tr><td><b>Ctrl+N</b></td><td>{I18n._('help.add_record')}</td></tr>
-        <tr><td><b>Ctrl+E</b></td><td>{I18n._('help.export')}</td></tr>
-        <tr><td><b>Ctrl+P</b></td><td>{I18n._('help.print')}</td></tr>
-        <tr><td><b>Ctrl+S</b></td><td>{I18n._('help.save')} / backup</td></tr>
-        <tr><td><b>Delete</b></td><td>{I18n._('help.delete')}</td></tr>
-        <tr><td><b>Alt+1..9</b></td><td>{I18n._('help.tabs')}</td></tr>
-        <tr><td><b>F5</b></td><td>{I18n._('common.refresh')}</td></tr>
-        <tr><td><b>{I18n._('help.click_column')}</b></td><td>{I18n._('help.sort')}</td></tr>
-        <tr><td><b>{I18n._('help.right_click_column')}</b></td><td>{I18n._('help.column_menu')}</td></tr>
-        <tr><td><b>{I18n._('help.right_click_row')}</b></td><td>{I18n._('help.row_menu')}</td></tr>
+        <tr><td><b>Ctrl+&uarr;/&darr;</b></td><td>{I18n._("help.nav_table")}</td></tr>
+        <tr><td><b>Ctrl+F</b></td><td>{I18n._("help.search")}</td></tr>
+        <tr><td><b>Ctrl+N</b></td><td>{I18n._("help.add_record")}</td></tr>
+        <tr><td><b>Ctrl+E</b></td><td>{I18n._("help.export")}</td></tr>
+        <tr><td><b>Ctrl+P</b></td><td>{I18n._("help.print")}</td></tr>
+        <tr><td><b>Ctrl+S</b></td><td>{I18n._("help.save")} / backup</td></tr>
+        <tr><td><b>Delete</b></td><td>{I18n._("help.delete")}</td></tr>
+        <tr><td><b>Alt+1..9</b></td><td>{I18n._("help.tabs")}</td></tr>
+        <tr><td><b>F5</b></td><td>{I18n._("common.refresh")}</td></tr>
+        <tr><td><b>{I18n._("help.click_column")}</b></td><td>{I18n._("help.sort")}</td></tr>
+        <tr><td><b>{I18n._("help.right_click_column")}</b></td><td>{I18n._("help.column_menu")}</td></tr>
+        <tr><td><b>{I18n._("help.right_click_row")}</b></td><td>{I18n._("help.row_menu")}</td></tr>
         </table>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.toolbar')}</h3>
-        <p>{I18n._('help.toolbar_desc')}</p>
+        <h3>{I18n._("help.toolbar")}</h3>
+        <p>{I18n._("help.toolbar_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.tabs')}</h3>
-        <p>{I18n._('help.tabs_desc')}</p>
+        <h3>{I18n._("help.tabs")}</h3>
+        <p>{I18n._("help.tabs_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.tables')}</h3>
-        <p>{I18n._('help.tables_desc')}</p>
+        <h3>{I18n._("help.tables")}</h3>
+        <p>{I18n._("help.tables_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.dashboard')}</h3>
-        <p>{I18n._('help.dashboard_desc')}</p>
+        <h3>{I18n._("help.dashboard")}</h3>
+        <p>{I18n._("help.dashboard_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('common.notes')}</h3>
-        <p>{I18n._('help.notes_desc')}</p>
+        <h3>{I18n._("common.notes")}</h3>
+        <p>{I18n._("help.notes_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.photos')}</h3>
-        <p>{I18n._('help.photos_desc')}</p>
+        <h3>{I18n._("help.photos")}</h3>
+        <p>{I18n._("help.photos_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('import.title')} / {I18n._('export.title')}</h3>
-        <p><b>{I18n._('import.title')}:</b> {I18n._('help.import_desc')}</p>
-        <p><b>{I18n._('export.title')}:</b> {I18n._('help.export_desc')}</p>
+        <h3>{I18n._("import.title")} / {I18n._("export.title")}</h3>
+        <p><b>{I18n._("import.title")}:</b> {I18n._("help.import_desc")}</p>
+        <p><b>{I18n._("export.title")}:</b> {I18n._("help.export_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.print_templates')}</h3>
-        <p>{I18n._('help.print_templates_desc')}</p>
+        <h3>{I18n._("help.print_templates")}</h3>
+        <p>{I18n._("help.print_templates_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('ai.title')}</h3>
-        <p>{I18n._('help.ai_desc')}</p>
+        <h3>{I18n._("ai.title")}</h3>
+        <p>{I18n._("help.ai_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('analytics.title')}</h3>
-        <p>{I18n._('help.analytics_desc')}</p>
+        <h3>{I18n._("analytics.title")}</h3>
+        <p>{I18n._("help.analytics_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('reminder.all')}</h3>
-        <p>{I18n._('help.reminders_desc')}</p>
+        <h3>{I18n._("reminder.all")}</h3>
+        <p>{I18n._("help.reminders_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.reports')} &amp; {I18n._('common.backup')}</h3>
-        <p><b>{I18n._('help.reports')}:</b> {I18n._('help.reports_desc')}</p>
-        <p><b>{I18n._('common.backup')}:</b> {I18n._('help.backup_desc')}</p>
+        <h3>{I18n._("help.reports")} &amp; {I18n._("common.backup")}</h3>
+        <p><b>{I18n._("help.reports")}:</b> {I18n._("help.reports_desc")}</p>
+        <p><b>{I18n._("common.backup")}:</b> {I18n._("help.backup_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.security')}</h3>
-        <p>{I18n._('help.security_desc')}</p>
+        <h3>{I18n._("help.security")}</h3>
+        <p>{I18n._("help.security_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('common.settings')}</h3>
-        <p>{I18n._('help.settings_desc')}</p>
+        <h3>{I18n._("common.settings")}</h3>
+        <p>{I18n._("help.settings_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('textbook.title')}</h3>
-        <p>{I18n._('help.textbook_desc')}</p>
+        <h3>{I18n._("textbook.title")}</h3>
+        <p>{I18n._("help.textbook_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('risk.title')}</h3>
-        <p>{I18n._('help.risk_calc_desc')}</p>
+        <h3>{I18n._("risk.title")}</h3>
+        <p>{I18n._("help.risk_calc_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.column_customization')}</h3>
-        <p>{I18n._('help.column_customization_desc')}</p>
+        <h3>{I18n._("help.column_customization")}</h3>
+        <p>{I18n._("help.column_customization_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.color_indicators')}</h3>
-        <p>{I18n._('help.color_indicators_desc')}</p>
+        <h3>{I18n._("help.color_indicators")}</h3>
+        <p>{I18n._("help.color_indicators_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.global_search')}</h3>
-        <p>{I18n._('help.global_search_desc')}</p>
+        <h3>{I18n._("help.global_search")}</h3>
+        <p>{I18n._("help.global_search_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.duplicate_merge')}</h3>
-        <p>{I18n._('help.duplicate_merge_desc')}</p>
+        <h3>{I18n._("help.duplicate_merge")}</h3>
+        <p>{I18n._("help.duplicate_merge_desc")}</p>
         </div>
 
         <div class="section">
-        <h3>{I18n._('help.tips')}</h3>
-        <pre style="font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 13px; color: {text}; margin: 0; line-height: 1.7;">{I18n._('help.tips_list')}</pre>
+        <h3>{I18n._("help.tips")}</h3>
+        <pre style="font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 13px; color: {text}; margin: 0; line-height: 1.7;">{I18n._("help.tips_list")}</pre>
         </div>
         """)
         layout.addWidget(browser)
@@ -711,16 +998,17 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             tab_text = self._tab_widget.tabText(idx)
             user_name = self._user.get("username", "?")
-            self._status_label.setText(
-                f"👤 {user_name}  |  📋 {tab_text}")
+            self._status_label.setText(f"👤 {user_name}  |  📋 {tab_text}")
 
     # -----------------------------------------------------------------------
     # Tab Renaming (double-click)
     # -----------------------------------------------------------------------
 
     def eventFilter(self, obj: QObject, event: Any) -> bool:
-        if (obj == self._tab_widget.tabBar() and
-                event.type() == event.MouseButtonDblClick):
+        if (
+            obj == self._tab_widget.tabBar()
+            and event.type() == event.MouseButtonDblClick
+        ):
             idx = self._tab_widget.tabBar().tabAt(event.pos())
             if idx >= 0:
                 self._rename_tab(idx)
@@ -730,8 +1018,8 @@ class MainWindow(QMainWindow):
     def _rename_tab(self, index: int) -> None:
         old_name = self._tab_widget.tabText(index)
         new_name, ok = QInputDialog.getText(
-            self, I18n._("common.rename"), "",
-            text=old_name)
+            self, I18n._("common.rename"), "", text=old_name
+        )
         if ok and new_name and new_name != old_name:
             self._tab_widget.setTabText(index, new_name)
             tab_key = self._get_tab_key(index)
@@ -742,8 +1030,15 @@ class MainWindow(QMainWindow):
 
     def _get_tab_key(self, index: int) -> Optional[str]:
         mapping = [
-            "dashboard", "employees", "violations", "companies",
-            "custom_ledger", "statistics", "audit", "reminders", "ai",
+            "dashboard",
+            "employees",
+            "violations",
+            "companies",
+            "custom_ledger",
+            "statistics",
+            "audit",
+            "reminders",
+            "ai",
         ]
         return mapping[index] if 0 <= index < len(mapping) else None
 
@@ -769,9 +1064,12 @@ class MainWindow(QMainWindow):
     def _restart_app(self) -> None:
         try:
             import subprocess, os
-            script = getattr(sys, '_MEIPASS', __file__)
-            exe = sys.executable if not getattr(sys, 'frozen', False) else script
-            subprocess.Popen([exe, script] if not getattr(sys, 'frozen', False) else [script])
+
+            script = getattr(sys, "_MEIPASS", __file__)
+            exe = sys.executable if not getattr(sys, "frozen", False) else script
+            subprocess.Popen(
+                [exe, script] if not getattr(sys, "frozen", False) else [script]
+            )
         except Exception:
             try:
                 QProcess.startDetached(sys.executable, [__file__])
@@ -787,8 +1085,7 @@ class MainWindow(QMainWindow):
         default_text = "RU" if new_lang == "ru" else "EN"
         self._lang_btn.setText(default_text)
         self._retranslate_ui()
-        ToastNotification.notify(
-            I18n._("settings.saved"), "success", 3000)
+        ToastNotification.notify(I18n._("settings.saved"), "success", 3000)
 
     def _retranslate_ui(self) -> None:
         self.setWindowTitle(I18n._("app.name"))
@@ -796,10 +1093,11 @@ class MainWindow(QMainWindow):
             key = self._get_tab_key(i)
             if key:
                 saved = self.db.get_setting(f"tab_{key}", "")
-                self._tab_widget.setTabText(
-                    i, saved if saved else I18n._(f"tab.{key}"))
+                self._tab_widget.setTabText(i, saved if saved else I18n._(f"tab.{key}"))
+
         def tooltip(key: str, fallback: str) -> str:
             return self.db.get_setting(f"tip_{key}", fallback)
+
         self._theme_btn.setToolTip(tooltip("theme", I18n._("settings.theme")))
         self._lang_btn.setToolTip(tooltip("lang", I18n._("settings.language")))
         self._update_status()
@@ -847,6 +1145,7 @@ class MainWindow(QMainWindow):
                 pass
         lay.addWidget(editor)
         save_btn = QPushButton(I18n._("knowledge.save"))
+
         def _save_knowledge():
             try:
                 with open(kf, "w", encoding="utf-8") as f:
@@ -854,31 +1153,33 @@ class MainWindow(QMainWindow):
                 dlg.accept()
             except Exception as ex:
                 QMessageBox.critical(self, I18n._("common.error"), str(ex))
+
         save_btn.clicked.connect(_save_knowledge)
         lay.addWidget(save_btn)
         dlg.exec_()
 
     def _export_audit_log(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, I18n._("audit.export_title"),
+            self,
+            I18n._("audit.export_title"),
             f"suot_audit_{datetime.now().strftime('%Y%m%d')}.log",
-            "Log Files (*.log)")
+            "Log Files (*.log)",
+        )
         if not path:
             return
         try:
             rows = self.db.fetch_all(
-                "SELECT timestamp, event FROM audit_log ORDER BY id ASC")
+                "SELECT timestamp, event FROM audit_log ORDER BY id ASC"
+            )
             lines = [f"[{r['timestamp']}] {r['event']}" for r in rows]
             with open(path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
-            ToastNotification.notify(
-                I18n._("audit.export_success"), "success", 3000)
+            ToastNotification.notify(I18n._("audit.export_success"), "success", 3000)
         except Exception as ex:
             QMessageBox.critical(self, I18n._("common.error"), str(ex))
 
         except Exception as ex:
             QMessageBox.critical(self, I18n._("common.error"), str(ex))
-
 
     def _open_ai_diagnostics(self) -> None:
         dlg = QDialog(self)
@@ -886,34 +1187,34 @@ class MainWindow(QMainWindow):
         dlg.setWindowTitle(I18n._("ai.diagnostics"))
         dlg.setMinimumSize(650, 500)
         lay = QVBoxLayout(dlg)
-        
+
         heading = QLabel(I18n._("ai.diagnostics"))
         heading.setProperty("heading", True)
         lay.addWidget(heading)
-        
+
         config_frame = QGroupBox(I18n._("ai.current_config"))
         config_lay = QFormLayout(config_frame)
-        
+
         db = DatabaseManager()
         provider = db.get_ai_setting("provider", "openai")
         api_url = db.get_ai_setting("api_url", "")
         model = db.get_ai_setting("model", "")
         mode = db.get_ai_setting("mode", "chat")
         temperature = db.get_ai_setting("temperature", "0.7")
-        
+
         config_lay.addRow(I18n._("ai.provider_label") + ":", QLabel(provider))
         config_lay.addRow(I18n._("ai.url_label") + ":", QLabel(api_url or "—"))
         config_lay.addRow(I18n._("ai.model_label") + ":", QLabel(model or "—"))
         config_lay.addRow(I18n._("ai.mode_label") + ":", QLabel(mode))
         config_lay.addRow(I18n._("ai.temp_label") + ":", QLabel(str(temperature)))
-        
+
         lay.addWidget(config_frame)
-        
+
         test_btn = QPushButton(I18n._("ai.test_connection"))
         test_btn.setProperty("success", True)
         result_label = QLabel()
         result_label.setWordWrap(True)
-        
+
         def run_test():
             test_btn.setEnabled(False)
             test_btn.setText(I18n._("common.loading"))
@@ -921,23 +1222,33 @@ class MainWindow(QMainWindow):
             try:
                 engine = AIEngine()
                 test_result = engine.send_request([], "Test connection", "")
-                if test_result and not test_result.startswith("Error:") and not test_result.startswith("HTTP Error"):
-                    result_label.setText(f"<span style='color: #27AE60;'>{I18n._('ai.connection_ok')}</span>")
+                if (
+                    test_result
+                    and not test_result.startswith("Error:")
+                    and not test_result.startswith("HTTP Error")
+                ):
+                    result_label.setText(
+                        f"<span style='color: #27AE60;'>{I18n._('ai.connection_ok')}</span>"
+                    )
                     result_label.setToolTip(test_result[:500])
                 else:
-                    result_label.setText(f"<span style='color: #E74C3C;'>{I18n._('ai.connection_failed').format(error=test_result or 'Unknown')}</span>")
+                    result_label.setText(
+                        f"<span style='color: #E74C3C;'>{I18n._('ai.connection_failed').format(error=test_result or 'Unknown')}</span>"
+                    )
                     result_label.setToolTip(test_result or "")
             except Exception as ex:
-                result_label.setText(f"<span style='color: #E74C3C;'>{I18n._('ai.connection_failed').format(error=str(ex))}</span>")
+                result_label.setText(
+                    f"<span style='color: #E74C3C;'>{I18n._('ai.connection_failed').format(error=str(ex))}</span>"
+                )
                 result_label.setToolTip(str(ex))
             finally:
                 test_btn.setEnabled(True)
                 test_btn.setText(I18n._("ai.test_connection"))
-        
+
         test_btn.clicked.connect(run_test)
         lay.addWidget(test_btn)
         lay.addWidget(result_label)
-        
+
         close_btn = QPushButton(I18n._("common.close"))
         close_btn.clicked.connect(dlg.accept)
         lay.addWidget(close_btn)
@@ -945,14 +1256,17 @@ class MainWindow(QMainWindow):
 
     def _generate_global_report(self) -> None:
         html_path = os.path.abspath(
-            os.path.join(AppConfig.DATA_DIR, "global_report.html"))
+            os.path.join(AppConfig.DATA_DIR, "global_report.html")
+        )
         word_path = os.path.abspath(
-            os.path.join(AppConfig.DATA_DIR, "global_report.doc"))
+            os.path.join(AppConfig.DATA_DIR, "global_report.doc")
+        )
         stats = self.db.get_statistics()
         status_col = "Статус"
         try:
-            records = self.db.get_json_records("violations",
-                                               user_id=self._user.get("id", 0))
+            records = self.db.get_json_records(
+                "violations", user_id=self._user.get("id", 0)
+            )
         except Exception:
             records = []
         active = []
@@ -962,18 +1276,23 @@ class MainWindow(QMainWindow):
                 active.append(dj)
 
         try:
-            emp_records = self.db.get_json_records("employees",
-                                                   user_id=self._user.get("id", 0))
+            emp_records = self.db.get_json_records(
+                "employees", user_id=self._user.get("id", 0)
+            )
         except Exception:
             emp_records = []
-        active_emp = sum(1 for r in emp_records
-                         if r.get("data_json", {}).get(status_col) in ("Активен", "Active"))
+        active_emp = sum(
+            1
+            for r in emp_records
+            if r.get("data_json", {}).get(status_col) in ("Активен", "Active")
+        )
 
         li = "".join(
             f"<li><b>{v.get('Фирма', 'Контрагент')}:</b> "
             f"{v.get('Описание', 'Замечание по ТБ')}</li>"
-            for v in active)
-        now_str = datetime.now().strftime('%d.%m.%Y %H:%M')
+            for v in active
+        )
+        now_str = datetime.now().strftime("%d.%m.%Y %H:%M")
         html = f"""<html><head><meta charset='utf-8'>
         <style>body{{font-family:Arial;margin:40px;background:#fafafa;}}
         .c{{background:#fff;padding:30px;border-radius:8px;
@@ -986,11 +1305,11 @@ class MainWindow(QMainWindow):
         <p>{I18n._("common.date")}: {now_str}</p>
         <h3>📊 {I18n._("analytics.title")}</h3>
         <table>
-        <tr><th>{I18n._("tab.employees")}</th><td>{stats['employees_total']}</td></tr>
-        <tr><th>{I18n._("tab.violations")}</th><td>{stats['violations_total']}</td></tr>
+        <tr><th>{I18n._("tab.employees")}</th><td>{stats["employees_total"]}</td></tr>
+        <tr><th>{I18n._("tab.violations")}</th><td>{stats["violations_total"]}</td></tr>
         <tr><th>{I18n._("report.active_employees")}</th><td>{active_emp}</td></tr>
         <tr><th>{I18n._("report.active_violations")}</th><td>{len(active)}</td></tr>
-        <tr><th>{I18n._("analytics.total_fines")}</th><td>{stats['fines_total']:,.0f} RUB</td></tr>
+        <tr><th>{I18n._("analytics.total_fines")}</th><td>{stats["fines_total"]:,.0f} RUB</td></tr>
         </table>
         <h3>{I18n._("report.active_violations")} ({len(active)}):</h3>
         <ul>{li if li else f"<li>{I18n._('report.none_active')}</li>"}</ul>
@@ -1003,46 +1322,60 @@ class MainWindow(QMainWindow):
             with open(word_path, "w", encoding="utf-8") as f:
                 f.write(html)
             reply = QMessageBox.question(
-                self, I18n._("report.global_title"),
+                self,
+                I18n._("report.global_title"),
                 I18n._("report.open_html") + f"\n\n{I18n._('report.word_saved')}",
-                QMessageBox.Yes | QMessageBox.No)
+                QMessageBox.Yes | QMessageBox.No,
+            )
             if reply == QMessageBox.Yes:
                 webbrowser.open(f"file:///{html_path}")
-            ToastNotification.notify(
-                I18n._("report.generated_html"), "success", 3000)
+            ToastNotification.notify(I18n._("report.generated_html"), "success", 3000)
         except Exception as ex:
             QMessageBox.critical(self, I18n._("common.error"), str(ex))
 
     def _global_restore_from_backup(self) -> None:
         bdir = RUNTIME_PATHS.backup_dir
         if not os.path.isdir(bdir):
-            QMessageBox.information(self, I18n._("common.backup"),
-                                    I18n._("backup.none"))
+            QMessageBox.information(
+                self, I18n._("common.backup"), I18n._("backup.none")
+            )
             return
         files = sorted(
-            [f for f in os.listdir(bdir) if f.endswith(".zip")], reverse=True)
+            [f for f in os.listdir(bdir) if f.endswith(".zip")], reverse=True
+        )
         if not files:
-            QMessageBox.information(self, I18n._("common.backup"),
-                                    I18n._("backup.none"))
+            QMessageBox.information(
+                self, I18n._("common.backup"), I18n._("backup.none")
+            )
             return
-        display_names = [f.replace("suot_backup_", "").replace(".zip", "")
-                         for f in files]
+        display_names = [
+            f.replace("suot_backup_", "").replace(".zip", "") for f in files
+        ]
         chosen_display, ok = QInputDialog.getItem(
-            self, I18n._("common.restore"), I18n._("backup.list"),
-            display_names, 0, False)
+            self,
+            I18n._("common.restore"),
+            I18n._("backup.list"),
+            display_names,
+            0,
+            False,
+        )
         if ok and chosen_display:
             idx = display_names.index(chosen_display)
             chosen_file = files[idx]
             reply = QMessageBox.question(
-                self, I18n._("common.confirm"),
+                self,
+                I18n._("common.confirm"),
                 I18n._("backup.restore_confirm").format(
-                    date=chosen_display.replace("_", " ")),
-                QMessageBox.Yes | QMessageBox.No)
+                    date=chosen_display.replace("_", " ")
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+            )
             if reply == QMessageBox.Yes:
                 try:
                     zip_path = os.path.join(bdir, chosen_file)
                     self.db.conn.close()
                     import zipfile
+
                     tmp = os.path.join(tempfile.gettempdir(), "suot_restore_tmp.db")
                     with zipfile.ZipFile(zip_path, "r") as zf:
                         zf.extractall(tempfile.gettempdir())
@@ -1052,16 +1385,14 @@ class MainWindow(QMainWindow):
                         shutil.copy2(extracted, self.db.database_path)
                     self.db = DatabaseManager()
                     self.db.log_event(
-                        f"System restored from backup: {chosen_display}", "INFO")
-                    ToastNotification.notify(
-                        I18n._("backup.restored"), "success", 3000)
+                        f"System restored from backup: {chosen_display}", "INFO"
+                    )
+                    ToastNotification.notify(I18n._("backup.restored"), "success", 3000)
                     self._restart_app()
                 except Exception as ex:
-                    QMessageBox.critical(
-                        self, I18n._("common.error"), str(ex))
+                    QMessageBox.critical(self, I18n._("common.error"), str(ex))
                 except Exception as ex:
-                    QMessageBox.critical(
-                        self, I18n._("common.error"), str(ex))
+                    QMessageBox.critical(self, I18n._("common.error"), str(ex))
 
     def _global_contractor_analytics(self) -> None:
         try:
@@ -1096,16 +1427,24 @@ class MainWindow(QMainWindow):
         lay = QVBoxLayout(dlg)
         t = QTableWidget()
         t.setColumnCount(4)
-        t.setHorizontalHeaderLabels([
-            I18n._("company.name"), I18n._("analytics.total"),
-            I18n._("analytics.active"), I18n._("analytics.fines_sum")])
+        t.setHorizontalHeaderLabels(
+            [
+                I18n._("company.name"),
+                I18n._("analytics.total"),
+                I18n._("analytics.active"),
+                I18n._("analytics.fines_sum"),
+            ]
+        )
         t.setRowCount(len(stats))
         for r, (org, info) in enumerate(sorted(stats.items())):
             t.setItem(r, 0, QTableWidgetItem(org))
             t.setItem(r, 1, QTableWidgetItem(str(info["total"])))
             t.setItem(r, 2, QTableWidgetItem(str(info["active"])))
-            t.setItem(r, 3, QTableWidgetItem(
-                f"{info['fines']:,.2f} {I18n._('common.currency')}"))
+            t.setItem(
+                r,
+                3,
+                QTableWidgetItem(f"{info['fines']:,.2f} {I18n._('common.currency')}"),
+            )
         t.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         t.verticalHeader().setVisible(False)
         lay.addWidget(t)
@@ -1147,10 +1486,15 @@ class MainWindow(QMainWindow):
         lay = QVBoxLayout(dlg)
         t = QTableWidget()
         t.setColumnCount(5)
-        t.setHorizontalHeaderLabels([
-            I18n._("common.name"), I18n._("analytics.total"),
-            I18n._("analytics.resolved"), I18n._("analytics.control_pct"),
-            I18n._("analytics.fines_sum")])
+        t.setHorizontalHeaderLabels(
+            [
+                I18n._("common.name"),
+                I18n._("analytics.total"),
+                I18n._("analytics.resolved"),
+                I18n._("analytics.control_pct"),
+                I18n._("analytics.fines_sum"),
+            ]
+        )
         t.setRowCount(len(stats))
         for r, (cat, info) in enumerate(sorted(stats.items())):
             t.setItem(r, 0, QTableWidgetItem(cat))
@@ -1158,8 +1502,11 @@ class MainWindow(QMainWindow):
             t.setItem(r, 2, QTableWidgetItem(str(info["resolved"])))
             pct = (info["resolved"] / info["total"] * 100) if info["total"] > 0 else 100
             t.setItem(r, 3, QTableWidgetItem(f"{pct:.1f}%"))
-            t.setItem(r, 4, QTableWidgetItem(
-                f"{info['fines']:,.2f} {I18n._('common.currency')}"))
+            t.setItem(
+                r,
+                4,
+                QTableWidgetItem(f"{info['fines']:,.2f} {I18n._('common.currency')}"),
+            )
         t.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         t.verticalHeader().setVisible(False)
         lay.addWidget(t)
@@ -1174,13 +1521,16 @@ class MainWindow(QMainWindow):
 
     def _on_logout(self) -> None:
         reply = QMessageBox.question(
-            self, I18n._("login.logout"),
+            self,
+            I18n._("login.logout"),
             I18n._("login.logout") + "?",
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply == QMessageBox.Yes:
             self.db.session_manager.clear_remember_me()
-            self.db.log_event(f"User logged out: {self._user.get('username','?')}",
-                              "INFO")
+            self.db.log_event(
+                f"User logged out: {self._user.get('username', '?')}", "INFO"
+            )
             self.close()
             QApplication.quit()
 
@@ -1189,11 +1539,14 @@ class MainWindow(QMainWindow):
     # -----------------------------------------------------------------------
 
     def _show_about(self) -> None:
-        QMessageBox.about(self, I18n._("common.about"),
+        QMessageBox.about(
+            self,
+            I18n._("common.about"),
             f"<h3>{I18n._('app.name')}</h3>"
             f"<p>{I18n._('app.version')}: {AppConfig.APP_VERSION}</p>"
             f"<p>{I18n._('app.copyright')}</p>"
-            f"<p>{I18n._('settings.light')}/{I18n._('settings.dark')} · {I18n._('settings.language')}: RU/EN</p>")
+            f"<p>{I18n._('settings.light')}/{I18n._('settings.dark')} · {I18n._('settings.language')}: RU/EN</p>",
+        )
 
     # -----------------------------------------------------------------------
     # Accessors for sub-tab injection

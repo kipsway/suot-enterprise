@@ -1,10 +1,11 @@
 import traceback
+from PyQt5 import sip
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QAbstractItemView
 from modules.textbook import auto_format_date
 
 
-class InlineEditMixin:
+class InlineEditMixin(sip.wrapper):
     TABLE_NAME: str = ""
     _saving: bool = False
 
@@ -25,14 +26,19 @@ class InlineEditMixin:
         if name == "ID" or typ in ("Медиа", "Фото"):
             self._edit_selected()
             return
-        if "date" in name.lower() or "срок" in name.lower() or "дата" in name.lower() or "годен" in name.lower():
+        if (
+            "date" in name.lower()
+            or "срок" in name.lower()
+            or "дата" in name.lower()
+            or "годен" in name.lower()
+        ):
             self._edit_selected()
             return
         if not self._table.editItem(item):
             self._edit_selected()
 
     def _on_inline_changed(self, item) -> None:
-        if getattr(self, '_saving', False):
+        if getattr(self, "_saving", False):
             return
         row = item.row()
         col = item.column()

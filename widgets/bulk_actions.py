@@ -1,8 +1,13 @@
 from typing import Callable, List, Optional
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (QHBoxLayout, QPushButton, QTableWidget,
-                             QMessageBox, QInputDialog)
+from PyQt5.QtWidgets import (
+    QHBoxLayout,
+    QPushButton,
+    QTableWidget,
+    QMessageBox,
+    QInputDialog,
+)
 
 from app_core.i18n import I18n
 from services.database import DatabaseManager
@@ -42,19 +47,18 @@ def build_bulk_toolbar(
 
     delete_btn = QPushButton(I18n._("bulk.delete_selected"))
     delete_btn.setProperty("danger", True)
-    delete_btn.clicked.connect(
-        lambda: _bulk_delete(table, table_name, db, on_refresh))
+    delete_btn.clicked.connect(lambda: _bulk_delete(table, table_name, db, on_refresh))
     layout.addWidget(delete_btn)
 
     status_btn = QPushButton(I18n._("bulk.change_status"))
     status_btn.clicked.connect(
-        lambda: _bulk_change_status(table, table_name, db, on_refresh))
+        lambda: _bulk_change_status(table, table_name, db, on_refresh)
+    )
     layout.addWidget(status_btn)
 
     export_btn = QPushButton(I18n._("bulk.export_selected"))
     export_btn.setProperty("flat", True)
-    export_btn.clicked.connect(
-        lambda: _bulk_export(table, table_name))
+    export_btn.clicked.connect(lambda: _bulk_export(table, table_name))
     layout.addWidget(export_btn)
 
     layout.addStretch()
@@ -86,7 +90,8 @@ def _bulk_delete(
         except Exception:
             pass
     ToastNotification.notify(
-        I18n._("bulk.deleted").format(count=deleted), "success", 3000)
+        I18n._("bulk.deleted").format(count=deleted), "success", 3000
+    )
     if on_refresh:
         on_refresh()
 
@@ -102,8 +107,13 @@ def _bulk_change_status(
         return
     statuses = ["Активно", "Исполнено", "Просрочено", "Архив"]
     status, ok = QInputDialog.getItem(
-        table, I18n._("bulk.change_status"),
-        I18n._("bulk.select_status"), statuses, 0, False)
+        table,
+        I18n._("bulk.change_status"),
+        I18n._("bulk.select_status"),
+        statuses,
+        0,
+        False,
+    )
     if not ok or not status:
         return
     updated = 0
@@ -118,7 +128,8 @@ def _bulk_change_status(
         except Exception:
             pass
     ToastNotification.notify(
-        I18n._("bulk.status_updated").format(count=updated), "success", 3000)
+        I18n._("bulk.status_updated").format(count=updated), "success", 3000
+    )
     if on_refresh:
         on_refresh()
 
@@ -141,9 +152,11 @@ def _bulk_export(table: QTableWidget, table_name: str) -> None:
     from PyQt5.QtWidgets import QFileDialog
 
     path, _ = QFileDialog.getSaveFileName(
-        table, I18n._("export.title"),
+        table,
+        I18n._("export.title"),
         f"{table_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-        "CSV (*.csv)")
+        "CSV (*.csv)",
+    )
     if not path:
         return
 
@@ -157,7 +170,8 @@ def _bulk_export(table: QTableWidget, table_name: str) -> None:
             w.writeheader()
             w.writerows(flat)
     ToastNotification.notify(
-        I18n._("export.success").format(path=path), "success", 3000)
+        I18n._("export.success").format(path=path), "success", 3000
+    )
 
 
 def _get_ids(table: QTableWidget) -> List[int]:

@@ -3,9 +3,19 @@ from typing import Any, Optional, List
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QCursor, QPixmap
-from PyQt5.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout,
-                             QGridLayout, QLabel, QPushButton, QFrame,
-                             QScrollArea, QWidget, QFileDialog)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QGridLayout,
+    QLabel,
+    QPushButton,
+    QFrame,
+    QScrollArea,
+    QWidget,
+    QFileDialog,
+)
 
 from app_core.config import RUNTIME_PATHS
 from app_core.i18n import I18n
@@ -52,8 +62,9 @@ class PhotoPreviewDialog(QDialog):
             screen = QApplication.primaryScreen().availableGeometry()
             max_w = screen.width() * 0.8
             max_h = screen.height() * 0.8
-            pix = pix.scaled(int(max_w), int(max_h), Qt.KeepAspectRatio,
-                             Qt.SmoothTransformation)
+            pix = pix.scaled(
+                int(max_w), int(max_h), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
             self._label.setPixmap(pix)
             self.setWindowTitle(os.path.basename(file_path))
         else:
@@ -133,7 +144,11 @@ class PhotoGalleryDialog(QDialog):
         cl.setSpacing(4)
 
         pix = QPixmap(abs_path)
-        thumb = pix.scaled(150, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation) if not pix.isNull() else QPixmap()
+        thumb = (
+            pix.scaled(150, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            if not pix.isNull()
+            else QPixmap()
+        )
         img_label = QLabel()
         if not thumb.isNull():
             img_label.setPixmap(thumb)
@@ -163,8 +178,11 @@ class PhotoGalleryDialog(QDialog):
 
     def _add_photos(self) -> None:
         files, _ = QFileDialog.getOpenFileNames(
-            self, I18n._("common.add"), "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.gif *.webp)")
+            self,
+            I18n._("common.add"),
+            "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif *.webp)",
+        )
         for f in files:
             rel = _rel_photo_path(f)
             if rel not in self._photos:
@@ -193,7 +211,14 @@ class PhotoGalleryDialog(QDialog):
             for url in event.mimeData().urls():
                 path = url.toLocalFile()
                 ext = os.path.splitext(path)[1].lower()
-                if ext in (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp") and os.path.isfile(path):
+                if ext in (
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                    ".bmp",
+                    ".gif",
+                    ".webp",
+                ) and os.path.isfile(path):
                     rel = _rel_photo_path(path)
                     if rel not in self._photos:
                         self._photos.append(rel)

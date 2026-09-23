@@ -2,10 +2,21 @@ import json
 from typing import Any, Dict, Optional
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (QFrame, QVBoxLayout, QHBoxLayout, QFormLayout,
-                             QLabel, QLineEdit, QPushButton, QCheckBox,
-                             QTableWidget, QTableWidgetItem, QHeaderView,
-                             QAbstractItemView, QGroupBox)
+from PyQt5.QtWidgets import (
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QGroupBox,
+)
+
+from widgets.glass_button import GlassButton
+from widgets.glass_checkbox import GlassCheckBox
+from widgets.glass_line_edit import GlassLineEdit
 
 from app_core.i18n import I18n
 from services.database import DatabaseManager
@@ -30,23 +41,23 @@ class TelegramSettingsWidget(QFrame):
         form.setSpacing(10)
         form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        self._token_edit = QLineEdit()
+        self._token_edit = GlassLineEdit()
         self._token_edit.setPlaceholderText("1234567890:ABCdefGHIjklMNOpqrsTUVwxyz")
-        self._token_edit.setEchoMode(QLineEdit.Password)
+        self._token_edit.setEchoMode(GlassLineEdit.Password)
         self._token_edit.textChanged.connect(self._on_token_changed)
         form.addRow(I18n._("telegram.bot_token") + ":", self._token_edit)
 
         token_layout = QHBoxLayout()
-        self._show_token_cb = QCheckBox(I18n._("telegram.show_token"))
+        self._show_token_cb = GlassCheckBox(I18n._("telegram.show_token"))
         self._show_token_cb.toggled.connect(self._toggle_token_visibility)
         token_layout.addWidget(self._show_token_cb)
         token_layout.addStretch()
         form.addRow("", token_layout)
 
-        self._enabled_cb = QCheckBox(I18n._("telegram.enabled"))
+        self._enabled_cb = GlassCheckBox(I18n._("telegram.enabled"))
         form.addRow("", self._enabled_cb)
 
-        self._test_btn = QPushButton(I18n._("telegram.test_connection"))
+        self._test_btn = GlassButton(I18n._("telegram.test_connection"))
         self._test_btn.clicked.connect(self._test_connection)
         form.addRow("", self._test_btn)
 
@@ -57,8 +68,9 @@ class TelegramSettingsWidget(QFrame):
         group_layout = QVBoxLayout(group)
         self._users_table = QTableWidget()
         self._users_table.setColumnCount(2)
-        self._users_table.setHorizontalHeaderLabels([
-            I18n._("user.username"), I18n._("telegram.chat_id")])
+        self._users_table.setHorizontalHeaderLabels(
+            [I18n._("user.username"), I18n._("telegram.chat_id")]
+        )
         hdr = self._users_table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.Stretch)
         self._users_table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -68,11 +80,11 @@ class TelegramSettingsWidget(QFrame):
         layout.addWidget(group)
 
         btn_layout = QHBoxLayout()
-        self._refresh_btn = QPushButton(I18n._("common.refresh"))
+        self._refresh_btn = GlassButton(I18n._("common.refresh"))
         self._refresh_btn.clicked.connect(self._refresh_users)
         btn_layout.addWidget(self._refresh_btn)
         btn_layout.addStretch()
-        self._unregister_btn = QPushButton(I18n._("telegram.unregister"))
+        self._unregister_btn = GlassButton(I18n._("telegram.unregister"))
         self._unregister_btn.clicked.connect(self._unregister_user)
         btn_layout.addWidget(self._unregister_btn)
         layout.addLayout(btn_layout)
@@ -99,7 +111,8 @@ class TelegramSettingsWidget(QFrame):
 
     def _toggle_token_visibility(self, checked: bool) -> None:
         self._token_edit.setEchoMode(
-            QLineEdit.Normal if checked else QLineEdit.Password)
+            GlassLineEdit.Normal if checked else GlassLineEdit.Password
+        )
 
     def _on_token_changed(self) -> None:
         pass
@@ -107,13 +120,14 @@ class TelegramSettingsWidget(QFrame):
     def _test_connection(self) -> None:
         token = self._token_edit.text().strip()
         if not token:
-            ToastNotification.notify(
-                I18n._("telegram.no_token"), "warning", 3000)
+            ToastNotification.notify(I18n._("telegram.no_token"), "warning", 3000)
             return
         try:
             import requests
+
             resp = requests.get(
-                f"https://api.telegram.org/bot{token}/getMe", timeout=10)
+                f"https://api.telegram.org/bot{token}/getMe", timeout=10
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("ok"):
@@ -122,13 +136,15 @@ class TelegramSettingsWidget(QFrame):
                     username = bot_info.get("username", "?")
                     ToastNotification.notify(
                         I18n._("telegram.test_ok").format(name=name, username=username),
-                        "success", 5000)
+                        "success",
+                        5000,
+                    )
                     return
-            ToastNotification.notify(
-                I18n._("telegram.test_fail"), "error", 5000)
+            ToastNotification.notify(I18n._("telegram.test_fail"), "error", 5000)
         except Exception as e:
             ToastNotification.notify(
-                I18n._("telegram.test_error").format(error=str(e)), "error", 5000)
+                I18n._("telegram.test_error").format(error=str(e)), "error", 5000
+            )
 
     def _refresh_users(self) -> None:
         bot = TelegramBot()
@@ -151,5 +167,5 @@ class TelegramSettingsWidget(QFrame):
             bot._save_chat_map()
             self._refresh_users()
             ToastNotification.notify(
-                I18n._("telegram.unregistered").format(user=username),
-                "success", 3000)
+                I18n._("telegram.unregistered").format(user=username), "success", 3000
+            )

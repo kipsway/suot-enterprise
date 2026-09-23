@@ -1,4 +1,4 @@
-from PyQt5.QtCore import Qt, QPropertyAnimation, QTimer, QPoint
+from PyQt5.QtCore import QEasingCurve, Qt, QPropertyAnimation, QTimer, QPoint
 from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QWidget
 from typing import Optional, List
 
@@ -11,8 +11,7 @@ class ToastNotification(QFrame):
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-                            | Qt.Tool)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self._timeout = 5000
@@ -57,18 +56,29 @@ class ToastNotification(QFrame):
             QLabel {{ color: {text_color}; font-size: 13px; background: transparent; }}
         """)
 
-    def show_toast(self, message: str, toast_type: str = "info",
-                   timeout: int = 5000) -> None:
+    def show_toast(
+        self, message: str, toast_type: str = "info", timeout: int = 5000
+    ) -> None:
         self._timeout = timeout
         self._text_label.setText(message)
         self._apply_style(toast_type)
         icons = {
-            "info": "ℹ", "success": "✓", "warning": "⚠", "error": "✕",
+            "info": "ℹ",
+            "success": "✓",
+            "warning": "⚠",
+            "error": "✕",
         }
         self._icon_label.setText(icons.get(toast_type, "ℹ"))
         self.adjustSize()
         self._position_toast()
+        self.setWindowOpacity(0.0)
         self.show()
+        self._slide_in = QPropertyAnimation(self, b"windowOpacity")
+        self._slide_in.setDuration(350)
+        self._slide_in.setStartValue(0.0)
+        self._slide_in.setEndValue(0.98)
+        self._slide_in.setEasingCurve(QEasingCurve.OutBack)
+        self._slide_in.start(QPropertyAnimation.DeleteWhenStopped)
         QTimer.singleShot(self._timeout, self._fade_out)
 
     def _position_toast(self) -> None:
@@ -97,7 +107,28 @@ class ToastNotification(QFrame):
         self.close()
 
     @classmethod
-    def notify(cls, message: str, toast_type: str = "info",
-               timeout: int = 5000) -> None:
+    def notify(
+        cls, message: str, toast_type: str = "info", timeout: int = 5000
+    ) -> None:
         toast = cls()
         toast.show_toast(message, toast_type, timeout)
+        try:
+            from services.tray_manager import TrayManager
+
+            tray = TrayManager.instance()
+            if tray.is_available():
+                from PyQt5.QtWidgets import QSystemTrayIcon
+
+                icon_map = {
+                    "success": QSystemTrayIcon.Information,
+                    "error": QSystemTrayIcon.Critical,
+                    "warning": QSystemTrayIcon.Warning,
+                }
+                tray.notify(
+                    "SUOT Enterprise",
+                    message,
+                    icon_map.get(toast_type, QSystemTrayIcon.Information),
+                    5000,
+                )
+        except Exception:
+            pass

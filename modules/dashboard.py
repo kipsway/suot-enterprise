@@ -2,10 +2,16 @@ import math
 from typing import Optional, Dict, Any
 
 from PyQt5.QtCore import Qt, QRect, QPoint, QTimer
-from PyQt5.QtGui import (QFont, QColor, QPainter, QPen,
-                         QFontMetrics, QCursor)
-from PyQt5.QtWidgets import (QWidget, QFrame, QVBoxLayout, QHBoxLayout,
-                             QLabel, QGridLayout, QPushButton)
+from PyQt5.QtGui import QFont, QColor, QPainter, QPen, QFontMetrics, QCursor
+from PyQt5.QtWidgets import (
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QGridLayout,
+    QPushButton,
+)
 
 from app_core.i18n import I18n
 from app_core.theme_engine import ThemeEngine
@@ -31,40 +37,82 @@ class SafetyScoreGauge(QWidget):
         w, h = self.width(), self.height()
         side = min(w, h)
         margin = 20
-        gauge_rect = QRect((w - side) // 2 + margin, (h - side) // 2 + margin,
-                           side - margin * 2, side - margin * 2)
-        cx, cy = gauge_rect.center().x(), gauge_rect.center().y() + gauge_rect.height() * 0.1
+        gauge_rect = QRect(
+            (w - side) // 2 + margin,
+            (h - side) // 2 + margin,
+            side - margin * 2,
+            side - margin * 2,
+        )
+        cx, cy = (
+            gauge_rect.center().x(),
+            gauge_rect.center().y() + gauge_rect.height() * 0.1,
+        )
         radius = min(gauge_rect.width(), gauge_rect.height()) * 0.42
-        bg_color = QColor("#E8ECF1" if ThemeEngine._current_theme == "light" else "#333458")
+        bg_color = QColor(
+            "#E8ECF1" if ThemeEngine._current_theme == "light" else "#333458"
+        )
         pen_bg = QPen(bg_color, radius * 0.18)
         pen_bg.setCapStyle(Qt.RoundCap)
         painter.setPen(pen_bg)
-        painter.drawArc(QRect(int(cx - radius), int(cy - radius),
-                              int(radius * 2), int(radius * 2)), 180 * 16, 180 * 16)
+        painter.drawArc(
+            QRect(int(cx - radius), int(cy - radius), int(radius * 2), int(radius * 2)),
+            180 * 16,
+            180 * 16,
+        )
         angle = int(180.0 * self._score / 100.0)
-        score_color = QColor("#27AE60") if self._score >= 70 else (
-            QColor("#F39C12") if self._score >= 40 else QColor("#E74C3C"))
+        score_color = (
+            QColor("#27AE60")
+            if self._score >= 70
+            else (QColor("#F39C12") if self._score >= 40 else QColor("#E74C3C"))
+        )
         pen_score = QPen(score_color, radius * 0.18)
         pen_score.setCapStyle(Qt.RoundCap)
         painter.setPen(pen_score)
-        painter.drawArc(QRect(int(cx - radius), int(cy - radius),
-                              int(radius * 2), int(radius * 2)), 180 * 16, -angle * 16)
-        painter.setPen(QPen(QColor("#95A5A6" if ThemeEngine._current_theme == "light" else "#8888A0"), 1))
+        painter.drawArc(
+            QRect(int(cx - radius), int(cy - radius), int(radius * 2), int(radius * 2)),
+            180 * 16,
+            -angle * 16,
+        )
+        painter.setPen(
+            QPen(
+                QColor(
+                    "#95A5A6" if ThemeEngine._current_theme == "light" else "#8888A0"
+                ),
+                1,
+            )
+        )
         f = QFont("Segoe UI", round(radius * 0.35), QFont.Bold)
         painter.setFont(f)
-        painter.drawText(QRect(int(cx - radius), int(cy - radius * 0.1),
-                               int(radius * 2), int(radius)),
-                         Qt.AlignCenter, f"{self._score:.0f}%")
+        painter.drawText(
+            QRect(
+                int(cx - radius), int(cy - radius * 0.1), int(radius * 2), int(radius)
+            ),
+            Qt.AlignCenter,
+            f"{self._score:.0f}%",
+        )
         f2 = QFont("Segoe UI", round(radius * 0.13))
         painter.setFont(f2)
-        painter.drawText(QRect(int(cx - radius), int(cy + radius * 0.25),
-                               int(radius * 2), int(radius * 0.3)),
-                         Qt.AlignCenter, I18n._("stat.safety_score"))
+        painter.drawText(
+            QRect(
+                int(cx - radius),
+                int(cy + radius * 0.25),
+                int(radius * 2),
+                int(radius * 0.3),
+            ),
+            Qt.AlignCenter,
+            I18n._("stat.safety_score"),
+        )
 
 
 class KpiCard(QFrame):
-    def __init__(self, title: str, value: str, color: str,
-                 icon: str = "", parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        title: str,
+        value: str,
+        color: str,
+        icon: str = "",
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
         self.setProperty("card", True)
         self.setCursor(QCursor(Qt.PointingHandCursor))
@@ -80,7 +128,9 @@ class KpiCard(QFrame):
         header.addStretch()
         self._value_label = QLabel(str(value))
         self._value_label.setProperty("card_value", True)
-        self._value_label.setStyleSheet(f"color: {color}; font-size: 30px; font-weight: 700;")
+        self._value_label.setStyleSheet(
+            f"color: {color}; font-size: 30px; font-weight: 700;"
+        )
         self._title_label = QLabel(title)
         self._title_label.setProperty("card_label", True)
         self._title_label.setWordWrap(True)
@@ -218,13 +268,17 @@ class DashboardTab(QWidget):
             self._gauge.set_score(score)
 
             recent = self.db.fetch_all(
-                "SELECT event, created_at FROM audit_log ORDER BY id DESC LIMIT 5")
+                "SELECT event, created_at FROM audit_log ORDER BY id DESC LIMIT 5"
+            )
             lines = []
             for r in recent:
                 ts = r["created_at"][:16] if r["created_at"] else ""
                 ev = r["event"][:60] if r["event"] else ""
                 lines.append(f"• [{ts}] {ev}")
-            self._recent_label.setText("\n".join(lines) if lines else I18n._("dashboard.no_activity"))
+            self._recent_label.setText(
+                "\n".join(lines) if lines else I18n._("dashboard.no_activity")
+            )
         except Exception:
             import traceback
+
             traceback.print_exc()
