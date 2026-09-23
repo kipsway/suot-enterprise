@@ -15,7 +15,9 @@ def _totp_int(secret: bytes, timestamp: Optional[int] = None) -> int:
     counter = struct.pack(">Q", (timestamp or int(time.time())) // TOTP_INTERVAL)
     h = hmac.new(secret, counter, "sha1").digest()
     offset = h[-1] & 0x0F
-    code = (struct.unpack(">I", h[offset:offset + 4])[0] & 0x7FFFFFFF) % (10 ** TOTP_DIGITS)
+    code = (struct.unpack(">I", h[offset : offset + 4])[0] & 0x7FFFFFFF) % (
+        10**TOTP_DIGITS
+    )
     return code
 
 
@@ -31,8 +33,9 @@ class SecurityEngine:
     @staticmethod
     def generate_hash(password: str, salt: Optional[bytes] = None) -> Tuple[str, str]:
         safe_salt = salt if salt is not None else os.urandom(32)
-        dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"),
-                                 safe_salt, AppConfig.PBKDF2_ITERATIONS)
+        dk = hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), safe_salt, AppConfig.PBKDF2_ITERATIONS
+        )
         return dk.hex(), safe_salt.hex()
 
     @staticmethod
@@ -57,9 +60,13 @@ class SecurityEngine:
         return _secret_to_base32(_generate_totp_secret())
 
     @staticmethod
-    def get_totp_uri(secret_b32: str, username: str, issuer: str = "SUOT Enterprise") -> str:
-        return (f"otpauth://totp/{issuer}:{username}?secret={secret_b32}"
-                f"&issuer={issuer}&algorithm=SHA1&digits={TOTP_DIGITS}&period={TOTP_INTERVAL}")
+    def get_totp_uri(
+        secret_b32: str, username: str, issuer: str = "SUOT Enterprise"
+    ) -> str:
+        return (
+            f"otpauth://totp/{issuer}:{username}?secret={secret_b32}"
+            f"&issuer={issuer}&algorithm=SHA1&digits={TOTP_DIGITS}&period={TOTP_INTERVAL}"
+        )
 
     @staticmethod
     def generate_backup_codes(count: int = 10) -> list:
@@ -105,8 +112,9 @@ class RateLimiter:
         if key not in self._attempts:
             self._attempts[key] = []
         self._attempts[key].append(now)
-        self._attempts[key] = [t for t in self._attempts[key]
-                               if now - t < RATE_LIMIT_WINDOW]
+        self._attempts[key] = [
+            t for t in self._attempts[key] if now - t < RATE_LIMIT_WINDOW
+        ]
         return len(self._attempts[key])
 
     def is_locked(self, key: str) -> Tuple[bool, int]:

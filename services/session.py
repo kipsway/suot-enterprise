@@ -9,15 +9,19 @@ class SessionManager:
 
     def save_remember_me(self, username: str, token: str, expiry: datetime) -> None:
         try:
-            self.db.execute("UPDATE users SET session_token=?, token_expiry=? WHERE username=?",
-                            (token, expiry.isoformat(), username))
+            self.db.execute(
+                "UPDATE users SET session_token=?, token_expiry=? WHERE username=?",
+                (token, expiry.isoformat(), username),
+            )
             self.db.upsert_setting("remember_me_token", token)
             self.db.upsert_setting("remember_me_expiry", expiry.isoformat())
             self.db.log_event("Remember Me session activated", "INFO")
             self.db.commit()
         except Exception:
             self.db.rollback()
-            self.db.log_event(f"Remember Me failed: {traceback.format_exc()}", "CRITICAL")
+            self.db.log_event(
+                f"Remember Me failed: {traceback.format_exc()}", "CRITICAL"
+            )
 
     def clear_remember_me(self) -> None:
         try:
@@ -28,7 +32,9 @@ class SessionManager:
             self.db.commit()
         except Exception:
             self.db.rollback()
-            self.db.log_event(f"Clear session failed: {traceback.format_exc()}", "CRITICAL")
+            self.db.log_event(
+                f"Clear session failed: {traceback.format_exc()}", "CRITICAL"
+            )
 
     def validate_remember_me(self) -> Optional[Dict[str, Any]]:
         try:
@@ -37,7 +43,9 @@ class SessionManager:
                 return None
             row = self.db.fetch_one(
                 "SELECT id,username,password_hash,salt,role,session_token,token_expiry "
-                "FROM users WHERE session_token=?", (token,))
+                "FROM users WHERE session_token=?",
+                (token,),
+            )
             if not row:
                 self.clear_remember_me()
                 return None
