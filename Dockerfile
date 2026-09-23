@@ -22,4 +22,6 @@ ENV DISPLAY=${DISPLAY:-:0}
 
 EXPOSE 8888
 
-CMD ["python", "main.py"]
+# Headless REST API mode (default for Docker)
+ENV SUOT_HEADLESS=1
+CMD ["python", "run_app.py"]
