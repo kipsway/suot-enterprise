@@ -7,5 +7,6 @@ class SafeApplication(QApplication):
             return super().notify(receiver, event)
         except Exception:
             import traceback
+
             traceback.print_exc()
             return False

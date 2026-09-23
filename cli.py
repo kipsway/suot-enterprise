@@ -43,7 +43,9 @@ def cmd_violations_list(args: argparse.Namespace) -> None:
     db = setup()
     records = db.get_json_records("violations", limit=args.limit)
     print(f"Violations: {len(records)}")
-    print(f"{'ID':>4} {'Status':<12} {'Company':<20} {'Description':<40} {'Deadline':<12}")
+    print(
+        f"{'ID':>4} {'Status':<12} {'Company':<20} {'Description':<40} {'Deadline':<12}"
+    )
     print("-" * 92)
     for r in records:
         dj = r.get("data_json", r)
@@ -168,11 +170,13 @@ def cmd_backup_list(args: argparse.Namespace) -> None:
 
 def cmd_server(args: argparse.Namespace) -> None:
     from services.rest_api import RESTAPIServer, APIHandler
+
     db = setup()
     port = args.port
     api_key = db.get_setting("rest_api_key", "")
     APIHandler.api_key = api_key
     from http.server import HTTPServer
+
     server = HTTPServer(("127.0.0.1", port), APIHandler)
     print(f"REST API server started on http://127.0.0.1:{port}")
     if api_key:
@@ -186,8 +190,9 @@ def cmd_server(args: argparse.Namespace) -> None:
         server.shutdown()
 
 
-def _export_table(records: List[Dict[str, Any]], label: str,
-                  args: argparse.Namespace) -> None:
+def _export_table(
+    records: List[Dict[str, Any]], label: str, args: argparse.Namespace
+) -> None:
     fmt = args.format or "csv"
     out = args.output or f"{label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{fmt}"
     flat = []
@@ -198,7 +203,8 @@ def _export_table(records: List[Dict[str, Any]], label: str,
     if fmt == "csv":
         with open(out, "w", newline="", encoding="utf-8-sig") as f:
             if flat:
-                w = csv.DictWriter(f, fieldnames=list(flat[0].keys()))
+                fieldnames = list(dict.fromkeys(k for row in flat for k in row))
+                w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
                 w.writeheader()
                 w.writerows(flat)
         print(f"Exported {len(flat)} records to {out}")
@@ -206,6 +212,7 @@ def _export_table(records: List[Dict[str, Any]], label: str,
     elif fmt == "xlsx":
         try:
             import openpyxl
+
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = label

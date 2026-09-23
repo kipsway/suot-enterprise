@@ -1,9 +1,22 @@
 import json
 from typing import Any, Dict, Optional
 from datetime import datetime, timedelta
-from PyQt5.QtCore import QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QWidget, QFrame, QVBoxLayout, QTableWidget, QScroller, QGraphicsOpacityEffect
+
+try:  # Qt нужен только legacy-UI; веб-версия работает без него
+    from PyQt5.QtCore import QPropertyAnimation, QEasingCurve
+    from PyQt5.QtGui import QColor
+    from PyQt5.QtWidgets import (
+        QWidget,
+        QFrame,
+        QVBoxLayout,
+        QTableWidget,
+        QScroller,
+        QGraphicsOpacityEffect,
+    )
+except ImportError:  # pragma: no cover — сборка exe без Qt
+    QPropertyAnimation = QEasingCurve = QColor = None
+    QWidget = QFrame = QVBoxLayout = QTableWidget = None
+    QScroller = QGraphicsOpacityEffect = None
 
 
 class JsonUtils:
@@ -15,12 +28,11 @@ class JsonUtils:
             return "{}"
 
     @staticmethod
-    def loads(text: str) -> Dict[str, Any]:
+    def loads(text: str) -> Any:
         try:
             if not text:
                 return {}
-            r = json.loads(text)
-            return r if isinstance(r, dict) else {}
+            return json.loads(text)
         except Exception:
             return {}
 
@@ -33,10 +45,10 @@ class JsonUtils:
 
 
 def parse_date_flexible(date_str: Any) -> Optional[datetime]:
-    if not date_str or str(date_str).strip() in ('', '—', 'None'):
+    if not date_str or str(date_str).strip() in ("", "—", "None"):
         return None
-    s = str(date_str).split(' (')[0].replace('.', '-').replace('/', '-').strip()
-    parts = s.split('-')
+    s = str(date_str).split(" (")[0].replace(".", "-").replace("/", "-").strip()
+    parts = s.split("-")
     try:
         if len(parts) == 3:
             if len(parts[0]) == 2 and len(parts[2]) == 4:
@@ -54,41 +66,44 @@ def get_valid_until_bg(date_str: Any, is_dark: bool):
         return None
     today = datetime.now()
     if dt < today:
-        return QColor('#582525' if is_dark else '#f8d7da')
+        return QColor("#582525" if is_dark else "#f8d7da")
     if dt <= today + timedelta(days=30):
-        return QColor('#614d17' if is_dark else '#fff3cd')
-    return QColor('#254b32' if is_dark else '#d4edda')
+        return QColor("#614d17" if is_dark else "#fff3cd")
+    return QColor("#254b32" if is_dark else "#d4edda")
 
 
-def get_date_indicator_bg(date_str: Any, is_dark: bool, date_mode: str = 'Действует до'):
+def get_date_indicator_bg(
+    date_str: Any, is_dark: bool, date_mode: str = "Действует до"
+):
     dt = parse_date_flexible(date_str)
     if not dt:
         return None
-    if date_mode == 'Дата проведения':
+    if date_mode == "Дата проведения":
         dt = dt + timedelta(days=365)
     today = datetime.now()
     if dt < today:
-        return QColor('#582525' if is_dark else '#f8d7da')
+        return QColor("#582525" if is_dark else "#f8d7da")
     if dt <= today + timedelta(days=30):
-        return QColor('#614d17' if is_dark else '#fff3cd')
-    return QColor('#254b32' if is_dark else '#d4edda')
+        return QColor("#614d17" if is_dark else "#fff3cd")
+    return QColor("#254b32" if is_dark else "#d4edda")
 
 
-def get_status_indicator_bg(status_str: Any, is_dark: bool):
+def get_status_indicator_bg(status_str: Any, is_dark: bool = False):
     status = str(status_str).strip()
-    if status in ('Устранено', 'Исполнено', 'Resolved', 'Соответствует'):
-        return QColor('#254b32' if is_dark else '#d4edda')
-    if status in ('Активно', 'Активен', 'Active'):
-        return QColor('#614d17' if is_dark else '#fff3cd')
-    if status in ('Просрочено', 'Expired'):
-        return QColor('#582525' if is_dark else '#f8d7da')
-    if status in ('Архив', 'Уволен'):
-        return QColor('#313244' if is_dark else '#f1f3f5')
+    if status in ("Устранено", "Исполнено", "Resolved", "Соответствует"):
+        return QColor("#254b32" if is_dark else "#d4edda")
+    if status in ("Активно", "Активен", "Active"):
+        return QColor("#614d17" if is_dark else "#fff3cd")
+    if status in ("Просрочено", "Expired"):
+        return QColor("#582525" if is_dark else "#f8d7da")
+    if status in ("Архив", "Уволен"):
+        return QColor("#313244" if is_dark else "#f1f3f5")
     return None
 
 
 def apply_glass_style(widget: QWidget, intensity: str = "medium") -> None:
     from app_core.theme_engine import ThemeEngine
+
     is_dark = ThemeEngine._current_theme == "dark"
     if intensity == "high":
         bg = "rgba(255,255,255,0.12)" if not is_dark else "rgba(255,255,255,0.10)"
@@ -124,6 +139,7 @@ def wrap_table_with_glow(table: QTableWidget, parent: QWidget) -> QFrame:
     container = QFrame(parent)
     container.setObjectName("tableGlowContainer")
     from app_core.theme_engine import ThemeEngine
+
     is_dark = ThemeEngine._current_theme == "dark"
     if is_dark:
         glow = """

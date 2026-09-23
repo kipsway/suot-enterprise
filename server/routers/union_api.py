@@ -32,15 +32,27 @@ TABLE_LABELS_RU = {
 
 MAX_PER_SECTION = 5000
 
+# Легаси-таблицы без собственного владельца (нет колонки user_id): их записи
+# общие, но они не должны попадать в сквозной поиск/счётчики не-админа —
+# иначе демо/сид-данные протекают в чужие результаты и ломают изоляцию.
+SHARED_SECTIONS = {"companies"}
+
 
 def _label(table: str) -> str:
     return TABLE_LABELS_RU.get(table, table)
+
+
+def _visible_sections(user: dict) -> Dict[str, bool]:
+    """Таблицы, по которым разрешён сбор строк для данного пользователя."""
+    admin = is_admin(user)
+    return {t: (admin or t not in SHARED_SECTIONS) for t in DatabaseManager.JSON_TABLES}
 
 
 def _sections(db: DatabaseManager, user: dict) -> List[Dict[str, Any]]:
     """Все доступные разделы: системные JSON_TABLES + custom (u_*)."""
     uid = None if is_admin(user) else int(user["id"])
     admin = is_admin(user)
+    visible = _visible_sections(user)
     out: List[Dict[str, Any]] = []
     for table in DatabaseManager.JSON_TABLES:
         try:
@@ -48,6 +60,8 @@ def _sections(db: DatabaseManager, user: dict) -> List[Dict[str, Any]]:
                 table, owner_id=uid, is_admin=admin, page_size=1
             )
         except Exception:
+            total = 0
+        if not visible.get(table, False):
             total = 0
         cols = [c["name"] for c in db.get_columns_config(table) if c["name"] != "ID"]
         out.append(
@@ -98,10 +112,14 @@ def _gather(
 ) -> List[Dict[str, Any]]:
     uid = None if is_admin(user) else int(user["id"])
     admin = is_admin(user)
+    visible = _visible_sections(user)
     want = set(only_sections or [])
     gathered: List[Dict[str, Any]] = []
     for table in DatabaseManager.JSON_TABLES:
         if want and table not in want:
+            continue
+        if not visible.get(table, False):
+            # общая легаси-таблица (companies): не собирается по общим запросам
             continue
         try:
             rows, _ = db.query_json_records(

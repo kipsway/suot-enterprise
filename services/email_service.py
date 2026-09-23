@@ -10,8 +10,9 @@ from services.database import DatabaseManager
 from services.workerpool import AsyncPool, Worker
 
 
-def _send_sync(cfg: Dict[str, str], to_addr: str, subject: str,
-               html_body: str, text_body: str) -> str:
+def _send_sync(
+    cfg: Dict[str, str], to_addr: str, subject: str, html_body: str, text_body: str
+) -> str:
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
@@ -83,10 +84,13 @@ class EmailService(QObject):
 
     def is_enabled(self) -> bool:
         cfg = self._get_config()
-        return bool(cfg["host"] and self._db.get_setting("email_enabled", "false") == "true")
+        return bool(
+            cfg["host"] and self._db.get_setting("email_enabled", "false") == "true"
+        )
 
-    def send(self, to_addr: str, subject: str, html_body: str,
-             text_body: str = "") -> None:
+    def send(
+        self, to_addr: str, subject: str, html_body: str, text_body: str = ""
+    ) -> None:
         if not to_addr:
             return
         cfg = self._get_config()
@@ -95,19 +99,24 @@ class EmailService(QObject):
         if not text_body:
             text_body = subject
         worker = Worker(_send_sync, cfg, to_addr, subject, html_body, text_body)
-        worker.signals.error.connect(lambda err: self._db.log_event(
-            f"Email error: {err}", "WARNING"))
+        worker.signals.error.connect(
+            lambda err: self._db.log_event(f"Email error: {err}", "WARNING")
+        )
         AsyncPool.start(worker)
 
-    def send_notification(self, title: str, message: str,
-                          severity: str = "info") -> int:
+    def send_notification(
+        self, title: str, message: str, severity: str = "info"
+    ) -> int:
         if not self.is_enabled():
             return 0
         icon_map = {"info": "ℹ️", "warning": "⚠️", "error": "🚨", "success": "✅"}
         icon = icon_map.get(severity, "ℹ️")
         html = NOTIFICATION_HTML.format(
-            icon=icon, title=title, message=message.replace("\n", "<br>"),
-            time=datetime.now().strftime("%d.%m.%Y %H:%M"))
+            icon=icon,
+            title=title,
+            message=message.replace("\n", "<br>"),
+            time=datetime.now().strftime("%d.%m.%Y %H:%M"),
+        )
         to_addr = self._db.get_setting("email_default_to", "")
         if to_addr:
             self.send(to_addr, f"[SUOT] {title}", html)
@@ -118,7 +127,11 @@ class EmailService(QObject):
         cfg = self._get_config()
         if not cfg["host"] or not to_addr:
             return "Check SMTP settings and recipient address"
-        err = _send_sync(cfg, to_addr, "SUOT Enterprise — Test Email",
-                         "<h2>Test message</h2><p>Email configuration works.</p>",
-                         "Test message: Email configuration works.")
+        err = _send_sync(
+            cfg,
+            to_addr,
+            "SUOT Enterprise — Test Email",
+            "<h2>Test message</h2><p>Email configuration works.</p>",
+            "Test message: Email configuration works.",
+        )
         return err or None
