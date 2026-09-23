@@ -1,6 +1,6 @@
 import os, csv, json, sqlite3, hashlib, shutil, zipfile, tempfile, traceback
 from typing import Optional, Dict, List, Tuple, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from app_core.config import AppConfig, RUNTIME_PATHS
 from app_core.db_interface import create_backend, SQLiteBackend
 from app_core.utils import JsonUtils
@@ -644,12 +644,18 @@ class DatabaseManager:
             ("textbook", self._seed_textbook),
             ("templates", self._seed_templates),
             ("admin_user", self._seed_admin_user),
-            ("companies", self._seed_companies),
-            ("employees", self._seed_employees),
-            ("violations", self._seed_violations),
             ("print_templates", self._seed_print_templates),
             ("npa_documents", self._seed_npa),
         ]
+        # Демо-записи (companies/employees/violations) — только для реальных БД.
+        # Тестовая БД (SUOT_E2E_DB) должна быть детерминированной: демо грузится
+        # явно через POST /api/demo/seed или кнопкой «Загрузить демо» в UI.
+        if not os.environ.get("SUOT_E2E_DB"):
+            steps += [
+                ("companies", self._seed_companies),
+                ("employees", self._seed_employees),
+                ("violations", self._seed_violations),
+            ]
         for name, fn in steps:
             try:
                 fn()
