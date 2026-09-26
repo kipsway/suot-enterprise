@@ -8,6 +8,92 @@ from services.security import SecurityEngine
 from services.session import SessionManager
 
 
+# Значения статуса, считающиеся "завершёнными" для smart-фильтров
+# active/done (единый список для системных и пользовательских таблиц).
+DONE_STATUS_VALUES = [
+    "устранено",
+    "исполнено",
+    "resolved",
+    "соответствует",
+    "выполнено",
+    "готово",
+    "закрыто",
+    "done",
+    "архив",
+    "уволен",
+    "отменено",
+    "closed",
+]
+
+# Типы колонок с датами в формате ДД.ММ.ГГГГ (системные и custom).
+DATE_COLUMN_TYPES = {"Годен до", "Дата проведения", "Дата"}
+
+# Имена колонок статуса (системные и custom).
+STATUS_COLUMN_NAMES = {"Статус", "Тяжесть"}
+
+
+def smart_filter_clause(
+    columns: List[Dict[str, Any]], smart_filter: str
+) -> Tuple[str, List[Any]]:
+    """SQL-кусок smart-фильтра (overdue/active/done) по описанию колонок.
+
+    columns: [{"name":..., "type":...}]. Возвращает (where_sql, params);
+    пустая строка — фильтр неприменим (нет подходящих колонок).
+    """
+    if smart_filter == "overdue":
+        date_cols = [
+            c["name"]
+            for c in columns
+            if c.get("type") in DATE_COLUMN_TYPES and c.get("name")
+        ]
+        if not date_cols:
+            return "", []
+        tests = [
+            f"date(substr(json_extract(data_json, '$.\"{c}\"'), 7, 4) || '-' || substr(json_extract(data_json, '$.\"{c}\"'), 4, 2) || '-' || substr(json_extract(data_json, '$.\"{c}\"'), 1, 2)) < date('now', '-1 day')"
+            for c in date_cols
+        ]
+        status = next(
+            (
+                c["name"]
+                for c in columns
+                if c.get("name") in STATUS_COLUMN_NAMES or c.get("type") == "Статус"
+            ),
+            "",
+        )
+        clause = "(" + " OR ".join(tests) + ")"
+        params: List[Any] = []
+        if status:
+            # NOTE: overdue всегда исключает завершённые (как в системных таблицах).
+            clause = (
+                "("
+                + clause
+                + " AND pylower(coalesce(json_extract(data_json, '$.\"%s\"'),'')) NOT IN (%s))"
+                % (
+                    status,
+                    ",".join("?" for _ in DONE_STATUS_VALUES),
+                )
+            )
+            params.extend(DONE_STATUS_VALUES)
+        return clause, params
+    if smart_filter in {"active", "done"}:
+        status = next(
+            (
+                c["name"]
+                for c in columns
+                if c.get("name") in STATUS_COLUMN_NAMES or c.get("type") == "Статус"
+            ),
+            "",
+        )
+        if not status:
+            return "", []
+        op = "NOT IN" if smart_filter == "active" else "IN"
+        return (
+            f"pylower(coalesce(json_extract(data_json, '$.\"{status}\"'),'')) {op} ({','.join('?' for _ in DONE_STATUS_VALUES)})",
+            list(DONE_STATUS_VALUES),
+        )
+    return "", []
+
+
 class DatabaseManager:
     _instance: Optional["DatabaseManager"] = None
     _lock: Any = None
@@ -90,6 +176,25 @@ class DatabaseManager:
                     totp_secret TEXT DEFAULT '',
                     backup_codes TEXT DEFAULT '[]',
                     full_name TEXT DEFAULT ''
+                );
+                CREATE TABLE IF NOT EXISTS bulk_jobs (
+                    id TEXT PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    kind TEXT NOT NULL,
+                    target TEXT NOT NULL,
+                    ids_json TEXT NOT NULL DEFAULT '[]',
+                    processed_ids_json TEXT NOT NULL DEFAULT '[]',
+                    field TEXT NOT NULL DEFAULT '',
+                    value TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'queued',
+                    done INTEGER NOT NULL DEFAULT 0,
+                    total INTEGER NOT NULL DEFAULT 0,
+                    result_json TEXT NOT NULL DEFAULT '{}',
+                    error TEXT NOT NULL DEFAULT '',
+                    cancel_requested INTEGER NOT NULL DEFAULT 0,
+                    created_at REAL NOT NULL DEFAULT 0,
+                    started_at REAL,
+                    finished_at REAL
                 );
                 CREATE TABLE IF NOT EXISTS settings (
                     key TEXT PRIMARY KEY,
@@ -524,6 +629,19 @@ class DatabaseManager:
             self._backend.execute(
                 "CREATE INDEX IF NOT EXISTS idx_custom_tables_user "
                 "ON custom_tables(user_id)"
+            )
+            self._backend.execute("""CREATE TABLE IF NOT EXISTS user_views (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL DEFAULT 0,
+                scope TEXT NOT NULL DEFAULT '',
+                name TEXT NOT NULL DEFAULT '',
+                query_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )""")
+            self._backend.execute(
+                "CREATE INDEX IF NOT EXISTS idx_user_views_owner "
+                "ON user_views(user_id, scope)"
             )
             self._backend.execute("""CREATE TABLE IF NOT EXISTS user_columns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1549,6 +1667,7 @@ tr:nth-child(even){background:#f5f5f5}
         page: int = 1,
         page_size: int = 50,
         order_cast: str = "",
+        smart_filter: str = "",
     ) -> Tuple[List[Dict[str, Any]], int]:
         """Серверные список+счётчик: поиск, фильтры по колонкам, сортировка, пагинация.
 
@@ -1574,6 +1693,55 @@ tr:nth-child(even){background:#f5f5f5}
             placeholders = ",".join("?" for _ in values)
             where.append(f"{expr} IN ({placeholders})")
             params.extend(values)
+
+        if smart_filter == "overdue":
+            date_cols = [
+                c["name"]
+                for c in valid_cols.values()
+                if c.get("type") in {"Годен до", "Дата проведения", "Дата"}
+            ]
+            if date_cols:
+                tests = [
+                    f"date(substr(json_extract(data_json, '$.\"{c}\"'), 7, 4) || '-' || substr(json_extract(data_json, '$.\"{c}\"'), 4, 2) || '-' || substr(json_extract(data_json, '$.\"{c}\"'), 1, 2)) < date('now', '-1 day')"
+                    for c in date_cols
+                ]
+                status = next(
+                    (
+                        c["name"]
+                        for c in valid_cols.values()
+                        if c.get("name") in {"Статус", "Тяжесть"}
+                    ),
+                    "",
+                )
+                clause = "(" + " OR ".join(tests) + ")"
+                if status:
+                    clause = (
+                        "("
+                        + clause
+                        + " AND pylower(coalesce(json_extract(data_json, '$.\"%s\"'),'')) NOT IN (%s))"
+                        % (
+                            status,
+                            ",".join("?" for _ in DONE_STATUS_VALUES),
+                        )
+                    )
+                    params.extend(DONE_STATUS_VALUES)
+                where.append(clause)
+        elif smart_filter in {"active", "done"}:
+            vals = DONE_STATUS_VALUES
+            status = next(
+                (
+                    c["name"]
+                    for c in valid_cols.values()
+                    if c.get("name") in {"Статус", "Тяжесть"}
+                ),
+                "",
+            )
+            if status:
+                op = "NOT IN" if smart_filter == "active" else "IN"
+                where.append(
+                    f"pylower(coalesce(json_extract(data_json, '$.\"{status}\"'),'')) {op} ({','.join('?' for _ in vals)})"
+                )
+                params.extend(vals)
 
         where_sql = (" WHERE " + " AND ".join(where)) if where else ""
         total = (
@@ -1670,6 +1838,83 @@ tr:nth-child(even){background:#f5f5f5}
         return counts
 
     # ═══ Пользовательские таблицы (Часть 7) ═══
+
+    # ── Сохранённые виды таблиц (SUOT Next, Query Engine) ──
+
+    def list_views(
+        self, scope: str, owner_id: Optional[int], is_admin: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Виды таблицы: свои (+ общие user_id=0); админ видит все."""
+        if is_admin:
+            rows = self.fetch_all(
+                "SELECT * FROM user_views WHERE scope=? ORDER BY id",
+                (scope,),
+            )
+        else:
+            rows = self.fetch_all(
+                "SELECT * FROM user_views WHERE scope=? AND (user_id=? OR user_id=0) ORDER BY id",
+                (scope, int(owner_id or 0)),
+            )
+        out = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["query"] = JsonUtils.loads(d.get("query_json") or "{}")
+            except Exception:
+                d["query"] = {}
+            out.append(d)
+        return out
+
+    def create_view(
+        self, scope: str, name: str, query: Dict[str, Any], user_id: int
+    ) -> Dict[str, Any]:
+        cur = self._backend.execute(
+            "INSERT INTO user_views (user_id, scope, name, query_json) VALUES (?, ?, ?, ?)",
+            (int(user_id), scope, name, JsonUtils.dumps(query)),
+        )
+        self._backend.commit()
+        return {"id": int(cur.lastrowid)}
+
+    def update_view(
+        self,
+        vid: int,
+        user_id: int,
+        is_admin: bool,
+        name: Optional[str] = None,
+        query: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        row = self.fetch_one("SELECT * FROM user_views WHERE id=?", (vid,))
+        if not row:
+            return False
+        if int(row["user_id"]) != int(user_id or 0) and not is_admin:
+            raise PermissionError("чужой вид")
+        sets: List[str] = []
+        params: List[Any] = []
+        if name is not None:
+            sets.append("name=?")
+            params.append(name)
+        if query is not None:
+            sets.append("query_json=?")
+            params.append(JsonUtils.dumps(query))
+        if not sets:
+            return True
+        sets.append("updated_at=datetime('now')")
+        params.append(vid)
+        self._backend.execute(
+            f"UPDATE user_views SET {', '.join(sets)} WHERE id=?", tuple(params)
+        )
+        self._backend.commit()
+        return True
+
+    def delete_view(self, vid: int, user_id: int, is_admin: bool) -> bool:
+        row = self.fetch_one("SELECT * FROM user_views WHERE id=?", (vid,))
+        if not row:
+            return False
+        if int(row["user_id"]) != int(user_id or 0) and not is_admin:
+            raise PermissionError("чужой вид")
+        self._backend.execute("DELETE FROM user_views WHERE id=?", (vid,))
+        self._backend.commit()
+        return True
 
     def get_custom_tables(
         self,
@@ -1776,6 +2021,7 @@ tr:nth-child(even){background:#f5f5f5}
         page: int = 1,
         page_size: int = 50,
         order_cast: str = "",
+        smart_filter: str = "",
     ) -> Tuple[List[Dict[str, Any]], int]:
         where: List[str] = ["table_key=?"]
         params: List[Any] = [key]
@@ -1795,6 +2041,17 @@ tr:nth-child(even){background:#f5f5f5}
             ph = ",".join("?" for _ in values)
             where.append(f"{expr} IN ({ph})")
             params.extend(values)
+        if smart_filter in {"overdue", "active", "done"}:
+            clause, sparams = smart_filter_clause(
+                [
+                    {"name": n, "type": (c or {}).get("type", "")}
+                    for n, c in valid_cols.items()
+                ],
+                smart_filter,
+            )
+            if clause:
+                where.append(clause)
+                params.extend(sparams)
         where_sql = " WHERE " + " AND ".join(where)
         total = (
             self.fetch_one(
@@ -2371,7 +2628,9 @@ tr:nth-child(even){background:#f5f5f5}
         """
         if table in self.JSON_TABLES:
             try:
-                cols = {r["name"] for r in self.fetch_all(f"PRAGMA table_info({table})")}
+                cols = {
+                    r["name"] for r in self.fetch_all(f"PRAGMA table_info({table})")
+                }
                 if "user_id" not in cols:
                     # легаси-таблица без владельца (напр. companies) — общая
                     exists = self.fetch_one(

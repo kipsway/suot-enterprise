@@ -47,6 +47,7 @@ class SetupAdmin(BaseModel):
     theme: str = "dark"
     lang: str = "ru"
     load_demo: bool = False
+    scenario: str = "today"
 
 
 @router.post("/admin")
@@ -92,6 +93,7 @@ def create_admin(body: SetupAdmin, db=Depends(get_db)):
         db.upsert_setting("brand_logo", body.logo[:300_000])
     db.upsert_setting("theme", body.theme)
     db.upsert_setting("app_language", body.lang)
+    db.upsert_setting("onboarding_scenario", body.scenario)
     db.log_event(
         f"Setup wizard: administrator '{username}' created",
         "INFO",

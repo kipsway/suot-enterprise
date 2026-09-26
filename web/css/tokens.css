@@ -298,3 +298,46 @@ kbd {
   .spinner, .dz-spin, .statusbar .dot, .bell-ring { animation-duration:
     var(--dur-spin) !important; }
 }
+
+/* ═══ НОВАЯ ВИЗУАЛЬНАЯ СИСТЕМА SUOT / AURORA DUSK ═══
+   Осознанный слой поверх совместимых Alpine-компонентов: глубокий сине-чёрный
+   фон, сигнальный лайм для действий/статуса и выразительная, но сдержанная
+   motion-система. Семантические старые имена сохранены, чтобы не ломать
+   текущие RU/EN-контракты и настройки. Текст t-2 проходит WCAG AA. */
+:root, [data-theme="dark"] {
+  --acc-500: #B8F34A; --acc-600: #8FCB24; --acc-700: #5F9411;
+  --acc-400: #D5FF7C; --acc-300: #E6FFAE;
+  --acc: #B8F34A; --acc-h: #D5FF7C; --acc-p: #8FCB24;
+  --acc-soft: rgba(184,243,74,.12); --acc-glow: rgba(184,243,74,.24);
+  --fg-on-acc: #101609; --fg-on-warn: #0F1115;
+  --bg-0: #080912; --bg-1: #0E1020; --bg-2: #151830; --bg-3: #20263F;
+  --bg-glass: rgba(14, 16, 32, .8);
+  --t-0: #F2F4FA; --t-1: #B9C1D6; --t-2: #8E99B0; --t-3: #5A6478;
+  --line: rgba(200,210,245,.09); --line-strong: rgba(200,210,245,.15);
+  --line-soft: rgba(210,220,245,.04);
+  --info: #68D8E8; --info-soft: rgba(104,216,232,.12);
+  --blue: #68D8E8; --blue-soft: rgba(104,216,232,.12);
+  --purple: #BBA7FF; --purple-soft: rgba(187,167,255,.12);
+  --r-sm: 10px; --r-md: 15px; --r-lg: 20px; --r-xl: 28px;
+  --sidebar-w: 252px;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-2: 0 12px 34px rgba(0,0,0,.44);
+  --shadow-3: 0 24px 70px rgba(0,0,0,.55);
+}
+[data-theme="light"] {
+  --acc-500: #5D8E00; --acc-600: #4C7600; --acc-700: #385A00;
+  --acc-400: #6FA50B; --acc-300: #86BD20;
+  --acc: #5D8E00; --acc-h: #4C7600; --acc-p: #385A00;
+  --acc-soft: rgba(93,142,0,.10); --acc-glow: rgba(93,142,0,.18);
+  --fg-on-acc: #FFFFFF; --fg-on-warn: #0F1115;
+  --bg-0: #EDEFF5; --bg-1: #FAFBFE; --bg-2: #FFFFFF; --bg-3: #E3E8F2;
+  --bg-glass: rgba(250, 251, 254, .85);
+  --t-0: #141A28; --t-1: #4A5568; --t-2: #5F6B80; --t-3: #9AA3B5;
+  --line: rgba(20,26,40,.09); --line-strong: rgba(20,26,40,.15);
+  --info: #087E8E; --info-soft: rgba(8,126,142,.10);
+  --blue: #087E8E; --blue-soft: rgba(8,126,142,.10);
+  --purple: #6851B6; --purple-soft: rgba(104,81,182,.10);
+  --shadow-1: 0 1px 2px rgba(20,26,40,.07);
+  --shadow-2: 0 10px 30px rgba(20,26,40,.11);
+  --shadow-3: 0 22px 60px rgba(20,26,40,.16);
+}

@@ -25,6 +25,7 @@ from server.routers import (
     print_api,
     print_pdf,
     search_reports,
+    documents,
     reminders_api,
     ai_api,
     settings_api,
@@ -39,6 +40,8 @@ from server.routers import (
     npa_api,
     tools_api,
     diag,
+    jobs,
+    views,
 )
 
 
@@ -76,6 +79,35 @@ async def lifespan(app: FastAPI):
             db.commit()
         except Exception:
             pass
+    try:
+        db.execute(
+            "ALTER TABLE bulk_jobs ADD COLUMN processed_ids_json TEXT NOT NULL DEFAULT '[]'"
+        )
+        db.commit()
+    except Exception:
+        pass
+    try:
+        from server.routers.jobs import recover_pending
+
+        recovered = recover_pending(db)
+        if recovered:
+            print(f"[jobs] recovered: {recovered}")
+    except Exception as e:
+        print(f"[jobs] recovery skipped: {e}")
+    try:
+        from server.routers.documents import (
+            purge_old_print_jobs,
+            recover_pending_print_jobs,
+        )
+
+        rec = recover_pending_print_jobs(db)
+        if rec:
+            print(f"[print] recovered: {rec}")
+        purged_print = purge_old_print_jobs(db)
+        if purged_print:
+            print(f"[print] purged {purged_print} old results")
+    except Exception as e:
+        print(f"[print] maintenance skipped: {e}")
     # Часть 19: авто-бэкап при старте
     if not db_path:
         try:
@@ -133,6 +165,7 @@ app.include_router(dashboard.router)
 app.include_router(print_api.router)
 app.include_router(print_pdf.router)
 app.include_router(search_reports.router)
+app.include_router(documents.router)
 app.include_router(reminders_api.router)
 app.include_router(ai_api.router)
 app.include_router(settings_api.router)
@@ -147,6 +180,8 @@ app.include_router(calendar_api.router)
 app.include_router(npa_api.router)
 app.include_router(tools_api.router)
 app.include_router(diag.router)
+app.include_router(jobs.router)
+app.include_router(views.router)
 
 
 @app.get("/api/health")

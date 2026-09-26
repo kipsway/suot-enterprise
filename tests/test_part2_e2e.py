@@ -288,8 +288,12 @@ try:
         check("палитра ищет по 'нару'", items >= 1, f"{items} items")
         page.locator(".palette-item", has_text="арушения").first.click()
         page.wait_for_timeout(800)
-        active_label = page.locator(".tab.active .tab-title").inner_text()
-        check("палитра открыла Нарушения", "аруш" in active_label, active_label)
+        # Таббара больше нет: активный вид — состояние реестра + видимый контент
+        active_id = page.evaluate("() => Alpine.store('next').activeId")
+        page.wait_for_selector("table.grid:visible", timeout=8000)
+        check(
+            "палитра открыла Нарушения (реестр)", active_id == "violations", active_id
+        )
         page.keyboard.press("Escape")
 
         # В Нарушениях пусто — грузим демо
@@ -975,8 +979,8 @@ try:
             pane(page).locator(".capa-row", has_text="Е2Е Совещание").count() == 1,
         )
 
-        # Риски: 4×4 = критический
-        page.locator(".nav-item", has_text="Риски").click()
+        # Риски: 4×4 = критический (обе кнопки «Риски…» открывают один раздел)
+        page.locator(".nav-item", has_text="Риски").first.click()
         page.wait_for_selector(".tabpane:visible .sp-wrap", timeout=6000)
         pane(page).locator(".sp-toolbar .btn.primary").click()
         page.wait_for_selector(".tabpane:visible .modal:visible", timeout=4000)
@@ -1050,8 +1054,15 @@ try:
         ct_rows.nth(1).locator("select").select_option("Число")
         page.locator(".modal.anim-in:visible .modal-foot .btn.primary").click()
         page.wait_for_selector(".tabpane:visible table.grid", timeout=8000)
-        tab_label = page.locator(".tab.active .tab-title").inner_text()
-        check("своя таблица создана и открыта", "Е2Е Склад UI" in tab_label, tab_label)
+        tab_state = page.evaluate(
+            "() => { const a = Alpine.store('tabs').active || {};"
+            " return (a.key || '') + '|' + (a.label || ''); }"
+        )
+        check(
+            "своя таблица создана и открыта",
+            tab_state.startswith("u_") and "Е2Е Склад UI" in tab_state,
+            tab_state,
+        )
 
         # Запись в неё
         pane(page).locator(".tbl-toolbar > .btn.primary").click()
@@ -1106,7 +1117,9 @@ try:
         page.locator(".modal.anim-in:visible .modal-foot .btn.primary").click()
         page.wait_for_selector(".toast.success", timeout=5000)
         time.sleep(0.8)
-        tab_label2 = page.locator(".tab.active .tab-title").inner_text()
+        tab_label2 = page.evaluate(
+            "() => (Alpine.store('tabs').active || {}).label || ''"
+        )
         check("переименование обновило вкладку", "v2" in tab_label2, tab_label2)
 
         # Перенос: создать вторую таблицу через API и переместить UI-кнопкой
@@ -1718,8 +1731,10 @@ try:
         )
         page.keyboard.press("Escape")
 
-        # Выход
-        page.evaluate("document.querySelector('.nav-item.danger').click()")
+        # Выход (кнопка выхода — в футере сайдбара; .danger есть и у сценария)
+        page.evaluate(
+            "document.querySelector('.sidebar-foot .nav-item.danger').click()"
+        )
         try:
             page.wait_for_selector(".auth-card", timeout=6000)
             check("выход на экран входа", True)

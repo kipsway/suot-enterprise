@@ -1,6 +1,6 @@
 /* SUOT Neo — корневое состояние приложения (Alpine.js) */
 document.addEventListener("alpine:init", () => {
-  Alpine.store("version", "2.2.3");
+  Alpine.store("version", "2.3.0");
   Alpine.store("brand", { org_name: "", logo: "" });
   Alpine.store("startScreen", localStorage.getItem("suot_start")
     || "workspace");
@@ -25,13 +25,17 @@ document.addEventListener("alpine:init", () => {
     regForm: { full_name: "" },
     demoNeeded: false,
     demoBusy: false,
+    wsLoading: true,
     counts: {},
     updAvailable: false,
     reduceMotion: false,
     customTables: [],
     pinned: JSON.parse(localStorage.getItem("suot_pinned") || "[]"),
     wsSearch: "",
+    wsScenario: "all",
     recent: [],
+    wsPresets: [],
+    wsPresetName: "",
     /* создание своей таблицы */
     ctOpen: false, ctEditKey: null, ctBusy: false,
     ctForm: { label: "", icon: "database", color: "#6366F1",
@@ -51,6 +55,7 @@ document.addEventListener("alpine:init", () => {
     showTop: false,
     railMode: localStorage.getItem("suot_rail") === "1",
     _healthTimer: null,
+    taskActiveCount: 0,      // Task Center: число активных задач (бейдж)
     fatal: null,               // {msg, stack, url, ua, at} для Error Boundary
 
     setupErrorBoundary() {
@@ -170,6 +175,12 @@ document.addEventListener("alpine:init", () => {
       document.addEventListener("suot-open-palette", () => {
         this.openPalette();
       });
+      document.addEventListener("suot-open-today", () => {
+        this.openToday();
+      });
+      document.addEventListener("suot-tasks-changed", () => {
+        this.refreshTaskCount();
+      });
 
       document.addEventListener("suot-hotkey-ai-chat", () => {
         try { Alpine.store("tabs").openAI(); } catch (_) {}
@@ -234,6 +245,7 @@ document.addEventListener("alpine:init", () => {
       this.refreshCounts();
       this.loadCustom();
       this.refreshRecent();
+      this.loadWorkspacePresets();
       if (window.Appearance) window.Appearance.load();
       if (window.Hotkeys) window.Hotkeys.load();
       if (Alpine.store("plugins")) Alpine.store("plugins").load();
@@ -243,6 +255,7 @@ document.addEventListener("alpine:init", () => {
       }).catch(() => {});
       this.applyUserLocale();
       this.startHealthLoop();
+      this.refreshTaskCount();
       this.initScrollTop();
       setTimeout(() => {
         if (Alpine.store("tabs").list.length <= 1)
@@ -266,6 +279,16 @@ document.addEventListener("alpine:init", () => {
       }
     },
 
+    openToday() {
+      Alpine.store("tabs").openWelcome();
+      this.$nextTick(() => {
+        setTimeout(() => {
+          const card = document.querySelector(".focus-card");
+          if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 80);
+      });
+    },
+
     async loadCustom() {
       try {
         const res = await API.get("/custom/tables");
@@ -284,6 +307,31 @@ document.addEventListener("alpine:init", () => {
       } catch (_) { this.recent = []; }
     },
 
+    loadWorkspacePresets() {
+      try {
+        this.wsPresets = JSON.parse(localStorage.getItem("suot_ws_presets") || "[]");
+      } catch (_) { this.wsPresets = []; }
+    },
+    saveWorkspacePreset() {
+      const name = this.wsPresetName.trim();
+      if (!name) return;
+      const preset = { name, keys: this.wsTiles.map((t) => t.key), at: Date.now() };
+      this.wsPresets = [preset, ...this.wsPresets.filter((p) => p.name !== name)].slice(0, 8);
+      localStorage.setItem("suot_ws_presets", JSON.stringify(this.wsPresets));
+      this.wsPresetName = "";
+      Toast.show(this.ru("Сценарий рабочего стола сохранён", "Workspace preset saved"), "success");
+    },
+    applyWorkspacePreset(preset) {
+      if (!preset || !Array.isArray(preset.keys)) return;
+      localStorage.setItem("suot_ws_order", JSON.stringify(preset.keys));
+      this.wsSearch = "";
+      Toast.show(this.ru("Сценарий применён", "Preset applied"), "success");
+    },
+    deleteWorkspacePreset(index) {
+      this.wsPresets.splice(index, 1);
+      localStorage.setItem("suot_ws_presets", JSON.stringify(this.wsPresets));
+    },
+
     isPinned(key) { return this.pinned.includes(key); },
     togglePin(key) {
       this.pinned = this.isPinned(key)
@@ -293,6 +341,25 @@ document.addEventListener("alpine:init", () => {
     },
 
     /* ── Рабочий стол ── */
+    get wsScenarios() {
+      return [
+        { id: "all", label: I18N.lang === "ru" ? "Все разделы" : "All sections", icon: "layers" },
+        { id: "today", label: I18N.lang === "ru" ? "Сегодня" : "Today", icon: "dashboard" },
+        { id: "risks", label: I18N.lang === "ru" ? "Риски и сроки" : "Risks & deadlines", icon: "alert" },
+        { id: "people", label: I18N.lang === "ru" ? "Люди" : "People", icon: "users" },
+        { id: "documents", label: I18N.lang === "ru" ? "Документы" : "Documents", icon: "fileText" },
+        { id: "analytics", label: I18N.lang === "ru" ? "Аналитика" : "Analytics", icon: "chart" },
+      ];
+    },
+    wsScenarioLabel() { return (this.wsScenarios.find((s) => s.id === this.wsScenario) || this.wsScenarios[0]).label; },
+    openScenario(id) {
+      this.wsScenario = id;
+      if (id === "today") { this.openToday(); return; }
+      /* Аналитика живёт на дашборде (отдельного вида reports нет) */
+      if (id === "analytics") { Alpine.store("tabs").openWelcome(); return; }
+      const map = { risks: "risks", people: "employees", documents: "protocols" };
+      if (map[id]) Alpine.store("tabs").open(map[id]);
+    },
     get wsTiles() {
       const q = this.wsSearch.trim().toLowerCase();
       let keys = ["welcome", ...Alpine.store("tabs").TABLE_KEYS];
@@ -339,7 +406,12 @@ document.addEventListener("alpine:init", () => {
       return all
         .map((k) => ({ key: k, label: label(k), icon: icon(k),
                        color: color(k),
-                       count: this.counts[k] || 0 }))
+                       count: this.counts[k] || 0,
+                       hint: k === "welcome"
+                         ? (I18N.lang === "ru" ? "Фокус и готовность" : "Focus & readiness")
+                         : (this.counts[k] || 0) === 0
+                           ? (I18N.lang === "ru" ? "Пока нет записей" : "No records yet")
+                           : (I18N.lang === "ru" ? "Открыть раздел" : "Open section") }))
         .filter((t) => !q || t.label.toLowerCase().includes(q));
     },
 
@@ -478,6 +550,7 @@ document.addEventListener("alpine:init", () => {
         this.counts = res.counts || {};
         this.demoNeeded = Object.values(this.counts).every((n) => n === 0);
       } catch (_) { this.demoNeeded = false; }
+      this.wsLoading = false;
     },
 
     toast(msg, type = "") {
@@ -536,6 +609,16 @@ document.addEventListener("alpine:init", () => {
           localStorage.setItem("suot_date_format", loc.date_format);
         }
       }).catch(() => {});
+    },
+
+    async refreshTaskCount() {
+      if (!API.hasToken()) { this.taskActiveCount = 0; return; }
+      try {
+        const r = await API.get("/jobs/history?limit=100");
+        const items = r.items || [];
+        this.taskActiveCount = items.filter(
+          (j) => j.status === "queued" || j.status === "running").length;
+      } catch (_) { /* счётчик не критичен */ }
     },
 
     stopHealthLoop() {
@@ -644,6 +727,7 @@ document.addEventListener("alpine:init", () => {
     logout() {
       API.setToken("", false);
       this.stopHealthLoop();
+      this.taskActiveCount = 0;
       this.user = null;
       Alpine.store("user", {});
       this.demoNeeded = false;
@@ -675,3 +759,95 @@ document.addEventListener("alpine:init", () => {
       { detail: { msg, type: type || "" }, bubbles: true }));
   };
 });
+
+/* ═══ Единый focus-trap для модалок (Блок 1.5 п.3) ═══
+   Tab/Shift+Tab циклятся внутри самой верхней видимой модалки;
+   при открытии фокус уходит в первое поле ввода или кнопку. */
+(function () {
+  var SEL = ".overlay:not(.pv-overlay) > .modal, .sc-modal, .cm-modal, .pe-modal," +
+    " .overlay > .ws-panel, .overlay > .dt-panel, .overlay > .tc-panel";
+
+  function visible(el) {
+    return !!el && el.getClientRects().length > 0;
+  }
+
+  function zIndexOf(el) {
+    var z = 0;
+    while (el && el !== document.body) {
+      var v = parseInt(window.getComputedStyle(el).zIndex, 10);
+      if (!isNaN(v)) z = Math.max(z, v);
+      el = el.parentElement;
+    }
+    return z;
+  }
+
+  function topModal() {
+    var best = null, bestZ = -1;
+    var list = document.querySelectorAll(SEL);
+    for (var i = 0; i < list.length; i++) {
+      if (!visible(list[i])) continue;
+      var z = zIndexOf(list[i]);
+      /* при равенстве z-index берём более поздний в DOM (верхний слой) */
+      if (best === null || z >= bestZ) { best = list[i]; bestZ = z; }
+    }
+    return best;
+  }
+
+  function focusables(root) {
+    var nodes = root.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), ' +
+      'select:not([disabled]), textarea:not([disabled]), ' +
+      '[tabindex]:not([tabindex="-1"])'
+    );
+    return Array.prototype.filter.call(nodes, visible);
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Tab") return;
+    var m = topModal();
+    if (!m) return;
+    var items = focusables(m);
+    if (!items.length) { e.preventDefault(); return; }
+    var first = items[0], last = items[items.length - 1];
+    var active = document.activeElement;
+    if (!m.contains(active)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+      return;
+    }
+    if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+  });
+
+  /* Первичный фокус при открытии модалки (один раз на элемент) */
+  var seen = new WeakSet(), scheduled = false;
+  function autofocus() {
+    var m = topModal();
+    if (!m || seen.has(m)) return;
+    seen.add(m);
+    var a = document.activeElement;
+    if (a && m.contains(a)) return;
+    var target = m.querySelector(
+      'input:not([disabled]):not([type="hidden"]), ' +
+      'textarea:not([disabled]), select:not([disabled])'
+    );
+    if (!target) {
+      var items = focusables(m);
+      target = items.length ? items[0] : null;
+    }
+    if (target) { try { target.focus({ preventScroll: true }); } catch (_) {} }
+  }
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(function () { scheduled = false; autofocus(); });
+  }
+  function start() {
+    if (!document.body) return;
+    new MutationObserver(schedule)
+      .observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else { start(); }
+})();

@@ -1,0 +1,443 @@
+/* SUOT Next — полный редизайн интерфейса и анимаций (новый визуальный слой).
+   Принципы слоя:
+   - только аддитивные переопределения: классы/структура/DOM-контракты не меняются;
+   - значения CSS-переменных тем НЕ меняются (проверяются тестами);
+   - все длительности/изменения — только через токены var(--dur-*)/var(--ease*)
+     (конвенции test_part33_e2e); глобальный reduced-motion guard их гасит;
+   - НЕ трогать: th position/z-index, плотность ячеек, .btn transition,
+     ширину рельса, .tab-title letter-spacing (кастомный CSS пользователя). */
+
+:root {
+  --nx-font: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --nx-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  --nx-r-sm: 9px;
+  --nx-r-md: 13px;
+  --nx-r-lg: 17px;
+  --nx-shadow-1: 0 1px 2px rgba(0, 0, 0, .28);
+  --nx-shadow-2: 0 6px 22px rgba(0, 0, 0, .32);
+  --nx-shadow-3: 0 18px 55px rgba(0, 0, 0, .45);
+  --nx-ring: 0 0 0 3px color-mix(in srgb, var(--acc) 32%, transparent);
+}
+
+/* ── Типографика ── */
+body {
+  font-family: var(--nx-font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.num, td.col-id, .kpi-v, .stat-v, .ws-kbd, .dt-hist-diff b {
+  font-variant-numeric: tabular-nums;
+}
+code, kbd, .mono { font-family: var(--nx-mono); }
+::selection { background: color-mix(in srgb, var(--acc) 34%, transparent); }
+:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Каркас: сайдбар / топбар / таббар ── */
+.sidebar {
+  border-right: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--acc) 7%, transparent), transparent 240px),
+    var(--bg-1);
+}
+.sidebar-brand { padding: 14px 12px 10px; }
+.brand-text { font-weight: 700; letter-spacing: .01em; }
+.nav-sep {
+  font-size: 10.5px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  opacity: .85;
+  margin: 12px 8px 4px;
+}
+.nav-item {
+  border-radius: var(--nx-r-md);
+  margin: 1px 8px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.nav-item:hover { background: var(--bg-2); border-color: var(--line); }
+.nav-item:active { transform: scale(.98); }
+.nav-item.active {
+  background: color-mix(in srgb, var(--acc) 16%, var(--bg-2));
+  border-color: color-mix(in srgb, var(--acc) 45%, transparent);
+  box-shadow: inset 3px 0 0 var(--acc), var(--nx-shadow-1);
+  font-weight: 600;
+}
+.nav-ic { filter: saturate(1.15); }
+.topbar {
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-1) 88%, transparent);
+  backdrop-filter: blur(8px);
+  padding: 8px 14px;
+  gap: 10px;
+}
+.topsearch-input, .sb-input {
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  padding: 7px 14px;
+}
+.tabbar { gap: 6px; padding: 6px 10px 0; }
+.tab {
+  border-radius: 11px 11px 0 0;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.tab:hover { background: var(--bg-2); }
+.tab.active {
+  background: var(--bg-1);
+  border-color: var(--line);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, .22);
+  font-weight: 600;
+}
+
+/* ── Кнопки / поля ── */
+.btn-primary, .btn.primary {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--acc) 88%, white),
+    var(--acc) 55%,
+    color-mix(in srgb, var(--acc) 82%, black));
+  border-color: color-mix(in srgb, var(--acc) 60%, black);
+  box-shadow: var(--nx-shadow-1), inset 0 1px 0 rgba(255, 255, 255, .22);
+  font-weight: 600;
+}
+.btn:active, .icon-btn:active, .ws-item:active, .palette-item:active,
+.nav-item:active, .dt-tab:active, .pg-btn:active { transform: scale(.96); }
+.btn.ghost-sm:hover, .icon-btn:hover {
+  background: var(--bg-2);
+  border-color: var(--line-strong);
+  box-shadow: var(--nx-shadow-1);
+}
+.field-input, select.field-input, textarea.field-input {
+  border-radius: var(--nx-r-sm);
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.field-input:focus, select.field-input:focus, textarea.field-input:focus,
+.sb-input:focus, .palette-input:focus, .ws-search:focus, .topsearch-input:focus {
+  border-color: var(--acc);
+  box-shadow: var(--nx-ring);
+  outline: none;
+}
+
+/* ── Карточки / модалки / тосты ── */
+.card {
+  border-radius: var(--nx-r-lg);
+  box-shadow: var(--nx-shadow-1);
+}
+.modal.card, .palette.card, .ws-panel.card {
+  border-radius: var(--nx-r-lg);
+  box-shadow: var(--nx-shadow-3);
+  border: 1px solid var(--line-strong);
+}
+.modal-title { letter-spacing: .01em; }
+.toast {
+  border-radius: var(--nx-r-md);
+  box-shadow: var(--nx-shadow-2);
+  border: 1px solid var(--line-strong);
+  font-weight: 500;
+}
+
+/* ── Таблицы (только визуал: позиционирование/плотность не трогаем) ── */
+table.grid thead th {
+  font-size: 10.5px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--t-2);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--bg-2) 70%, var(--bg-1));
+  border-bottom: 1px solid var(--line-strong);
+}
+table.grid tbody tr:hover { background: color-mix(in srgb, var(--acc) 7%, transparent); }
+table.grid tbody tr.sel, table.grid tbody tr:has(.cbx:checked) {
+  background: color-mix(in srgb, var(--acc) 13%, transparent);
+  box-shadow: inset 3px 0 0 var(--acc);
+}
+.badge, .chip, .tag, .bulk-count {
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), var(--nx-shadow-1);
+}
+.tbl-thumb { border-radius: 8px; box-shadow: var(--nx-shadow-1); }
+
+/* ── Дашборд / KPI ── */
+.stat, .dash-kpi, .kpi {
+  border-radius: var(--nx-r-lg);
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-2) 60%, transparent), transparent),
+    var(--bg-1);
+  box-shadow: var(--nx-shadow-1);
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.stat:hover, .dash-kpi:hover, .kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--nx-shadow-2);
+}
+.stat-v, .kpi-v { font-weight: 750; letter-spacing: -.01em; }
+
+/* ── Прогресс / skeleton (токены; shimmerX переиспользуется) ── */
+.progress-track {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--t-2) 22%, transparent);
+  overflow: hidden;
+}
+.progress-track > i {
+  border-radius: 999px;
+  background-image: linear-gradient(45deg,
+    rgba(255, 255, 255, .22) 25%, transparent 25%,
+    transparent 50%, rgba(255, 255, 255, .22) 50%,
+    rgba(255, 255, 255, .22) 75%, transparent 75%);
+  background-size: 18px 18px;
+  animation: nxStripes var(--dur-md) linear infinite;
+}
+@keyframes nxStripes { to { background-position: 18px 0; } }
+
+/* ── Появление поверхностей (переиспользуем существующие keyframes) ── */
+.ws-panel { animation: modalIn var(--dur-sm) var(--ease-out) both; }
+
+/* ── Палитра / свитчер / досье: единый язык ── */
+.palette-item, .ws-item {
+  border-radius: var(--nx-r-md);
+}
+.palette-item.active, .ws-item.active {
+  box-shadow: inset 3px 0 0 var(--acc), var(--nx-shadow-1);
+}
+.ws-search-row, .palette-search {
+  background: color-mix(in srgb, var(--bg-2) 55%, transparent);
+  border-radius: var(--nx-r-md) var(--nx-r-md) 0 0;
+}
+
+/* ── Скроллбары ── */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--t-2) 45%, transparent);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--acc) 55%, transparent);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Адаптив мелочей ── */
+@media (max-width: 900px) {
+  .topbar { padding: 6px 8px; }
+  .stat-v, .kpi-v { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-track > i { animation: none !important; }
+}
+
+/* ============ AURORA SHELL CONCEPT + MOTION 3.0 (аддитивный слой) ============
+   Правила слоя: DOM/классы/структура не меняются; значения CSS-переменных тем
+   не меняются; длительности только через var(--dur-*)/var(--ease-*);
+   глобальный reduced-motion guard (components/tokens) гасит всё новое. */
+
+/* ── Auth-экраны: ambient backdrop ── */
+.screen-lang, .screen-setup, .screen-auth { position: relative; isolation: isolate; }
+.screen-lang::before, .screen-setup::before, .screen-auth::before,
+.screen-lang::after, .screen-setup::after, .screen-auth::after {
+  content: ""; position: fixed; z-index: 0; pointer-events: none;
+  width: 46vmax; height: 46vmax; border-radius: 50%;
+  filter: blur(90px); opacity: .5;
+}
+.screen-lang::before, .screen-setup::before, .screen-auth::before {
+  left: -12vmax; top: -14vmax;
+  background: radial-gradient(circle, color-mix(in srgb, var(--acc) 26%, transparent), transparent 65%);
+  animation: nxDrift 11s ease-in-out infinite alternate;
+}
+.screen-lang::after, .screen-setup::after, .screen-auth::after {
+  right: -14vmax; bottom: -16vmax;
+  background: radial-gradient(circle, color-mix(in srgb, var(--acc2, #8b5cf6) 20%, transparent), transparent 65%);
+  animation: nxDrift 13s ease-in-out infinite alternate-reverse;
+}
+@keyframes nxDrift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(4%, -5%) scale(1.1); }
+}
+
+/* ── Auth-экраны: стеклянные карточки ── */
+.setup-card, .auth-card, .lang-panel {
+  position: relative; z-index: 1;
+  background: color-mix(in srgb, var(--bg-1) 82%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: 22px;
+  box-shadow: var(--nx-shadow-3, 0 18px 55px rgba(0, 0, 0, .45));
+  animation: riseIn var(--dur-md) var(--ease-out) both;
+}
+.brand-mark { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--acc) 55%, transparent)); }
+.brand-mark.sm { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--acc) 45%, transparent)); }
+.lang-version { opacity: .75; letter-spacing: .04em; }
+
+/* ── Языковые карточки ── */
+.lang-card {
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-2) 60%, transparent);
+  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.lang-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--acc) 55%, transparent);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .3), 0 0 0 1px color-mix(in srgb, var(--acc) 35%, transparent);
+}
+.lang-card:active { transform: translateY(0) scale(.98); }
+.lang-flag {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 4px 12px rgba(0, 0, 0, .3);
+}
+
+/* ── Мастер: шаги и сценарии ── */
+.setup-steps .s-step {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+.setup-steps .s-step.on {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 30%, transparent), var(--nx-shadow-1, 0 1px 2px rgba(0,0,0,.28));
+  transform: scale(1.06);
+}
+.setup-steps .s-line { transition: background var(--dur-sm) var(--ease); }
+.scenario-card {
+  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.scenario-card:hover { transform: translateY(-2px); }
+.scenario-card.sel {
+  border-color: color-mix(in srgb, var(--acc) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 25%, transparent), var(--nx-shadow-2, 0 6px 22px rgba(0,0,0,.32));
+}
+
+/* ── Сегмент-контрол ── */
+.seg {
+  background: color-mix(in srgb, var(--bg-2) 70%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+}
+.seg-btn { border-radius: 999px; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.seg-btn.active {
+  background: color-mix(in srgb, var(--acc) 20%, var(--bg-1));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 45%, transparent), var(--nx-shadow-1, 0 1px 2px rgba(0,0,0,.28));
+  font-weight: 600;
+}
+
+/* ── Auth-aside ── */
+.auth-aside {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--acc) 16%, transparent), transparent 55%),
+    linear-gradient(200deg, color-mix(in srgb, var(--acc2, #8b5cf6) 12%, transparent), transparent 60%);
+  border-right: 1px solid var(--line);
+}
+.auth-feature {
+  background: color-mix(in srgb, var(--bg-1) 55%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+}
+.auth-form .btn.block { letter-spacing: .02em; }
+.pw-eye:hover, .remember-row:hover { filter: brightness(1.15); }
+
+/* ── Shell chrome: бренд, футер, статусбар ── */
+.sidebar-foot { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+.topbar { box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+.tabbar { border-bottom: 1px solid var(--line); }
+.statusbar {
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-1) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+/* ── Motion 3.0: stagger строк таблицы (только появление, токены) ── */
+table.grid tbody tr { animation: nxRowIn var(--dur-sm) var(--ease-out) both; }
+table.grid tbody tr:nth-child(2) { animation-delay: calc(var(--dur-ms) * .2); }
+table.grid tbody tr:nth-child(3) { animation-delay: calc(var(--dur-ms) * .4); }
+table.grid tbody tr:nth-child(4) { animation-delay: calc(var(--dur-ms) * .6); }
+table.grid tbody tr:nth-child(5) { animation-delay: calc(var(--dur-ms) * .8); }
+table.grid tbody tr:nth-child(6) { animation-delay: calc(var(--dur-ms) * 1); }
+table.grid tbody tr:nth-child(7) { animation-delay: calc(var(--dur-ms) * 1.2); }
+table.grid tbody tr:nth-child(8) { animation-delay: calc(var(--dur-ms) * 1.4); }
+table.grid tbody tr:nth-child(9) { animation-delay: calc(var(--dur-ms) * 1.6); }
+table.grid tbody tr:nth-child(10) { animation-delay: calc(var(--dur-ms) * 1.8); }
+table.grid tbody tr:nth-child(11) { animation-delay: calc(var(--dur-ms) * 2); }
+table.grid tbody tr:nth-child(n+12) { animation-delay: calc(var(--dur-ms) * 2.2); }
+@keyframes nxRowIn {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Motion 3.0: панели уже анимируются (.anim-stagger/.anim-in/paneIn),
+   здесь только stagger строк таблицы и ambient ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-lang::before, .screen-lang::after,
+  .screen-setup::before, .screen-setup::after,
+  .screen-auth::before, .screen-auth::after { animation: none !important; opacity: .35; }
+}
+
+/* SUOT Next Block 6 - Task Center */
+.tc-btn { position: relative; }
+.tc-badge {
+  position: absolute; top: 1px; right: 1px;
+  min-width: 16px; height: 16px; border-radius: 999px;
+  background: var(--acc); color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+  padding: 0 4px;
+}
+.tc-overlay{align-items:flex-start;padding-top:10vh;z-index:215}
+.tc-panel{width:min(640px,94vw);max-height:74vh;display:flex;flex-direction:column;overflow:hidden;animation:modalIn var(--dur-sm) var(--ease-out) both}
+.tc-head{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.tc-head b{font-size:15px}
+.tc-body{overflow-y:auto;padding:10px 16px 18px}
+.tc-job{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:color-mix(in srgb, var(--bg-2) 55%, transparent)}
+.tc-job-head{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px}
+.tc-progress{font-size:12px;margin-top:4px;overflow-wrap:anywhere}
+@media(max-width:640px){.tc-panel{width:94vw}}
+
+/* AURORA DUSK: парящий сайдбар и каркас */
+.sidebar {
+  margin: 10px 0 10px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--acc) 8%, transparent), transparent 260px),
+    var(--bg-1);
+  box-shadow: var(--shadow-2);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.main { padding: 10px 10px 10px 0; }
+.topbar {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  margin-bottom: 10px;
+}
+.statusbar {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+@media(max-width:900px){
+  .sidebar{margin:6px 0 6px 6px;border-radius:14px}
+  .main{padding:6px 6px 6px 0}
+}
+
+/* Подсветка виджета после скролла к нему (Dashboard v4) */
+@keyframes nxFlashRing {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acc) 55%, transparent); }
+  100% { box-shadow: 0 0 0 12px transparent; }
+}
+.nx-flash { animation: nxFlashRing var(--dur-md) var(--ease-out) 2; }

@@ -1,14 +1,39 @@
 {
+  "manifest_version": 2,
   "id": "quick-overdue",
   "name": "Быстрая метка просрочки",
-  "version": "1.0",
+  "name_en": "Quick overdue label",
+  "version": "2.0.0",
   "author": "SUOT",
-  "description": "Ставит красную метку «Просрочка» всем выбранным строкам активной таблицы одним действием.",
+  "description": "Ставит цветную метку всем выбранным строкам активной таблицы одним действием.",
+  "description_en": "Labels all selected rows of the active table with one action.",
+  "min_app_version": "2.2.3",
   "enabled_by_default": true,
+  "capabilities": ["table.write"],
+  "settings_schema": [
+    {
+      "key": "color",
+      "type": "select",
+      "options": ["red", "orange", "green", "blue"],
+      "default": "red",
+      "title_ru": "Цвет метки",
+      "title_en": "Label color"
+    }
+  ],
   "commands": [
-    { "title": "Метка «Просрочка» на выбранных строках", "behavior": "overdue_label" }
+    {
+      "title": "Метка «Просрочка» на выбранных строках",
+      "title_en": "“Overdue” label on selected rows",
+      "behavior": "overdue_label"
+    }
   ],
   "toolbar": [
-    { "table": "*", "icon": "clock", "tooltip": "Метка просрочки (выбранным)", "behavior": "overdue_label" }
+    {
+      "table": "*",
+      "icon": "clock",
+      "tooltip": "Метка (выбранным)",
+      "tooltip_en": "Label (selected)",
+      "behavior": "overdue_label"
+    }
   ]
 }

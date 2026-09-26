@@ -1,7 +1,7 @@
 /* SUOT Neo — Дашборд 3.0 (Часть 24): KPI, календарь, таймлайн + dnd-виджеты,
    «Мои задачи сегодня», лента активности, ярлыки видов. */
 (function () {
-  const WID_DEFAULT = ["kpi", "tasks", "activity", "overdue", "recent",
+  const WID_DEFAULT = ["readiness", "readinessCenter", "kpi", "tasks", "activity", "overdue", "recent",
                        "calendar", "shortcuts"];
 
   window.dashBoard = function () {
@@ -33,6 +33,15 @@
         this.loadTasks();
         this.loadActivity();
         this.restoreOrder();
+      },
+
+      /* Перезагрузка stats при возврате на вкладку дашборда:
+         данные могли измениться, пока пользователь смотрел таблицы. */
+      onTabActive() {
+        try {
+          const a = Alpine.store("tabs").active;
+          if (a && a.type === "welcome") this.load();
+        } catch (_) {}
       },
 
       /* ── dnd-виджеты (Часть 24) ── */
@@ -82,6 +91,8 @@
       },
       widLabel(w) {
         const map = {
+          readiness: this.ru("Фокус дня", "Today's focus"),
+          readinessCenter: this.ru("Готовность к проверке", "Readiness center"),
           kpi: this.ru("Показатели", "Metrics"),
           tasks: this.ru("Мои задачи сегодня", "Today's tasks"),
           activity: this.ru("Лента активности", "Activity feed"),
@@ -93,6 +104,65 @@
         return map[w] || w;
       },
 
+      readinessChecks() {
+        const c = this.stats && this.stats.counts ? this.stats.counts : {};
+        const od = this.stats ? Number(this.stats.overdue_total || 0) : 0;
+        const safety = this.stats ? Number(this.stats.safety || 0) : 0;
+        const overdueTasks = this.tasks.filter((t) => t.overdue).length;
+        return [
+          { key: "overdue", tone: od ? "danger" : "success",
+            label: this.ru("Просроченные сроки", "Overdue deadlines"),
+            value: od, hint: this.ru("Нужно закрыть или перенести", "Close or reschedule") },
+          { key: "tasks", tone: overdueTasks ? "warning" : "success",
+            label: this.ru("Задачи на сегодня", "Tasks today"),
+            value: this.tasks.length, hint: this.ru("Проверить выполнение", "Check execution") },
+          { key: "ppe", tone: "signal",
+            label: this.ru("СИЗ и сроки", "PPE and expiry"),
+            value: c.ppe || 0, hint: this.ru("Проверить годность", "Check validity") },
+          { key: "training", tone: "info",
+            label: this.ru("Обучение", "Training"),
+            value: c.training || 0, hint: this.ru("Проверить аттестации", "Check certifications") },
+          { key: "safety", tone: safety >= 80 ? "success" : "warning",
+            label: this.ru("Индекс безопасности", "Safety score"),
+            value: safety + "/100", hint: this.ru("Целевой уровень: 80", "Target: 80") },
+        ];
+      },
+      readinessScore() {
+        const od = this.stats ? Number(this.stats.overdue_total || 0) : 0;
+        const safety = this.stats ? Number(this.stats.safety || 100) : 100;
+        return Math.max(0, Math.min(100, Math.round(safety - Math.min(35, od * 3))));
+      },
+      openReadinessItem(item) {
+        if (!item || !item.key) return;
+        /* Строки без своей таблицы ведут на виджеты, остальные —
+           в таблицы с применённым фильтром (настоящий deep link). */
+        if (item.key === "tasks") { this.scrollToWidget("tasks"); return; }
+        if (item.key === "safety") { this.scrollToWidget("overdue"); return; }
+        if (item.key === "overdue") { this.openFiltered("employees", "overdue"); return; }
+        if (item.key === "ppe") { this.openFiltered("ppe", "overdue"); return; }
+        if (item.key === "training") { this.openFiltered("training", "overdue"); return; }
+        this.openFiltered(item.key);
+      },
+      focusItems() {
+        const c = this.stats && this.stats.counts ? this.stats.counts : {};
+        const od = this.stats ? Number(this.stats.overdue_total || 0) : 0;
+        const safety = this.stats ? Number(this.stats.safety || 0) : 0;
+        const today = (c.training || 0) + (c.ppe || 0) + od;
+        const items = [];
+        if (od) items.push({ key: "employees", smart: "overdue", tone: "danger",
+          label: this.ru("Закрыть просрочки", "Close overdue items"),
+          hint: this.ru("Требуют внимания сегодня", "Needs attention today") });
+        if (today) items.push({ key: "training", smart: "overdue", tone: "signal",
+          label: this.ru("Проверить сроки обучения", "Check training deadlines"),
+          hint: this.ru("Сегодня и просроченные записи", "Today and overdue records") });
+        if (safety < 80 && this.stats) items.push({ key: "risks", smart: "", tone: "warning",
+          label: this.ru("Улучшить индекс безопасности", "Improve safety score"),
+          hint: safety + "/100" });
+        if (!items.length) items.push({ key: "employees", smart: "", tone: "success",
+          label: this.ru("Проверить рабочую готовность", "Check readiness"),
+          hint: this.ru("Критичных действий не найдено", "No critical actions found") });
+        return items.slice(0, 3);
+      },
       async loadTasks() {
         try {
           const res = await API.get("/dash/tasks");
@@ -138,11 +208,13 @@
         await this.loadCalendar();
       },
       async load() {
+        const seq = (this._loadSeq = (this._loadSeq || 0) + 1);
         this.loading = true;
         try {
-          this.stats = await API.get("/dash/stats?period=" + this.period);
+          const s = await API.get("/dash/stats?period=" + this.period);
+          if (seq === this._loadSeq) this.stats = s;
         } catch (e) { Toast.show(e.message, "error"); }
-        this.loading = false;
+        if (seq === this._loadSeq) this.loading = false;
       },
 
       /* ── KPI ── */
@@ -164,18 +236,57 @@
         ];
         return items;
       },
-      openFiltered(key) {
+      openFiltered(key, smart) {
         if (key === "overdue") {
-          Alpine.store("tabs").open("employees");
-          setTimeout(() => {
-            const tp = window.__tables["employees"];
-            if (tp) { tp.q = ""; tp.filters = {}; }
-            Toast.show(this.ru(
-              "Просрочки: см. колонки с датами", "See overdue date columns"));
-          }, 400);
+          this.openTableFiltered("employees", "overdue");
+          return;
+        }
+        if (smart) {
+          this.openTableFiltered(key, smart);
           return;
         }
         Alpine.store("tabs").open(key);
+      },
+      /* Глубокая ссылка: открыть таблицу и применить серверный smart-фильтр.
+         Ждём появления компонента таблицы (до ~3с), иначе — обычное открытие. */
+      async openTableFiltered(tableKey, smart) {
+        Alpine.store("tabs").open(tableKey);
+        const reduce = window.matchMedia &&
+          matchMedia("(prefers-reduced-motion: reduce)").matches;
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 150));
+          const tp = window.__tables && window.__tables[tableKey];
+          if (tp && typeof tp.reload === "function") {
+            if (smart) {
+              tp.smartFilter = smart;
+              tp.page = 1;
+              try { await tp.reload(false); } catch (_) {}
+            }
+            if (!reduce) {
+              try {
+                const pane = document.querySelector(".tabpane:visible");
+                if (pane) pane.scrollIntoView({ block: "start" });
+              } catch (_) {}
+            }
+            return true;
+          }
+        }
+        return false;
+      },
+      /* Скролл к виджету дашборда (для строк готовности без своей таблицы). */
+      scrollToWidget(wid) {
+        try {
+          const el = document.querySelector('[data-wid="' + wid + '"]');
+          if (!el) return false;
+          const reduce = window.matchMedia &&
+            matchMedia("(prefers-reduced-motion: reduce)").matches;
+          el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+          el.classList.remove("nx-flash");
+          void el.offsetWidth;
+          el.classList.add("nx-flash");
+          setTimeout(() => el.classList.remove("nx-flash"), 1200);
+          return true;
+        } catch (_) { return false; }
       },
 
       safetyColor() {

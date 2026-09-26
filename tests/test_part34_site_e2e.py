@@ -208,6 +208,28 @@ try:
             f"status={dlp.status}",
         )
 
+        # Aurora v2: иконки инжектятся, слайдов 7, EN-переключатель
+        check(
+            "34: SVG-иконки инжектятся",
+            page.locator("[data-ic-done]").count() >= 20,
+            str(page.locator("[data-ic-done]").count()),
+        )
+        check(
+            "34: слайдов 7 (включая Документы)",
+            page.locator("[data-slide]").count() == 7,
+            str(page.locator("[data-slide]").count()),
+        )
+        page.locator("#langToggle").click()
+        time.sleep(0.6)
+        h1en = page.locator(".hero h1").inner_text()
+        check(
+            "34: EN-переключатель",
+            "workplace safety" in h1en.lower(),
+            h1en[:50].replace("\n", " "),
+        )
+        page.locator("#langToggle").click()
+        time.sleep(0.6)
+
         # reduced-motion
         page2 = b.new_page(
             viewport={"width": 1400, "height": 900}, reduced_motion="reduce"

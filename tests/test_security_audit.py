@@ -1,4 +1,5 @@
-"""Аудит безопасности 2.2.3: 25 проверок закрытых исправлений.
+"""Аудит безопасности 2.2.3 + Блоки 7-9: проверки закрытых исправлений,
+auth/IDOR Documents Center, грантов/настроек Plugin v2.
 
 Проверяет: allowlist колонок custom/values, отзыв сессий при смене/сбросе/
 блокировке пароля, маскировку ai_api_key, SSRF-защиту /update/check,
@@ -232,14 +233,26 @@ r = c.post(
     headers=H(tD),
     json={"table": "employees", "ids": [AREC]},
 )
-leaked = [i for i in r.json().get("items", []) if i.get("id") == AREC or i.get("ФИО") == "IDOR-Test AdminRecord"]
-check("export ids: чужая запись отфильтрована", r.status_code == 200 and not leaked, r.status_code)
+leaked = [
+    i
+    for i in r.json().get("items", [])
+    if i.get("id") == AREC or i.get("ФИО") == "IDOR-Test AdminRecord"
+]
+check(
+    "export ids: чужая запись отфильтрована",
+    r.status_code == 200 and not leaked,
+    r.status_code,
+)
 
 # п.2: batch_pdf по record_ids без проверки владельца
 r = c.post(
     "/api/print/batch_pdf",
     headers=H(tD),
-    json={"template_html": "<div>{ФИО}</div>", "table": "employees", "record_ids": [AREC]},
+    json={
+        "template_html": "<div>{ФИО}</div>",
+        "table": "employees",
+        "record_ids": [AREC],
+    },
 )
 check("batch_pdf: чужие ids -> 404 (нет записей)", r.status_code == 404, r.status_code)
 
@@ -255,9 +268,18 @@ check("preview чужой записи -> 403", r.status_code == 403, r.status_c
 r = c.post(
     "/api/custom/transfer",
     headers=H(tD),
-    json={"from_key": "employees", "to_key": "violations", "ids": [AREC], "move": False},
+    json={
+        "from_key": "employees",
+        "to_key": "violations",
+        "ids": [AREC],
+        "move": False,
+    },
 )
-check("transfer чужой записи -> moved=0", r.status_code == 200 and r.json().get("moved") == 0, f"{r.status_code} {r.json()}")
+check(
+    "transfer чужой записи -> moved=0",
+    r.status_code == 200 and r.json().get("moved") == 0,
+    f"{r.status_code} {r.json()}",
+)
 
 # п.5: удаление чужих заметок/связей
 nid = c.post(
@@ -310,14 +332,23 @@ check("import preview чужого файла -> 403", r.status_code == 403, r.s
 r = c.post(
     "/api/import/run",
     headers=H(ADMIN),
-    json={"file_id": fid_admin, "table": "employees", "mapping": {"ФИО": "ФИО"}, "mode": "insert"},
+    json={
+        "file_id": fid_admin,
+        "table": "employees",
+        "mapping": {"ФИО": "ФИО"},
+        "mode": "insert",
+    },
 )
 imp_id = r.json().get("import_id", 0)
 check("admin import run", r.status_code == 200 and imp_id, f"{r.status_code} {imp_id}")
 r = c.post("/api/import/undo", headers=H(tD), json={"import_id": imp_id})
 check("import undo чужого -> 403", r.status_code == 403, r.status_code)
 hist_w = c.get("/api/import/history", headers=H(tD)).json()["items"]
-check("import history изолирована", all(h["id"] != imp_id for h in hist_w), str([h["id"] for h in hist_w]))
+check(
+    "import history изолирована",
+    all(h["id"] != imp_id for h in hist_w),
+    str([h["id"] for h in hist_w]),
+)
 hist_a = c.get("/api/import/history", headers=H(ADMIN)).json()["items"]
 check("admin видит свой импорт", any(h["id"] == imp_id for h in hist_a))
 r = c.post("/api/import/undo", headers=H(ADMIN), json={"import_id": imp_id})
@@ -330,7 +361,11 @@ check("exporter run_now non-admin -> 403", r.status_code == 403, r.status_code)
 # п.8: diag — только админ
 for ep in ("/api/diag/summary", "/api/diag/log", "/api/diag/disk"):
     r = c.get(ep, headers=H(tD))
-    check(f"diag {ep.split('/')[-1]} non-admin -> 403", r.status_code == 403, r.status_code)
+    check(
+        f"diag {ep.split('/')[-1]} non-admin -> 403",
+        r.status_code == 403,
+        r.status_code,
+    )
 r = c.get("/api/diag/summary", headers=H(ADMIN))
 check("diag summary admin -> 200", r.status_code == 200, r.status_code)
 
@@ -338,9 +373,7 @@ check("diag summary admin -> 200", r.status_code == 200, r.status_code)
 cid = c.post(
     "/api/calendar/categories", headers=H(ADMIN), json={"name": "IDOR Cat"}
 ).json()["id"]
-r = c.put(
-    f"/api/calendar/categories/{cid}", headers=H(tD), json={"name": "Hacked"}
-)
+r = c.put(f"/api/calendar/categories/{cid}", headers=H(tD), json={"name": "Hacked"})
 check("calendar update чужой категории -> 404", r.status_code == 404, r.status_code)
 r = c.put(
     f"/api/calendar/categories/{cid}", headers=H(ADMIN), json={"name": "IDOR Cat 2"}
@@ -379,10 +412,94 @@ check(
 r = c.get("/api/union/records?q=IDOR-Test AdminRecord", headers=H(tD))
 check(
     "union: чужой сотрудник не находится в поиске",
-    r.status_code == 200 and all(
-        "IDOR-Test AdminRecord" not in str(i.get("data")) for i in r.json().get("items", [])
+    r.status_code == 200
+    and all(
+        "IDOR-Test AdminRecord" not in str(i.get("data"))
+        for i in r.json().get("items", [])
     ),
     f"total={r.json().get('total')}",
+)
+
+# п.11: Documents Center (Блок 7) — auth и изоляция.
+print("== documents auth/IDOR ==")
+for m, p in [
+    ("GET", "/api/documents/tables"),
+    ("GET", "/api/documents/print/jobs"),
+    ("GET", "/api/documents/reports/saved"),
+    ("POST", "/api/plugins/validate"),
+    ("GET", "/api/plugins/quick-overdue/settings"),
+    ("POST", "/api/print/pdf"),
+]:
+    r = c.request(m, p, json={} if m == "POST" else None)
+    check(f"без токена {m} {p} -> 401", r.status_code == 401, r.status_code)
+
+r = c.post(
+    "/api/print/templates",
+    headers=H(ADMIN),
+    json={"name": "SecTpl", "html_content": "<p>{ФИО}</p>"},
+)
+TID = r.json().get("id", 0)
+check("шаблон для IDOR", r.status_code == 201 and TID, r.status_code)
+r = c.get(f"/api/documents/templates/{TID}/versions", headers=H(tD))
+check("чужие версии -> 403", r.status_code == 403, r.status_code)
+r = c.put(f"/api/print/templates/{TID}", headers=H(tD), json={"name": "X"})
+check("чужой шаблон править -> 403", r.status_code == 403, r.status_code)
+r = c.post(
+    f"/api/documents/templates/{TID}/restore",
+    headers=H(tD),
+    json={"version_id": 1},
+)
+check("чужой откат -> 403/404", r.status_code in (403, 404), r.status_code)
+
+r = c.post(
+    "/api/documents/reports/saved",
+    headers=H(ADMIN),
+    json={"name": "SecRep", "table": "employees"},
+)
+RID = r.json().get("id", 0)
+r = c.post(f"/api/documents/reports/saved/{RID}/run", headers=H(tD), json={})
+check("чужой отчёт run -> 403", r.status_code == 403, r.status_code)
+r = c.delete(f"/api/documents/reports/saved/{RID}", headers=H(tD))
+check("чужой отчёт delete -> 403", r.status_code == 403, r.status_code)
+
+r = c.post("/api/data/employees", headers=H(ADMIN), json={"data": {"ФИО": "SecRec"}})
+EID = r.json().get("id", 0)
+r = c.post(
+    "/api/documents/print/jobs",
+    headers=H(ADMIN),
+    json={"template_id": TID, "table": "employees", "record_ids": [EID]},
+)
+JID = r.json().get("job_id", 0)
+check("задание создано", r.status_code == 202 and JID, r.status_code)
+r = c.get(f"/api/documents/print/jobs/{JID}", headers=H(tD))
+check("чужое задание status -> 403", r.status_code == 403, r.status_code)
+r = c.get(f"/api/documents/print/jobs/{JID}/download", headers=H(tD))
+check("чужое скачивание -> 403/409", r.status_code in (403, 409), r.status_code)
+r = c.post(f"/api/documents/print/jobs/{JID}/cancel", headers=H(tD))
+check("чужая отмена -> 403", r.status_code == 403, r.status_code)
+r = c.get("/api/documents/print/jobs", headers=H(tD))
+mine = [j for j in r.json().get("items", []) if j.get("id") == JID]
+check("чужое задание не в списке", r.status_code == 200 and not mine)
+
+# п.12: Plugin v2 (Блок 8) — гранты и настройки.
+print("== plugins v2 auth ==")
+r = c.post("/api/plugins/quick-overdue/grants", headers=H(tD), json={"grants": []})
+check("гранты не-админ -> 403", r.status_code == 403, r.status_code)
+r = c.post(
+    "/api/plugins/quick-overdue/grants",
+    headers=H(ADMIN),
+    json={"grants": ["fly"]},
+)
+check("грант неизвестного капа -> 400", r.status_code == 400, r.status_code)
+r = c.put(
+    "/api/plugins/quick-overdue/settings", headers=H(tD), json={"color": "purple"}
+)
+check("настройка вне опций -> 400", r.status_code == 400, r.status_code)
+r = c.post("/api/plugins/validate", headers=H(tD), json={"manifest": {"id": "x"}})
+check(
+    "validate доступен юзеру",
+    r.status_code == 200 and r.json().get("ok") is True,
+    r.status_code,
 )
 
 print(f"\n=> {len(PASS)} OK, {len(FAIL)} FAIL")

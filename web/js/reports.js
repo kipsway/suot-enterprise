@@ -3,6 +3,7 @@
 window.reportBuilder = function () {
   return {
     open: false, busy: false, error: "",
+    saveName: "", saveBusy: false, saveMsg: "",
     tableKey: "", tableLabel: "",
     cols: [], selectedCols: new Set(),
     groupBy: "", aggregate: "count", aggField: "",
@@ -68,6 +69,34 @@ window.reportBuilder = function () {
         this.result = await API.post("/reports/run", body);
       } catch (e) { this.error = e.message; }
       this.busy = false;
+    },
+    async saveSpec() {
+      /* Сохранить текущую спеку в Documents Center (Блок 7). */
+      if (!String(this.saveName || "").trim()) {
+        this.saveMsg = this.ru("Укажите название", "Name is required");
+        return;
+      }
+      this.saveBusy = true; this.saveMsg = "";
+      try {
+        await API.post("/documents/reports/saved", {
+          name: this.saveName.trim(),
+          table: this.tableKey,
+          columns: [...this.selectedCols],
+          group_by: this.groupBy,
+          aggregate: this.aggregate,
+          aggregate_field: this.aggField,
+          q: this.q,
+          filters: Object.fromEntries(
+            Object.entries(this.filters)
+              .filter(([k]) => k)
+              .map(([k, v]) => [k, Array.isArray(v) ? v : [v]])),
+        });
+        this.saveMsg = this.ru("Сохранено", "Saved");
+        this.saveName = "";
+        document.dispatchEvent(new CustomEvent("suot-saved-reports-changed",
+          { bubbles: true }));
+      } catch (e) { this.saveMsg = e.message; }
+      this.saveBusy = false;
     },
     exportCsv() {
       if (!this.result) return;

@@ -1,12 +1,38 @@
 {
+  "manifest_version": 2,
   "id": "template-plugin",
   "name": "Шаблон плагина",
-  "version": "1.0",
+  "name_en": "Plugin template",
+  "version": "2.0.0",
   "author": "SUOT",
-  "description": "Скелет нового плагина: скопируйте файл, смените id и добавьте команды/кнопки. Поведения (behavior) реализуются в ядре: overdue_label, copy_tsv.",
+  "description": "Скелет нового плагина: скопируйте файл, смените id, capabilities, settings_schema и команды. Поведения (behavior) реализуются в ядре: overdue_label (нужен table.write), copy_tsv (нужны table.read + clipboard). Write-возможности требуют гранта администратора (кроме встроенных плагинов поставки).",
+  "description_en": "New plugin skeleton: copy the file, change id, capabilities, settings_schema and commands. Behaviors are implemented in core: overdue_label (needs table.write), copy_tsv (needs table.read + clipboard). Write capabilities require an admin grant (except bundled plugins).",
+  "min_app_version": "2.2.3",
   "enabled_by_default": false,
+  "capabilities": ["table.read", "clipboard"],
+  "settings_schema": [
+    {
+      "key": "delimiter",
+      "type": "select",
+      "options": ["tab", "semicolon"],
+      "default": "tab",
+      "title_ru": "Разделитель",
+      "title_en": "Delimiter"
+    },
+    {
+      "key": "header",
+      "type": "boolean",
+      "default": true,
+      "title_ru": "Первая строка — заголовки",
+      "title_en": "First row is header"
+    }
+  ],
   "commands": [
-    { "title": "Пример команды из шаблона", "behavior": "copy_tsv" }
+    {
+      "title": "Пример команды из шаблона",
+      "title_en": "Template sample command",
+      "behavior": "copy_tsv"
+    }
   ],
   "toolbar": []
 }

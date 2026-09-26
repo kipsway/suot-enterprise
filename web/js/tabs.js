@@ -76,6 +76,7 @@ document.addEventListener("alpine:init", () => {
   /* Иконка вкладки по типу (часть 31) */
   const TYPE_ICONS = { welcome: "home", all: "layers",
     ai: "layers", journal: "fileText", calendar: "calendar",
+    documents: "fileText",
     npa: "bookmark", tools: "tools", diag: "pulse",
     print_editor: "fileText", union: "layers",
     game2048: "grid", game_bb: "blocks" };
@@ -213,6 +214,20 @@ document.addEventListener("alpine:init", () => {
       this._setTitle();
     },
 
+    /* Documents Center (Блок 7): шаблоны, отчёты, очередь печати. */
+    openDocuments() {
+      const ex = this.list.find((tb) => tb.type === "documents");
+      if (ex) { this.activeId = ex.id; this._setTitle(); return; }
+      const id = ++this._seq;
+      this.list.push({ id, type: "documents",
+        label: I18N.lang === "ru" ? "Документы" : "Documents" });
+      this._persist();
+      this.activeId = id;
+      this._setTitle();
+      pushRecent("documents",
+        I18N.lang === "ru" ? "Документы" : "Documents");
+    },
+
     openCalendar() {
       const ex = this.list.find((tb) => tb.type === "calendar");
       if (ex) { this.activeId = ex.id; this._setTitle(); return; }
@@ -281,8 +296,26 @@ document.addEventListener("alpine:init", () => {
       pushRecent("game_bb", labelFor("game_bb"));
     },
 
+    /* Legacy tab route adapter (Блок 9, workspace-first):
+       табличные маршруты открываются напрямую (совместимость E2E
+       и диплинков), именованные виды — через Navigation Registry.
+       Новый код должен звать next.open/openViewExact, а не tabs.open. */
     open(key) {
       if (key === "all") { this.openAll(); return; }
+      try {
+        const nx = Alpine.store("next");
+        const isTable = (TABLE_KEYS || []).includes(key) ||
+          (typeof key === "string" &&
+            (key.startsWith("u_") || key === "print_editor"));
+        if (nx && !isTable && typeof nx.openKey === "function") {
+          if (nx.openKey(key)) return;
+        }
+      } catch (_) {}
+      this._openTableKey(key);
+    },
+
+    /* Прямое открытие таблицы без Registry (табличный маршрут). */
+    _openTableKey(key) {
       const ex = this.list.find(
         (tb) => tb.type === "table" && tb.key === key);
       if (ex) { this.activeId = ex.id; this._setTitle();

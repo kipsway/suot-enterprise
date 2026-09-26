@@ -100,6 +100,7 @@ def list_records(
     sort_by: str = "",
     order: str = "asc",
     order_cast: str = "",
+    smart_filter: str = "",
     db=Depends(get_db),
     user=Depends(get_current_user),
 ):
@@ -121,6 +122,7 @@ def list_records(
         page=page,
         page_size=page_size,
         order_cast=order_cast,
+        smart_filter=smart_filter,
     )
     return {
         "items": [_out(r) for r in rows],

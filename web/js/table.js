@@ -28,6 +28,7 @@
       order: "asc",
       filters: {},               // {colName: Set(values)}
       loading: true,
+      loadError: "",
       selected: new Set(),
       /* popup фильтра */
       filterCol: null,
@@ -45,6 +46,7 @@
       /* быстрый фильтр (по странице) */
       qfOn: localStorage.getItem("suot_qf") === "1",
       qf: {},                    // {colName: text}
+      smartFilter: "",
       /* контекстное меню сортировки */
       ctx: null,                 // {col, x, y}
       /* загрузка фото */
@@ -219,13 +221,24 @@
       },
       get activeFilterCount() {
         return Object.values(this.filters).filter(
-          (s) => s && s.size).length;
+          (s) => s && s.size).length + (this.smartFilter ? 1 : 0);
       },
       get rowsFiltered() {
         const qf = this.qf;
         const keys = Object.keys(qf).filter((k) => qf[k] && qf[k].trim());
-        if (!keys.length) return this.rows;
-        return this.rows.filter((row) =>
+        let result = this.rows;
+        if (this.smartFilter === "overdue") {
+          const dateCols = this.visibleCols.filter((c) => this.isDateCol(c));
+          result = result.filter((row) => dateCols.some((c) => this.isOverdue(row, c)));
+        } else if (this.smartFilter === "active") {
+          result = result.filter((row) => !this.isDone(
+            (row.data || {})["Статус"] || (row.data || {})["Тяжесть"]));
+        } else if (this.smartFilter === "done") {
+          result = result.filter((row) => this.isDone(
+            (row.data || {})["Статус"] || (row.data || {})["Тяжесть"]));
+        }
+        if (!keys.length) return result;
+        return result.filter((row) =>
           keys.every((k) => {
             const col = this.columns.find((c) => c.name === k) ||
               this.userCols.find((c) => c.name === k);
@@ -319,28 +332,87 @@
         }).trim();
       },
 
-      /* ── Виды таблиц (Q83) ── */
-      loadViews() {
+      /* ── Виды таблиц (Q83 + серверная синхронизация, Query Engine) ── */
+      viewKey() { return "suot_views_" + this.key; },
+      readLocalViews() {
         try {
-          this.views = JSON.parse(
-            localStorage.getItem("suot_views_" + this.key) || "[]");
-        } catch (_) { this.views = []; }
+          const arr = JSON.parse(localStorage.getItem(this.viewKey()) || "[]");
+          return Array.isArray(arr) ? arr : [];
+        } catch (_) { return []; }
+      },
+      mirrorViews() {
+        /* localStorage — оффлайн-кэш без serverId; сервер — источник правды */
+        try {
+          localStorage.setItem(this.viewKey(), JSON.stringify(
+            this.views.map((v) => {
+              const o = Object.assign({}, v);
+              delete o.serverId;
+              return o;
+            })));
+        } catch (_) {}
+      },
+      async loadViews() {
+        const local = this.readLocalViews();
+        let server = [];
+        try {
+          const r = await API.get("/views?scope=" + encodeURIComponent(this.key));
+          server = (r.items || []).map((it) => Object.assign(
+            { serverId: it.id }, it.query || {}, { name: it.name }));
+        } catch (_) { server = []; }
+        const names = new Set(server.map((v) => v.name));
+        // Ленивая миграция: локальные виды, которых нет на сервере, — туда.
+        for (const v of local) {
+          if (!v || !v.name || names.has(v.name)) continue;
+          try {
+            const payload = Object.assign({}, v);
+            delete payload.serverId;
+            const r = await API.post("/views",
+              { scope: this.key, name: v.name, query: payload });
+            server.push(Object.assign({ serverId: r.id }, v));
+            names.add(v.name);
+          } catch (_) {}
+        }
+        const localOnly = local.filter((v) => v && v.name && !names.has(v.name));
+        this.views = server.concat(localOnly);
+        this.mirrorViews();
       },
       saveView() {
         const name = this.viewName.trim();
         if (!name) return;
-        this.views.push({
+        const v = {
           name,
+          q: this.q || "",
+          filters: Object.fromEntries(Object.entries(this.filters).map(([k, v]) =>
+            [k, [...(v || [])]])),
+           smartFilter: this.smartFilter || "",
+          sortBy: this.sortBy || "",
+          order: this.order || "asc",
+          density: this.density || "comfortable",
           hidden: [...this.hiddenCols],
           hiddenUser: this.userCols.filter((c) => !c.visible)
             .map((c) => c.name),
-        });
-        localStorage.setItem("suot_views_" + this.key,
-          JSON.stringify(this.views));
-        this.viewName = "";
-        Toast.show(I18N.t("pr.saved"), "success");
+        };
+        const done = (serverId) => {
+          if (serverId) v.serverId = serverId;
+          const i = this.views.findIndex((x) => x.name === name);
+          if (i >= 0) this.views[i] = v;
+          else this.views.push(v);
+          this.mirrorViews();
+          this.viewName = "";
+          Toast.show(I18N.t("pr.saved"), "success");
+        };
+        API.post("/views", { scope: this.key, name, query: v })
+          .then((r) => done(r && r.id))
+          .catch(() => done(null));
       },
       async applyView(v) {
+        this.q = v.q || "";
+        this.filters = Object.fromEntries(Object.entries(v.filters || {}).map(([k, vals]) =>
+          [k, new Set(Array.isArray(vals) ? vals : [])]));
+         this.smartFilter = v.smartFilter || "";
+        this.sortBy = v.sortBy || "";
+        this.order = v.order || "asc";
+        if (v.density) this.density = v.density;
         this.hiddenCols = new Set(v.hidden || []);
         localStorage.setItem("suot_hidden_" + this.key,
           JSON.stringify([...this.hiddenCols]));
@@ -354,13 +426,26 @@
             } catch (_) {}
           }
         }
+        this.page = 1;
         this.viewsOpen = false;
+        await this.reload(false);
         Toast.show(I18N.t("pr.appliedOk"), "success");
       },
+      resetView() {
+        this.q = "";
+        this.filters = {};
+        this.sortBy = "";
+        this.order = "asc";
+        this.page = 1;
+        this.reload(false);
+      },
       deleteView(i) {
+        const v = this.views[i];
+        if (v && v.serverId) {
+          API.del(`/views/${v.serverId}`).catch(() => {});
+        }
         this.views.splice(i, 1);
-        localStorage.setItem("suot_views_" + this.key,
-          JSON.stringify(this.views));
+        this.mirrorViews();
       },
       toggleHidden(name) {
         if (this.hiddenCols.has(name)) this.hiddenCols.delete(name);
@@ -492,6 +577,12 @@
         localStorage.setItem("suot_presets_" + this.key,
           JSON.stringify(this.presets));
       },
+      setSmartFilter(value) {
+        this.smartFilter = this.smartFilter === value ? "" : value;
+        this.page = 1;
+        this.selected.clear();
+        this.selected = new Set();
+      },
       toggleDensity() {
         this.density = this.density === "comfortable" ? "compact"
           : "comfortable";
@@ -506,11 +597,13 @@
       async reload(keepSelection = true) {
         if (!keepSelection) this.selected.clear();
         this.loading = true;
+        this.loadError = "";
         try {
           const params = new URLSearchParams({
             page: this.page, page_size: this.pageSize,
           });
           if (this.q.trim()) params.set("q", this.q.trim());
+           if (this.smartFilter) params.set("smart_filter", this.smartFilter);
           if (this.sortBy) {
             params.set("sort_by", this.sortBy);
             params.set("order", this.order);
@@ -526,6 +619,7 @@
           const maxPage = Math.max(1, Math.ceil(this.total / this.pageSize));
           if (this.page > maxPage) { this.page = maxPage; return this.reload(); }
         } catch (e) {
+          this.loadError = e.message || I18N.t("error.generic");
           Toast.show(e.message, "error");
         } finally {
           this.loading = false;
@@ -635,6 +729,114 @@
       },
       clearSelection() {
         this.selected = new Set();
+      },
+      selectAllFiltered() {
+        this.rowsFiltered.forEach((r) => this.selected.add(r.id));
+        this.selected = new Set(this.selected);
+        this.toast(I18N.lang === "ru"
+          ? `Выбрано: ${this.selected.size}`
+          : `Selected: ${this.selected.size}`);
+      },
+      bulkProgress: null,
+      jobsHistoryOpen: false,
+      jobsHistory: [],
+      async loadJobsHistory() {
+        try { this.jobsHistory = (await API.get("/jobs/history?limit=100")).items || []; }
+        catch (e) { Toast.show(e.message, "error"); }
+      },
+      async exportJobsHistory() {
+        const res = await fetch("/api/jobs/export.csv", { headers: API.authHeaders() });
+        if (!res.ok) { Toast.show("Ошибка экспорта", "error"); return; }
+        const blob = await res.blob(); const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = "suot-bulk-jobs.csv";
+        a.click(); URL.revokeObjectURL(a.href);
+      },
+      _lastBulk: null,
+      _checkBulkCancelled() {
+        if (this.bulkProgress && this.bulkProgress.cancelled) {
+          const e = new Error(I18N.lang === "ru"
+            ? "Операция отменена" : "Operation cancelled");
+          e.code = "BULK_CANCELLED";
+          throw e;
+        }
+      },
+      async runServerJob(kind, target, ids, field = "", value = "") {
+        const started = await API.post("/jobs/bulk", {
+          kind, target, ids, field, value
+        });
+        const jobId = started.job_id;
+        if (this._lastBulk) this._lastBulk.jobId = jobId;
+        for (;;) {
+          await new Promise((resolve) => setTimeout(resolve, 120));
+          const job = await API.get(`/jobs/${jobId}`);
+          if (this.bulkProgress) {
+            this.bulkProgress.done = job.done || 0;
+            this.bulkProgress.total = job.total || ids.length;
+          }
+          if (this.bulkProgress?.cancelled) {
+            await API.post(`/jobs/${jobId}/cancel`, {});
+            continue;
+          }
+          if (job.status === "completed") {
+            this.tasksChanged();
+            return job.result || {};
+          }
+          if (job.status === "cancelled") {
+            this.tasksChanged();
+            const e = new Error(I18N.lang === "ru"
+              ? "Операция отменена" : "Operation cancelled");
+            e.code = "BULK_CANCELLED";
+            throw e;
+          }
+          if (job.status === "failed") {
+            this.tasksChanged();
+            throw new Error(job.error || "Bulk job failed");
+          }
+        }
+      },
+      async runBulk(label, ids, fn) {
+        this._lastBulk = { label, ids: [...ids], fn };
+        this.bulkProgress = { label, active: true, done: 0, total: ids.length,
+          error: "", cancelled: false };
+        try {
+          this._checkBulkCancelled();
+          this.bulkProgress.done = 0;
+          const result = await fn((done) => {
+            this._checkBulkCancelled();
+            this.bulkProgress.done = done;
+          });
+          this._checkBulkCancelled();
+          this.bulkProgress.done = ids.length;
+          this.bulkProgress.active = false;
+          return result;
+        } catch (e) {
+          this.bulkProgress.active = false;
+          this.bulkProgress.error = e.message || String(e);
+          if (e.code !== "BULK_CANCELLED") Toast.show(this.bulkProgress.error, "error");
+        }
+      },
+      cancelBulk() { if (this.bulkProgress) this.bulkProgress.cancelled = true; },
+      tasksChanged() {
+        try {
+          document.dispatchEvent(
+            new CustomEvent("suot-tasks-changed", { bubbles: true }));
+        } catch (_) {}
+      },
+      async retryBulk() {
+        const job = this._lastBulk;
+        if (job && job.jobId && !this.bulkProgress?.active) {
+          try {
+            await API.post(`/jobs/${job.jobId}/retry`, {});
+            return this.runBulk(job.label, job.ids, job.fn);
+          } catch (e) { Toast.show(e.message, "error"); }
+        }
+        if (job && !this.bulkProgress?.active) return this.runBulk(...[job.label, job.ids, job.fn]);
+        return null;
+      },
+      clearBulkReport() { this.bulkProgress = null; },
+      bulkProgressPercent() {
+        const p = this.bulkProgress;
+        return p && p.total ? Math.round(p.done * 100 / p.total) : 0;
       },
 
       /* ── CRUD ── */
@@ -872,9 +1074,11 @@
             if (r) snapshots.push(JSON.parse(JSON.stringify(r.data)));
           }
           const ids = [...this.confirm.ids];
-          const res = await API.post(
-            this.isCustom() ? `/custom/bulk_delete/${this.key}`
-              : `/data/${this.key}/bulk_delete`, { ids });
+          const res = await this.runBulk(
+            I18N.lang === "ru" ? "Удаление записей" : "Delete records", ids,
+            async () => this.runServerJob(
+              this.isCustom() ? "custom_delete" : "delete", this.key, ids));
+          if (res?.deleted == null) return;
           this.toast(
             I18N.t("tbl.deletedOk").replace("{n}", res.deleted), "success");
           this.selected.clear();
@@ -1303,8 +1507,11 @@
           this._printBusy = false;
         }
       },
-      async pluginAction(behavior) {
+      async pluginAction(behavior, opts) {
+        const settings = (opts && opts.settings) || {};
         if (behavior === "overdue_label") {
+          const color = ["red", "orange", "green", "blue"].includes(settings.color)
+            ? settings.color : "red";
           const ids = [...(this.selected || [])];
           if (!ids.length) {
             Toast.show(I18N.lang === "ru"
@@ -1318,9 +1525,9 @@
                 this.isCustom()
                   ? `/custom/label/${this.key}/${id}`
                   : `/data/${this.key}/${id}/label`,
-                { color: "red" });
+                { color });
               const r = this.rowsFiltered.find((x) => x.id === id);
-              if (r) r.data._label = "red";
+              if (r) r.data._label = color;
             }
             Toast.show(I18N.lang === "ru"
               ? `Метка «Просрочка»: ${ids.length}`
@@ -1333,19 +1540,21 @@
           return;
         }
         if (behavior === "copy_tsv") {
+          const delim = settings.delimiter === "semicolon" ? ";" : "\t";
           const cols = this.visibleCols || [];
           const chosen = (this.selected && this.selected.size)
             ? this.rowsFiltered.filter(
                 (r) => this.selected.has(r.id))
             : this.rowsFiltered;
-          const head = cols.map((c) => c.name).join("\t");
+          const head = cols.map((c) => c.name).join(delim);
           const lines = chosen.map((r) =>
             cols.map((c) => {
               const v = (r.data || {})[c.name];
               return String(v === undefined || v === null
                 ? "" : v);
-            }).join("\t"));
-          const text = [head].concat(lines).join("\n");
+            }).join(delim));
+          const parts = settings.header === false ? lines : [head].concat(lines);
+          const text = parts.join("\n");
           let ok = false;
           try {
             await navigator.clipboard.writeText(text);
@@ -1425,9 +1634,13 @@
       async doTransfer() {
         if (!this.transferTo) return;
         try {
-          const res = await API.post("/custom/transfer",
-            { from_key: this.key, to_key: this.transferTo,
-              ids: [...this.selected], move: this.transferMove });
+          const res = await this.runBulk(
+            I18N.lang === "ru" ? "Перенос записей" : "Transfer records",
+            [...this.selected],
+            async () => API.post("/custom/transfer",
+              { from_key: this.key, to_key: this.transferTo,
+                ids: [...this.selected], move: this.transferMove }));
+          if (res?.moved == null) return;
           Toast.show(I18N.t("tr.moved").replace("{n}", res.moved),
                      "success");
           this.transferOpen = false;
@@ -1477,10 +1690,12 @@
             JSON.stringify(r.data)) });
         }
         try {
-          const res = await API.post(
-            this.isCustom() ? `/custom/bulk_edit/${this.key}`
-              : `/data/${this.key}/bulk_edit`,
-            { ids, field: this.beField, value: this.beValue });
+          const res = await this.runBulk(
+            I18N.lang === "ru" ? "Массовое редактирование" : "Bulk edit", ids,
+            async () => this.runServerJob(
+              this.isCustom() ? "custom_edit" : "edit", this.key, ids,
+              this.beField, this.beValue));
+          if (res?.updated == null) return;
           this.toast(I18N.t("be.done")
             .replace("{n}", res.updated), "success");
           this.bulkEditOpen = false;

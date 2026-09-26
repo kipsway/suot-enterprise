@@ -7,11 +7,17 @@
 <link rel="icon" href="favicon.ico">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/next.css">
 <script src="js/api.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/app.js"></script>
 <script src="js/tabs.js"></script>
+  <script src="js/workspace.js"></script>
+  <script src="js/commands.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/detail.js"></script>
+  <script src="js/tasks.js"></script>
 <script src="js/table.js"></script>
 <script src="js/pages.js"></script>
 <script src="js/palette.js"></script>
@@ -21,6 +27,7 @@
 <script src="js/dashboard.js"></script>
 <script src="js/print_editor.js"></script>
 <script src="js/reports.js"></script>
+<script src="js/documents.js"></script>
 <script src="js/reminders_bell.js"></script>
 <script src="js/ai_chat.js"></script>
 <script src="js/batch_print.js"></script>
@@ -43,26 +50,23 @@
       @suot-table-settings.window="openTableSettings($event.detail.key)">
 <!-- ═══════════ ЭКРАН 1: ВЫБОР ЯЗЫКА ═══════════ -->
 <template x-if="screen === 'lang'">
-<div class="screen screen-lang">
-  <div class="lang-wrap">
-    <div class="brand-mark" x-html="icons.logo"></div>
-    <h1 class="lang-title" x-text="t('app.name')"></h1>
-    <p class="lang-sub">Select your language / Выберите язык</p>
-    <div class="lang-cards">
-      <button class="lang-card" @click="chooseLang('ru')">
-        <span class="lang-flag">RU</span>
-        <span class="lang-name">Русский</span>
-        <span class="lang-hint">Продолжить на русском</span>
-      </button>
-      <button class="lang-card" @click="chooseLang('en')">
-        <span class="lang-flag">EN</span>
-        <span class="lang-name">English</span>
-        <span class="lang-hint">Continue in English</span>
-      </button>
-    </div>
-    <p class="lang-version" x-text="'v' + $store.version"></p>
-  </div>
+    <div class="screen screen-lang landing-screen">
+      <div class="lang-wrap landing-wrap">
+        <div class="landing-intro">
+          <div class="brand-mark landing-mark" x-html="icons.logo"></div>
+<span class="landing-kicker">SUOT NEXT • OCCUPATIONAL SAFETY OS</span>
+<div class="landing-pills"><span>• Работает офлайн</span><span>• Windows 10/11</span><span>• RU / EN</span></div>
+        </div>
+        <div class="lang-panel">
+          <div class="lang-panel-head"><span class="dash-eyebrow" x-text="I18N.lang==='ru' ? 'Выберите язык' : 'Choose your language'"></span><b x-text="I18N.lang==='ru' ? 'Ваше рабочее место будет готово через минуту' : 'Your workspace is ready in a minute'"></b></div>
+          <div class="lang-cards">
+            <button class="lang-card" @click="chooseLang('ru')"><span class="lang-flag">RU</span><span class="lang-name">Русский</span><span class="lang-hint" x-text="I18N.lang==='ru' ? 'Продолжить на русском' : 'Continue in Russian'"></span></button>
+<button class="lang-card" @click="chooseLang('en')"><span class="lang-flag">EN</span><span class="lang-name">English</span><span class="lang-hint" x-text="I18N.lang==='ru' ? 'Продолжить на английском' : 'Continue in English'"></span></button>
 </div>
+</div>
+<p class="lang-version" x-text="'SUOT Next • v' + $store.version"></p>
+      </div>
+    </div>
 </template>
 
 <!-- ═══════════ ЭКРАН 1.5: МАСТЕР ПЕРВОГО ЗАПУСКА ═══════════ -->
@@ -100,6 +104,29 @@
       </div>
       <p class="hint muted"
          x-text="ru('Можно пропустить и заполнить позже в настройках.','You can skip this and set it later.')"></p>
+      <div class="setup-scenario">
+        <div class="setup-scenario-head">
+          <span class="dash-eyebrow" x-text="ru('Ваш сценарий','Your workflow')"></span>
+          <b x-text="ru('С чего начнём?','Where should we start?')"></b>
+        </div>
+        <div class="scenario-grid">
+          <button class="scenario-card" :class="{sel:f.scenario==='today'}" @click="f.scenario='today'">
+            <span class="scenario-ic" x-html="icons.dashboard"></span>
+            <b x-text="ru('Каждый день','Every day')"></b>
+            <small x-text="ru('Фокус, просрочки, задачи','Focus, deadlines, tasks')"></small>
+          </button>
+          <button class="scenario-card" :class="{sel:f.scenario==='inspection'}" @click="f.scenario='inspection'">
+            <span class="scenario-ic" x-html="icons.clipboard"></span>
+            <b x-text="ru('Проверка','Inspection')"></b>
+            <small x-text="ru('Готовность и блокеры','Readiness and blockers')"></small>
+          </button>
+          <button class="scenario-card" :class="{sel:f.scenario==='documents'}" @click="f.scenario='documents'">
+            <span class="scenario-ic" x-html="icons.fileText"></span>
+            <b x-text="ru('Документы','Documents')"></b>
+            <small x-text="ru('Шаблоны, протоколы, печать','Templates, reports, printing')"></small>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Шаг 2: Администратор -->
@@ -174,12 +201,20 @@
 <!-- ═══════════ ЭКРАН 2: ВХОД / РЕГИСТРАЦИЯ ═══════════ -->
 <template x-if="screen === 'auth'">
 <div class="screen screen-auth">
-  <div class="auth-card card">
-    <div class="auth-head">
-      <div class="brand-mark sm" x-html="icons.logo"></div>
-      <h1 x-text="authMode === 'login' ? t('auth.loginTitle') : t('auth.regTitle')"></h1>
-      <p class="muted" x-text="t('app.tagline')"></p>
-    </div>
+  <div class="auth-layout">
+    <aside class="auth-aside">
+      <div class="auth-aside-kicker">SUOT NEXT · LOCAL WORKSPACE</div>
+      <h2 x-text="I18N.lang==='ru' ? 'Спокойствие начинается с ясного фокуса' : 'Clarity starts with a focused workspace'"></h2>
+      <p x-text="I18N.lang==='ru' ? 'Записи, сроки и решения защищены локально и доступны только вашему аккаунту.' : 'Records, deadlines and decisions stay local and private to your account.'"></p>
+      <div class="auth-feature"><span x-html="icons.shield"></span><span x-text="I18N.lang==='ru' ? 'Изоляция данных включена' : 'Data isolation enabled'"></span></div>
+      <div class="auth-feature"><span x-html="icons.pulse"></span><span x-text="I18N.lang==='ru' ? 'Готово к работе офлайн' : 'Ready for offline work'"></span></div>
+    </aside>
+    <div class="auth-card card">
+      <div class="auth-head">
+        <div class="brand-mark sm" x-html="icons.logo"></div>
+        <h1 x-text="authMode === 'login' ? t('auth.loginTitle') : t('auth.regTitle')"></h1>
+        <p class="muted" x-text="I18N.lang==='ru' ? 'Продолжите с того места, где остановились' : 'Continue from where you left off'"></p>
+      </div>
 
     <div class="seg">
       <button type="button" class="seg-btn" :class="{active: authMode==='login'}"
@@ -283,7 +318,8 @@
 
     <button class="linklike muted" @click="screen='lang'" x-text="t('common.back')"></button>
   </div>
-</div>
+  </div>
+  </div>
 </template>
 
 <!-- ═══════════ ЭКРАН 3: ОСНОВНОЙ ИНТЕРФЕЙС ═══════════ -->
@@ -308,6 +344,37 @@
               $store.tabs.active.type==='welcome'}"
               @click="$store.tabs.openWelcome()"
               x-html="icons.dashboard + t('nav.dashboard')"></button>
+      <button class="nav-item nav-focus" @click="openToday()"
+              :title="I18N.lang==='ru' ? 'Показать приоритетные действия' : 'Show priority actions'">
+        <span class="nav-ic" x-html="icons.alert"></span>
+        <span x-text="I18N.lang==='ru' ? 'Сегодня и фокус' : 'Today & focus'"></span>
+        <span class="nav-kbd">F1</span>
+      </button>
+      <div class="nav-sep nav-sep-next"
+           x-text="I18N.lang==='ru' ? 'Сценарии' : 'Workflows'"></div>
+      <div class="nav-scenarios">
+        <button class="nav-item nav-scenario danger" @click="$store.tabs.open('risks')">
+          <span class="nav-ic" x-html="icons.alert"></span>
+          <span x-text="I18N.lang==='ru' ? 'Риски и сроки' : 'Risks & deadlines'"></span>
+        </button>
+        <button class="nav-item nav-scenario" @click="$store.tabs.open('employees')">
+          <span class="nav-ic" x-html="icons.users"></span>
+          <span x-text="I18N.lang==='ru' ? 'Люди' : 'People'"></span>
+        </button>
+        <button class="nav-item nav-scenario" @click="$store.tabs.open('ppe')">
+          <span class="nav-ic" x-html="icons.hardhat"></span>
+          <span x-text="I18N.lang==='ru' ? 'СИЗ и обучение' : 'PPE & training'"></span>
+        </button>
+        <button class="nav-item nav-scenario" @click="$store.tabs.openDocuments()">
+          <span class="nav-ic" x-html="icons.fileText"></span>
+          <span x-text="I18N.lang==='ru' ? 'Документы' : 'Documents'"></span>
+        </button>
+        <button class="nav-item nav-scenario" @click="$store.tabs.openWelcome()"
+                :title="I18N.lang==='ru' ? 'Аналитика: дашборд и KPI' : 'Analytics: dashboard and KPIs'">
+          <span class="nav-ic" x-html="icons.chart"></span>
+          <span x-text="I18N.lang==='ru' ? 'Аналитика' : 'Analytics'"></span>
+        </button>
+      </div>
       <div class="nav-sep" x-text="t('nav.groupData')"></div>
       <button class="nav-item"
               :class="{active: $store.tabs.active && $store.tabs.active.type==='all'}"
@@ -402,6 +469,9 @@
               x-html="(icons.users||'') + (I18N.lang==='ru'?'Пользователи':'Users')"></button>
       <button class="nav-item" @click="toggleTheme()"
               x-html="(theme==='dark'?icons.sun:icons.moon) + (theme==='dark' ? t('nav.lightTheme') : t('nav.darkTheme'))"></button>
+      <button class="nav-item" @click="$dispatch('suot-ws-toggle')"
+              :title="I18N.lang==='ru' ? 'Рабочая область: быстрый переход (Alt+1…9 — закреплённое)' : 'Workspace: quick switch (Alt+1…9 — pinned)'"
+              x-html="(icons.workbench||icons.layers||'') + (I18N.lang==='ru'?'Рабочая область':'Workspace')"></button>
       <button class="nav-item danger" @click="logout()"
               x-html="icons.logout + t('nav.logout')"></button>
     </div>
@@ -446,45 +516,10 @@
       </div>
     </div>
 
-    <!-- Вкладки как в браузере -->
-    <div class="tabbar">
-      <div class="tabs-scroll">
-        <template x-for="tb in $store.tabs.list" :key="tb.id">
-          <div class="tab" :class="{active: tb.id===$store.tabs.activeId, 'type-welcome': tb.type==='welcome'}"
-               @click="$store.tabs.activeId = tb.id"
-               @auxclick.middle.prevent="$store.tabs.close(tb.id)">
-            <span class="tab-icon"
-                  x-html="icons[$store.tabs.iconForType(tb)] || icons.database"></span>
-            <span class="tab-title" x-text="tb.label"></span>
-            <span class="tab-dot"
-                  x-show="tb.type==='table' && $store.tabs._draftTick >= 0 && $store.tabs.hasDraft(tb.key)"
-                  title="Есть черновик формы"></span>
-            <button class="tab-x" @click.stop="$store.tabs.close(tb.id)"
-                    x-html="icons.plus" :class="{rot45:true}"></button>
-          </div>
-        </template>
-        <button class="tab-add" @click="openPalette()"
-                title="Ctrl+K" x-html="icons.command"></button>
-        <button class="tab-more" @click="$store.tabs.toggleOverflow()"
-                :title="I18N.lang==='ru' ? 'Все вкладки' : 'All tabs'"
-                x-show="$store.tabs.overflowList.length"
-                x-html="icons.chevronDown"></button>
-      </div>
-      <template x-teleport="body">
-        <div class="tab-overflow" x-show="$store.tabs.ovMenu"
-             x-transition.opacity
-             @click.outside="$store.tabs.ovMenu=false">
-          <template x-for="tb in $store.tabs.overflowList" :key="'ov'+tb.id">
-            <button class="more-item" @click="$store.tabs.activate(tb.id)">
-              <span class="tab-icon" x-html="icons[$store.tabs.iconForType(tb)] || icons.database"></span>
-              <span x-text="tb.label"></span>
-            </button>
-          </template>
-        </div>
-      </template>
-    </div>
-
-    <!-- Контент: панели вкладок -->
+    <!-- Вкладки как в браузере УДАЛЕНЫ (детэбификация): навигация только
+         через реестр/switcher/шину/сайдбар. Панели видов ниже рендерятся
+         по активному виду journey-движка ($store.tabs.activeId). -->
+    <!-- Контент: панели видов -->
     <div class="content" @click.self="$store.tabs.active && null">
       <template x-for="tb in $store.tabs.list" :key="tb.id">
         <div class="tabpane" x-show="tb.id === $store.tabs.activeId">
@@ -492,22 +527,33 @@
           <!-- Добро пожаловать -->
           <template x-if="tb.type === 'welcome'">
             <section class="welcome">
-              <div class="hero card">
-                <h1><span x-text="t('welcome.hi')"></span>, <span class="grad"
-                  x-text="user?.full_name || user?.username"></span> 👋</h1>
-                <p x-text="t('welcome.subtitle')"></p>
-                <div class="chips">
-                  <span class="chip ok"><i></i><span x-text="t('welcome.apiOk')"></span></span>
-                  <span class="chip" x-text="t('welcome.role') + ': ' + roleLabel()"></span>
-                  <button class="chip cmd" @click="openPalette()">
-                    <span x-html="icons.command"></span>
-                    <kbd>Ctrl</kbd>+<kbd>K</kbd>
-                  </button>
+              <div class="hero card next-hero">
+                <div class="next-hero-copy">
+                  <span class="dash-eyebrow" x-text="I18N.lang==='ru' ? 'SUOT NEXT · СЕГОДНЯ' : 'SUOT NEXT · TODAY'"></span>
+                  <h1><span x-text="t('welcome.hi')"></span>, <span class="grad" x-text="user?.full_name || user?.username"></span></h1>
+                  <p x-text="I18N.lang==='ru' ? 'Один следующий шаг вместо списка задач. Начните с фокуса, рисков или сроков.' : 'One next step instead of a task list. Start with focus, risks or deadlines.'"></p>
+                </div>
+                <div class="next-hero-status">
+                  <span class="next-status-label" x-text="I18N.lang==='ru' ? 'Состояние системы' : 'System state'"></span>
+                  <strong x-text="apiOk ? (I18N.lang==='ru' ? 'Готова к работе' : 'Ready to work') : (I18N.lang==='ru' ? 'Нет связи с API' : 'API unavailable')"></strong>
+                  <div class="chips">
+                    <span class="chip ok"><i></i><span x-text="t('welcome.apiOk')"></span></span>
+                    <span class="chip" x-text="t('welcome.role') + ': ' + roleLabel()"></span>
+                    <button class="chip cmd" @click="openPalette()"><span x-html="icons.command"></span><kbd>Ctrl</kbd>+<kbd>K</kbd></button>
+                  </div>
                 </div>
               </div>
 
               <!-- ═══ РАБОЧИЙ СТОЛ ═══ -->
               <div class="card ws-card">
+                 <div class="ws-scenario-tabs" role="tablist" :aria-label="I18N.lang==='ru' ? 'Сценарии' : 'Workflows'">
+                   <template x-for="sc in wsScenarios" :key="sc.id">
+                     <button class="ws-scenario-tab" :class="{on: wsScenario===sc.id}" @click="openScenario(sc.id)">
+                       <span x-html="icons[sc.icon] || icons.layers"></span>
+                       <span x-text="sc.label"></span>
+                     </button>
+                   </template>
+                 </div>
                 <div class="ws-toolbar">
                   <b x-text="I18N.lang==='ru' ? 'Рабочий стол' : 'Workspace'"></b>
                   <div class="searchbox" style="width:220px">
@@ -527,6 +573,56 @@
                           x-html="icons.trash"></button>
                   <button class="btn primary" @click="openCreateTable()"
                           x-html="icons.plus + (I18N.lang==='ru' ? 'Создать таблицу' : 'New table')"></button>
+                 <div class="ws-preset-bar card">
+                   <div class="ws-quick-title">
+                     <span class="dash-eyebrow" x-text="I18N.lang==='ru' ? 'Быстрые действия' : 'Quick actions'"></span>
+                     <b x-text="I18N.lang==='ru' ? 'Начать сценарий' : 'Start a workflow'"></b>
+                   </div>
+                   <div class="ws-quick-actions">
+                     <button class="ws-quick" @click="openToday()">
+                       <span x-html="icons.alert"></span><span x-text="I18N.lang==='ru'?'Фокус дня':'Today focus'"></span>
+                     </button>
+                     <button class="ws-quick" @click="$store.tabs.open('risks')">
+                       <span x-html="icons.alert"></span><span x-text="I18N.lang==='ru'?'Риски':'Risks'"></span>
+                     </button>
+                     <button class="ws-quick" @click="$store.tabs.open('employees')">
+                       <span x-html="icons.users"></span><span x-text="I18N.lang==='ru'?'Люди':'People'"></span>
+                     </button>
+                     <button class="ws-quick" @click="openPalette()">
+                       <span x-html="icons.search"></span><span x-text="I18N.lang==='ru'?'Найти':'Search'"></span>
+                     </button>
+                   </div>
+                   <div class="ws-preset-form" x-show="wsPresets.length || wsPresetName">
+                     <input class="field-input" x-model="wsPresetName"
+                            :placeholder="I18N.lang==='ru'?'Название сценария':'Preset name'"
+                            @keydown.enter.prevent="saveWorkspacePreset()">
+                     <button class="btn primary" @click="saveWorkspacePreset()"
+                             x-text="I18N.lang==='ru'?'Сохранить':'Save'"></button>
+                   </div>
+                   <div class="ws-presets">
+                     <template x-for="(p, i) in wsPresets" :key="p.name + p.at">
+                       <div class="ws-preset">
+                         <button @click="applyWorkspacePreset(p)" x-text="p.name"></button>
+                         <button class="icon-btn danger" @click="deleteWorkspacePreset(i)"
+                                 x-html="icons.trash"></button>
+                       </div>
+                     </template>
+                 <div class="ws-alert card" x-show="!wsLoading && demoNeeded">
+                   <span class="ws-alert-icon" x-html="icons.dashboard"></span>
+                   <div><b x-text="I18N.lang==='ru' ? 'Ваша рабочая среда готова' : 'Your workspace is ready'"></b><p x-text="I18N.lang==='ru' ? 'Загрузите демо-набор или начните с чистой базы.' : 'Load the demo dataset or start with a clean database.'"></p></div>
+                   <button class="btn primary" @click="seedDemoAll()" x-text="I18N.lang==='ru' ? 'Загрузить демо' : 'Load demo'"></button>
+                 </div>
+                 <div class="ws-loading" x-show="wsLoading" aria-label="Loading">
+                   <span class="skeleton-shimmer"></span><span class="skeleton-shimmer"></span><span class="skeleton-shimmer"></span>
+                 </div>
+
+
+                   </div>
+                   <button class="ws-preset-toggle" @click="wsPresetName = wsPresetName ? '' : ' '"
+                           x-text="I18N.lang==='ru' ? '+ Сценарий' : '+ Preset'"></button>
+                 </div>
+
+
                 </div>
                 <div class="ws-grid anim-stagger">
                   <template x-for="tl in wsTiles" :key="tl.key">
@@ -539,6 +635,7 @@
                       <span class="ws-ic" :style="'color:' + tl.color"
                             x-html="icons[tl.icon] || icons.database"></span>
                       <span class="ws-label" x-text="tl.label"></span>
+                      <span class="ws-hint" x-text="tl.hint"></span>
                       <span class="ws-count" x-show="tl.count"
                             x-text="tl.count"></span>
                     </button>
@@ -557,8 +654,77 @@
               </div>
 
               <!-- ═══ ДАШБОРД: KPI, КАЛЕНДАРЬ, ТАЙМЛАЙН (Часть 11) ═══ -->
-              <div x-data="dashBoard()" x-init="init()">
+              <div x-data="dashBoard()" x-init="init()"
+                   x-effect="$store.tabs.activeId; onTabActive()">
                 <div class="dash-widgets">
+                   <!-- ▸ Центр готовности к проверке -->
+                   <div class="card dash-w dash-wx readiness-center" data-wid="readinessCenter" draggable="true"
+                        @dragstart="dragStart('readinessCenter', $event)"
+                        @dragenter="dragEnter('readinessCenter')"
+                        @dragend="dropDone('readinessCenter')"
+                        @dragover.prevent>
+                     <div class="dash-w-head">
+                       <div>
+                         <span class="dash-eyebrow" x-text="I18N.lang==='ru' ? 'Центр готовности' : 'Readiness center'"></span>
+                         <b x-text="I18N.lang==='ru' ? 'Проверка системы' : 'System check'"></b>
+                       </div>
+                       <span class="dash-w-drag" title="drag">⠿</span>
+                     </div>
+                     <div class="readiness-score-row">
+                       <div class="readiness-score" :class="readinessScore() >= 80 ? 'good' : 'warn'"
+                            x-text="readinessScore() + '%'">—</div>
+                       <div>
+                         <strong x-text="I18N.lang==='ru' ? 'Уровень готовности' : 'Readiness level'"></strong>
+                         <p class="muted" x-text="readinessScore() >= 80
+                           ? (I18N.lang==='ru' ? 'Критических блокеров не обнаружено' : 'No critical blockers found')
+                           : (I18N.lang==='ru' ? 'Есть действия до проверки' : 'Actions required before review')"></p>
+                       </div>
+                     </div>
+                     <div class="readiness-checks">
+                       <template x-for="item in readinessChecks()" :key="item.key">
+                         <button class="readiness-check" :class="item.tone"
+                                 @click="openReadinessItem(item)">
+                           <span class="check-status" x-html="item.tone === 'success' ? icons.checkAll : icons.alert"></span>
+                           <span class="check-copy"><b x-text="item.label"></b><small x-text="item.hint"></small></span>
+                           <strong x-text="item.value"></strong>
+                           <span class="check-arrow">→</span>
+                         </button>
+                       </template>
+                     </div>
+                   </div>
+
+                   <!-- ▸ KPI -->
+
+                   <!-- ▸ Фокус дня / рабочая готовность -->
+                   <div class="card dash-w dash-wx focus-card" data-wid="readiness" draggable="true"
+                        @dragstart="dragStart('readiness', $event)"
+                        @dragenter="dragEnter('readiness')"
+                        @dragend="dropDone('readiness')"
+                        @dragover.prevent>
+                     <div class="dash-w-head">
+                       <div>
+                         <span class="dash-eyebrow"
+                               x-text="I18N.lang==='ru' ? 'Следующий шаг' : 'Next best action'"></span>
+                         <b x-text="I18N.lang==='ru' ? 'Фокус дня' : 'Today focus'"></b>
+                       </div>
+                       <span class="dash-w-drag" title="drag">⠿</span>
+                     </div>
+                     <div class="focus-list" x-show="!loading">
+                       <template x-for="item in focusItems()" :key="item.label">
+                          <button class="focus-item" :class="item.tone"
+                                  @click="openFiltered(item.key, item.smart)">
+                           <span class="focus-icon" x-html="item.tone === 'danger' ? icons.alert : (item.tone === 'warning' ? icons.gauge : icons.checkAll)"></span>
+                           <span class="focus-copy">
+                             <strong x-text="item.label"></strong>
+                             <small x-text="item.hint"></small>
+                           </span>
+                           <span class="focus-arrow">→</span>
+                         </button>
+                       </template>
+                     </div>
+                     <div class="focus-skeleton skeleton-shimmer" x-show="loading"></div>
+                   </div>
+
 
                   <!-- ▸ KPI -->
                   <div class="card dash-w dash-wx" data-wid="kpi" draggable="true"
@@ -982,6 +1148,27 @@
                  @suot-reload-tables.window="reload(false)"
                  @keydown.escape.window="if(filterCol!==null) filterCol=null; if(editing) cancelInline()">
 
+               <div class="table-context card">
+                 <div class="table-context-main">
+                   <span class="dash-eyebrow" x-text="I18N.lang==='ru' ? 'Текущее представление' : 'Current view'"></span>
+                   <b x-text="label || key"></b>
+                   <span class="muted"
+                         x-text="(total || 0) + ' ' + (I18N.lang==='ru' ? 'записей' : 'records')"></span>
+                 </div>
+                 <div class="table-context-meta">
+                   <span class="context-pill" x-show="q"
+                         x-text="I18N.lang==='ru' ? 'Поиск' : 'Search'"></span>
+                   <span class="context-pill" x-show="activeFilterCount"
+                         x-text="(I18N.lang==='ru' ? 'Фильтры: ' : 'Filters: ') + activeFilterCount"></span>
+                   <span class="context-pill" x-show="selected.size"
+                         x-text="(I18N.lang==='ru' ? 'Выбрано: ' : 'Selected: ') + selected.size"></span>
+                   <button class="btn ghost-sm" x-show="q || activeFilterCount || sortBy"
+                           @click="resetView()"
+                           x-text="I18N.lang==='ru' ? 'Сбросить' : 'Reset'"></button>
+                 </div>
+               </div>
+
+
               <!-- Тулбар -->
               <div class="tbl-toolbar">
                 <button class="btn primary" @click="openAdd()" x-html="icons.plus + t('tbl.add')"></button>
@@ -1048,8 +1235,25 @@
                     </template>
                   </div>
                 </div>
-                <template x-if="!isCustom()">
+                <!-- Умный фильтр: сервер считает для всех таблиц (custom включительно) -->
+                <template x-if="true">
                   <div class="chips" style="display:inline-flex;gap:6px;margin-left:4px">
+                 <div class="smart-filter-bar">
+                   <span class="smart-filter-label" x-text="I18N.lang==='ru' ? 'Умный фильтр' : 'Smart filter'"></span>
+                   <button class="smart-filter-chip" :class="{on: smartFilter==='overdue'}"
+                           @click="setSmartFilter('overdue')"
+                           x-text="I18N.lang==='ru' ? 'Просроченные' : 'Overdue'"></button>
+                   <button class="smart-filter-chip" :class="{on: smartFilter==='active'}"
+                           @click="setSmartFilter('active')"
+                           x-text="I18N.lang==='ru' ? 'Активные' : 'Active'"></button>
+                   <button class="smart-filter-chip" :class="{on: smartFilter==='done'}"
+                           @click="setSmartFilter('done')"
+                           x-text="I18N.lang==='ru' ? 'Завершённые' : 'Completed'"></button>
+                   <span class="smart-filter-count" x-show="smartFilter"
+                         x-text="rowsFiltered.length + ' / ' + rows.length"></span>
+                 </div>
+
+                 <!-- Пресеты фильтров -->
                     <button type="button" class="chip cmd"
                             @click="applyQuickFilter(key, 'active')"
                             x-show="columns.some(c => c.name==='Статус')"
@@ -1156,9 +1360,12 @@
               </div>
 
               <!-- Панель массовых действий -->
-              <div class="bulkbar" x-show="selected.size > 0" x-transition.opacity>
+                <button class="btn ghost-sm" @click="jobsHistoryOpen=true; loadJobsHistory()" x-text="I18N.lang==='ru' ? 'Журнал операций' : 'Operation history'"></button>
+               <div class="bulkbar" x-show="selected.size > 0" x-transition.opacity>
                 <span class="bulk-count"
                       x-text="t('tbl.selectedN') + ': ' + selected.size"></span>
+                 <button class="btn ghost-sm" @click="selectAllFiltered()"
+                         x-text="I18N.lang==='ru' ? 'Выбрать все совпадения' : 'Select all matches'"></button>
                 <button class="btn danger-sm" @click="askDelete([...selected])"
                         x-html="icons.trash + t('tbl.deleteSel')"></button>
                 <button class="btn ghost-sm" @click="openBulkEdit()"
@@ -1173,6 +1380,23 @@
                 <button class="linklike muted" @click="clearSelection()"
                         x-text="t('tbl.clearSel')"></button>
               </div>
+               <div class="bulk-progress card" x-show="bulkProgress" x-transition.opacity>
+                 <div class="bulk-progress-head">
+                    <b x-text="bulkProgress?.label ?? ''"></b>
+                    <span x-text="(bulkProgress?.done ?? 0) + ' / ' + (bulkProgress?.total ?? 0)"></span>
+                 </div>
+                 <div class="progress-track"><i :style="`width:${bulkProgressPercent()}%`"></i></div>
+                 <div class="bulk-progress-foot">
+                    <span class="muted" x-text="(bulkProgress?.active) ? (I18N.lang==='ru' ? 'Выполняется…' : 'Working…') : ((bulkProgress?.error) || (I18N.lang==='ru' ? 'Готово' : 'Complete'))"></span>
+                    <button class="btn ghost-sm" x-show="bulkProgress?.error && !bulkProgress.active" @click="retryBulk()" x-text="I18N.lang==='ru' ? 'Повторить операцию' : 'Retry operation'"></button>
+                    <button class="btn ghost-sm" x-show="bulkProgress?.active" @click="cancelBulk()" x-text="I18N.lang==='ru' ? 'Отменить' : 'Cancel'"></button>
+                    <button class="btn ghost-sm" x-show="!bulkProgress?.active" @click="clearBulkReport()" x-text="I18N.lang==='ru' ? 'Закрыть' : 'Close'"></button>
+                 </div>
+               <div class="bulk-history card" x-show="jobsHistoryOpen" x-transition.opacity>
+                 <div class="bulk-progress-head"><b x-text="I18N.lang==='ru' ? 'Журнал массовых операций' : 'Bulk operation history'"></b><span class="flex1"></span><button class="btn ghost-sm" @click="loadJobsHistory()" x-text="I18N.lang==='ru' ? 'Обновить' : 'Refresh'"></button><button class="btn ghost-sm" @click="exportJobsHistory()" x-text="I18N.lang==='ru' ? 'Экспорт CSV' : 'Export CSV'"></button><button class="icon-btn" @click="jobsHistoryOpen=false" x-text="'×'"></button></div>
+                 <div class="bulk-history-list"><template x-for="job in jobsHistory" :key="job.id"><div class="bulk-history-row"><span class="badge" :class="job.status" x-text="job.status"></span><b x-text="job.kind + ' · ' + job.target"></b><span x-text="job.done + '/' + job.total"></span><span class="muted" x-text="job.error || (job.duration + ' s')"></span></div></template><div class="muted" x-show="!jobsHistory.length" x-text="I18N.lang==='ru' ? 'Операций пока нет' : 'No operations yet'"></div></div>
+               </div>
+               </div>
 
               <!-- Подсказка редактирования и хоткеев -->
               <div class="edit-hint muted">
@@ -1181,10 +1405,14 @@
                 <span x-text="t('keys.hint')"></span>
               </div>
 
-              <!-- Таблица -->
-              <div class="tablewrap card"
-                   x-show="cardMode!=='cards'"
-                   :class="{'dense': density==='compact'}">
+               <!-- Table -->
+               <div class="table-state card table-state-error" x-show="!loading && loadError">
+                 <span class="table-state-icon" x-html="icons.alert"></span>
+                  <div><b x-text="I18N.lang==='ru' ? 'Не удалось загрузить данные' : 'Could not load data'"></b><p x-text="loadError"></p></div>
+<button class="btn" @click="reload(false)" x-text="I18N.lang==='ru' ? 'Повторить' : 'Retry'"></button>
+</div>
+<div class="tablewrap card" x-show="!loadError && cardMode!=='cards'"
+                    :class="{'dense': density==='compact'}">
                 <table class="grid">
                   <thead>
                     <tr>
@@ -1611,9 +1839,12 @@
                 <div class="overlay" x-transition.opacity
                      @click.self="panel=null"
                      @keydown.escape.window="panel=null">
-                  <div class="modal card anim-in panel-modal" @click.stop>
+                   <div class="modal card anim-in panel-modal" @click.stop>
                     <h3 class="modal-title"
                         x-text="t('rp.recordInfo').replace('{id}', panel.rowId)"></h3>
+                    <button class="btn ghost-sm" style="margin-bottom:8px"
+                            @click="$dispatch('suot-detail-open', {table: key, id: panel.rowId}); panel=null"
+                            x-text="I18N.lang==='ru' ? 'Открыть досье' : 'Open dossier'"></button>
                     <div class="seg seg3">
                       <button type="button" class="seg-btn"
                               :class="{active: panel.tab==='notes'}"
@@ -2899,6 +3130,320 @@
                 </div>
               </template>
 
+              <!-- 📄 Documents Center (Блок 7) -->
+              <template x-if="tb.type === 'documents'">
+                <div x-data="docCenter()" x-init="init()" class="doc-center"
+                     x-effect="$store.tabs.activeId; onTabActive()"
+                     @suot-saved-reports-changed.window="loadSaved()"
+                     @keydown.escape.window="closePreview()">
+                  <div class="sp-wrap">
+                    <div class="tbl-toolbar">
+                      <div class="seg">
+                        <button class="seg-btn" :class="{active: tab==='templates'}"
+                                @click="tab='templates'; loadTemplates()"
+                                x-text="ru('Шаблоны','Templates')"></button>
+                        <button class="seg-btn" :class="{active: tab==='reports'}"
+                                @click="tab='reports'; loadSaved()"
+                                x-text="ru('Отчёты','Reports')"></button>
+                        <button class="seg-btn" :class="{active: tab==='queue'}"
+                                @click="tab='queue'; loadJobs(); _poll()"
+                                x-text="ru('Очередь печати','Print queue')"></button>
+                      </div>
+                      <span class="flex1"></span>
+                      <button class="btn primary" x-show="tab==='templates'"
+                              @click="openInEditor(0)"
+                              x-text="ru('Новый шаблон','New template')"></button>
+                      <button class="btn" x-show="tab==='reports'"
+                              @click="openBuilder()"
+                              x-text="ru('Конструктор','Builder')"></button>
+                    </div>
+                    <p class="muted" x-show="tab==='templates'"
+                       x-text="ru('Шаблоны печати: предпросмотр, история версий с откатом, редактирование в мини-Word. Каждое сохранение версиируется автоматически.',
+                                  'Print templates: preview, version history with restore, mini-Word editing. Every save is versioned automatically.')"></p>
+                    <p class="muted" x-show="tab==='reports'"
+                       x-text="ru('Сохранённые отчёты: запуск в один клик. Новую спеку соберите в конструкторе и сохраните — она появится здесь.',
+                                  'Saved reports: one-click run. Build a new spec in the builder and save it — it will appear here.')"></p>
+                    <p class="muted" x-show="tab==='queue'"
+                       x-text="ru('Асинхронная печать пакетов PDF: задание выполняется в фоне, прогресс виден здесь. Результат — PDF или ZIP с предпросмотром.',
+                                  'Async batch PDF printing: jobs run in background with live progress. Result is a PDF or ZIP with preview.')"></p>
+
+                    <!-- ▸ Шаблоны -->
+                    <div x-show="tab==='templates'">
+                      <div class="muted" x-show="tplLoading"
+                           x-text="ru('Загрузка шаблонов…','Loading templates…')"></div>
+                      <div class="alert error" x-show="tplError">
+                        <span x-text="tplError"></span>
+                        <button class="btn sm" @click="loadTemplates()"
+                                x-text="ru('Повторить','Retry')"></button>
+                      </div>
+                      <div class="card tablewrap" x-show="!tplLoading && !tplError">
+                        <table class="grid">
+                          <thead><tr>
+                            <th x-text="ru('Шаблон','Template')"></th>
+                            <th x-text="ru('Категория','Category')"></th>
+                            <th x-text="ru('Обновлён','Updated')"></th>
+                            <th></th>
+                          </tr></thead>
+                          <tbody>
+                            <template x-for="t in templates" :key="t.id">
+                              <tr>
+                                <td>
+                                  <b x-text="t.name"></b>
+                                  <span class="badge update" x-show="t.is_public"
+                                        x-text="ru('общий','public')"></span>
+                                </td>
+                                <td class="muted" x-text="t.category || '—'"></td>
+                                <td class="muted jn-ts" x-text="(t.updated_at||'').slice(0,16)"></td>
+                                <td style="white-space:nowrap">
+                                  <button class="btn ghost-sm doc-prev-btn"
+                                          @click="previewTemplateHtml(t.id)"
+                                          x-text="ru('Просмотр','Preview')"></button>
+                                  <button class="btn ghost-sm"
+                                          @click="openInEditor(t.id)"
+                                          x-text="ru('Редактор','Editor')"></button>
+                                  <button class="btn ghost-sm doc-vers-btn"
+                                          @click="toggleVersions(t.id)"
+                                          x-text="ru('История','History')"></button>
+                                  <button class="btn danger-sm"
+                                          @click="deleteTemplate(t.id)"
+                                          x-text="ru('Удалить','Delete')"></button>
+                                </td>
+                              </tr>
+                            </template>
+                            <tr x-show="!templates.length">
+                              <td colspan="4" class="muted"
+                                  x-text="ru('Шаблонов пока нет — создайте первый кнопкой «Новый шаблон».',
+                                             'No templates yet — create the first one with “New template”.')"></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <!-- История версий -->
+                      <div class="card doc-vers" x-show="versTplId">
+                        <b x-text="ru('История версий','Version history')"></b>
+                        <div class="muted" x-show="versLoading"
+                             x-text="ru('Загрузка…','Loading…')"></div>
+                        <div class="alert error" x-show="versError" x-text="versError"></div>
+                        <table class="grid" x-show="!versLoading && versions.length">
+                          <thead><tr>
+                            <th>v</th>
+                            <th x-text="ru('Дата','Date')"></th>
+                            <th></th>
+                          </tr></thead>
+                          <tbody>
+                            <template x-for="v in versions" :key="v.id">
+                              <tr>
+                                <td><b x-text="'v' + v.version"></b></td>
+                                <td class="muted jn-ts" x-text="(v.created_at||'').slice(0,16)"></td>
+                                <td><button class="btn ghost-sm doc-restore-btn"
+                                            @click="restoreVersion(versTplId, v.id)"
+                                            x-text="ru('Откатить','Restore')"></button></td>
+                              </tr>
+                            </template>
+                          </tbody>
+                        </table>
+                        <p class="muted" x-show="!versLoading && !versions.length && !versError"
+                           x-text="ru('Версий пока нет — появятся после первого изменения шаблона.',
+                                      'No versions yet — they appear after the first template change.')"></p>
+                      </div>
+                    </div>
+
+                    <!-- ▸ Отчёты -->
+                    <div x-show="tab==='reports'">
+                      <div class="muted" x-show="repLoading"
+                           x-text="ru('Загрузка отчётов…','Loading reports…')"></div>
+                      <div class="alert error" x-show="repError">
+                        <span x-text="repError"></span>
+                        <button class="btn sm" @click="loadSaved()"
+                                x-text="ru('Повторить','Retry')"></button>
+                      </div>
+                      <div class="card tablewrap" x-show="!repLoading && !repError">
+                        <table class="grid">
+                          <thead><tr>
+                            <th x-text="ru('Отчёт','Report')"></th>
+                            <th x-text="ru('Таблица','Table')"></th>
+                            <th x-text="ru('Обновлён','Updated')"></th>
+                            <th></th>
+                          </tr></thead>
+                          <tbody>
+                            <template x-for="r in saved" :key="r.id">
+                              <tr>
+                                <td><b class="doc-rep-name" x-text="r.name"></b>
+                                  <small class="muted" x-show="r.username"
+                                         x-text="' · ' + r.username"></small></td>
+                                <td class="muted" x-text="r.table_name"></td>
+                                <td class="muted jn-ts" x-text="(r.updated_at||'').slice(0,16)"></td>
+                                <td style="white-space:nowrap">
+                                  <button class="btn ghost-sm doc-run-btn"
+                                          @click="runSaved(r)"
+                                          x-text="ru('Запустить','Run')"></button>
+                                  <button class="btn danger-sm"
+                                          @click="deleteSaved(r.id)"
+                                          x-text="ru('Удалить','Delete')"></button>
+                                </td>
+                              </tr>
+                            </template>
+                            <tr x-show="!saved.length">
+                              <td colspan="4" class="muted"
+                                  x-text="ru('Сохранённых отчётов нет — соберите спеку в конструкторе и нажмите «Сохранить отчёт».',
+                                             'No saved reports — build a spec in the builder and press “Save report”.')"></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="card doc-run" x-show="runBusy || runError || runResult">
+                        <b x-text="runTitle"></b>
+                        <div class="muted" x-show="runBusy"
+                             x-text="ru('Выполнение…','Running…')"></div>
+                        <div class="alert error" x-show="runError" x-text="runError"></div>
+                        <template x-if="runResult">
+                          <div>
+                            <p class="muted" x-text="ru('Строк: ' + runResult.total, 'Rows: ' + runResult.total)"></p>
+                            <table class="grid" style="font-size:13px"
+                                   x-show="runResult.mode==='grouped'">
+                              <thead><tr>
+                                <th x-text="ru('Группа','Group')"></th>
+                                <th>Count</th>
+                              </tr></thead>
+                              <tbody>
+                                <template x-for="g in (runResult.groups||[])" :key="g.group">
+                                  <tr><td x-text="g.group"></td>
+                                      <td class="num" x-text="g.count"></td></tr>
+                                </template>
+                              </tbody>
+                            </table>
+                            <table class="grid" style="font-size:12.5px"
+                                   x-show="runResult.mode==='flat'">
+                              <thead><tr>
+                                <template x-for="c in (runResult.columns||[])" :key="c">
+                                  <th x-text="c"></th>
+                                </template>
+                              </tr></thead>
+                              <tbody>
+                                <template x-for="row in (runResult.items||[]).slice(0,50)" :key="row.id">
+                                  <tr>
+                                    <template x-for="c in (runResult.columns||[])" :key="c">
+                                      <td x-text="row[c] || ''"></td>
+                                    </template>
+                                  </tr>
+                                </template>
+                              </tbody>
+                            </table>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+
+                    <!-- ▸ Очередь печати -->
+                    <div x-show="tab==='queue'">
+                      <div class="card">
+                        <b x-text="ru('Новое задание','New job')"></b>
+                        <div class="form-grid">
+                          <label class="field"><span x-text="ru('Название','Name')"></span>
+                            <input type="text" class="field-input doc-job-name" x-model="jobForm.name"
+                                   :placeholder="ru('Например: медосмотры за июль','E.g. July checkups')"></label>
+                          <label class="field"><span x-text="ru('Шаблон','Template')"></span>
+                            <select class="field-input doc-job-tpl" x-model="jobForm.template_id">
+                              <option value="0">—</option>
+                              <template x-for="t in templates" :key="t.id">
+                                <option :value="t.id" x-text="t.name"></option>
+                              </template>
+                            </select></label>
+                          <label class="field"><span x-text="ru('Таблица','Table')"></span>
+                            <select class="field-input" x-model="jobForm.table">
+                              <template x-for="tb in tables" :key="tb">
+                                <option :value="tb" x-text="tb"></option>
+                              </template>
+                            </select></label>
+                          <label class="field"><span x-text="ru('ID записей (пусто — вся таблица)','Record IDs (empty — whole table)')"></span>
+                            <input type="text" class="field-input" x-model="jobForm.ids"
+                                   placeholder="12, 45, 78"></label>
+                          <label class="field"><span x-text="ru('Водяной знак','Watermark')"></span>
+                            <input type="text" class="field-input" x-model="jobForm.watermark"
+                                   :placeholder="ru('ЧЕРНОВИК (необязательно)','DRAFT (optional)')"></label>
+                          <label class="remember-row">
+                            <input type="checkbox" class="cbx" x-model="jobForm.merge">
+                            <span x-text="ru('Один общий PDF','Single merged PDF')"></span>
+                          </label>
+                        </div>
+                        <div class="alert error" x-show="jobError" x-text="jobError"></div>
+                        <div class="modal-foot">
+                          <button class="btn primary doc-job-create" @click="createJob()"
+                                  :disabled="jobBusy"
+                                  x-text="ru('В печать','Print')"></button>
+                        </div>
+                      </div>
+                      <div class="muted" x-show="jobsLoading"
+                           x-text="ru('Загрузка очереди…','Loading queue…')"></div>
+                      <div class="alert error" x-show="jobsError">
+                        <span x-text="jobsError"></span>
+                        <button class="btn sm" @click="loadJobs()"
+                                x-text="ru('Повторить','Retry')"></button>
+                      </div>
+                      <div class="cards-grid" x-show="!jobsLoading && !jobsError">
+                        <template x-for="j in jobs" :key="j.id">
+                          <div class="card doc-job">
+                            <div style="display:flex;gap:8px;align-items:center">
+                              <b x-text="j.name || ('#' + j.id)"></b>
+                              <span class="badge" :class="j.status"
+                                    x-text="jobStatusRu(j.status)"></span>
+                              <span class="flex1"></span>
+                              <small class="muted" x-text="(j.table_name||'')"></small>
+                            </div>
+                            <div class="progress-track" x-show="jobActive(j) || j.status==='done'">
+                              <i :style="'width:' + (j.total ? Math.round(100*j.done/j.total) : 0) + '%'"></i>
+                            </div>
+                            <small class="muted" x-text="ru('Готово ' + j.done + ' из ' + j.total, 'Done ' + j.done + ' of ' + j.total)"></small>
+                            <div class="alert error" x-show="j.error" x-text="j.error"></div>
+                            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                              <button class="btn ghost-sm" x-show="jobActive(j)"
+                                      @click="cancelJob(j.id)"
+                                      x-text="ru('Отмена','Cancel')"></button>
+                              <button class="btn ghost-sm doc-job-retry"
+                                      x-show="!jobActive(j)"
+                                      @click="retryJob(j.id)"
+                                      x-text="ru('Повторить','Retry')"></button>
+                              <button class="btn ghost-sm doc-job-dl"
+                                      x-show="j.status==='done'"
+                                      @click="downloadJob(j.id)"
+                                      x-text="ru('Скачать','Download')"></button>
+                              <button class="btn ghost-sm doc-job-prev"
+                                      x-show="j.status==='done' && j.result_kind==='pdf'"
+                                      @click="previewJobPdf(j)"
+                                      x-text="ru('Просмотр PDF','Preview PDF')"></button>
+                            </div>
+                          </div>
+                        </template>
+                        <p class="muted" x-show="!jobs.length"
+                           x-text="ru('Заданий пока нет — создайте первое формой выше.',
+                                      'No jobs yet — create the first one with the form above.')"></p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- ▸ Модалка предпросмотра -->
+                  <div class="overlay" x-show="prevBusy || prevHtml || prevPdfUrl || prevError"
+                       style="display:none" x-transition.opacity role="presentation"
+                       @click.self="closePreview()">
+                    <div class="modal card anim-in" style="width:min(860px,94vw)" @click.stop
+                         role="dialog" aria-modal="true"
+                         :aria-label="prevTitle || ru('Предпросмотр','Preview')">
+                      <h3 class="modal-title" x-text="prevTitle || ru('Предпросмотр','Preview')"></h3>
+                      <div class="muted" x-show="prevBusy"
+                           x-text="ru('Подготовка…','Preparing…')"></div>
+                      <div class="alert error" x-show="prevError" x-text="prevError"></div>
+                      <div class="doc-htmlprev" x-show="prevHtml" x-html="prevHtml"></div>
+                      <iframe x-show="prevPdfUrl" :src="prevPdfUrl"
+                              style="width:100%;height:62vh;border:0;background:#fff"></iframe>
+                      <div class="modal-foot">
+                        <button class="btn" @click="closePreview()"
+                                x-text="ru('Закрыть','Close')"></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
               <!-- 📅 Календарь (Часть 25) -->
               <template x-if="tb.type === 'calendar'">
                 <div class="cal-page" x-data="calendarPage()" x-init="init()">
@@ -3996,6 +4541,12 @@
         <span class="sb-icon" x-html="icons.search"></span>
         <kbd>Ctrl+K</kbd>
       </button>
+      <button class="statusbar-cmd tc-btn" @click="$dispatch('suot-tasks-open')"
+              :title="I18N.lang==='ru' ? 'Центр задач' : 'Task center'"
+              :aria-label="I18N.lang==='ru' ? 'Центр задач' : 'Task center'">
+        <span class="sb-icon" x-html="icons.clock"></span>
+        <span class="tc-badge" x-show="taskActiveCount > 0" x-text="taskActiveCount"></span>
+      </button>
       <button class="statusbar-cmd" @click="Sounds.toggle()"
               :title="I18N.lang==='ru' ? 'Звуки' : 'Sounds'"
               x-text="Sounds.enabled ? '🔊' : '🔇'"></button>
@@ -4562,6 +5113,15 @@
                 x-text="I18N.lang==='ru' ? 'Выполнить' : 'Run'"></button>
       </div>
 
+      <!-- Сохранить спеку в Documents Center (Блок 7) -->
+      <div class="rb-save" x-show="result">
+        <input type="text" class="field-input rb-save-name" x-model="saveName"
+               :placeholder="I18N.lang==='ru' ? 'Название отчёта…' : 'Report name…'">
+        <button class="btn sm" @click="saveSpec()" :disabled="saveBusy"
+                x-text="I18N.lang==='ru' ? 'Сохранить отчёт' : 'Save report'"></button>
+        <span class="muted" x-show="saveMsg" x-text="saveMsg"></span>
+      </div>
+
       <!-- Результат -->
       <template x-if="result">
         <div class="rb-result">
@@ -4859,28 +5419,93 @@
         </template>
       </div>
 
-      <!-- ПЛАГИНЫ -->
+      <!-- ПЛАГИНЫ (Capability v2: капы, гранты, настройки) -->
       <div class="sc-body" x-show="tab==='plug' && !resetConfirm"
            x-init="$watch('tab', v => v==='plug' && Alpine.store('plugins').load())">
         <template x-if="$store.plugins && $store.plugins.loaded">
           <div>
             <template x-for="pl in $store.plugins.list" :key="pl.id">
-              <div class="hk-row">
+              <div class="hk-row" style="align-items:flex-start">
                 <div style="flex:1;min-width:200px">
-                  <b style="font-size:13.5px" x-text="pl.name"></b>
+                  <b style="font-size:13.5px"
+                     x-text="I18N.lang==='ru' ? pl.name : (pl.name_en || pl.name)"></b>
                   <span class="ua-badge" x-show="!pl.enabled"
                         x-text="ru('выключен','off')"></span>
+                  <span class="badge update" x-show="pl.manifest_version===2">v2</span>
+                  <span class="badge" x-show="pl.manifest_version!==2">v1</span>
                   <div class="muted" style="font-size:12px;margin-top:2px"
-                       x-text="pl.description"></div>
+                       x-text="I18N.lang==='ru' ? pl.description : (pl.description_en || pl.description)"></div>
                   <div class="muted" style="font-size:11px"
                        x-text="'v' + pl.version + ' · ' + pl.author"></div>
+                  <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
+                    <template x-for="c in (pl.capabilities||[])" :key="c">
+                      <span class="badge"
+                            :class="(pl.granted_capabilities||[]).includes(c) ? 'update' : 'delete'"
+                            x-text="c"></span>
+                    </template>
+                  </div>
+                  <div class="alert error" style="margin:6px 0 0"
+                       x-show="pl.compat && pl.compat!=='ok'"
+                       x-text="ru('Требуется приложение новее (min_app_version). Обновите программу.',
+                                  'Needs newer app (min_app_version). Update the program.')"></div>
+                  <div x-show="$store.plugins.writeCaps.some(w => (pl.capabilities||[]).includes(w))"
+                       style="margin-top:6px;font-size:12px">
+                    <span class="muted" x-text="ru('Гранты (админ):','Grants (admin):')"></span>
+                    <template x-for="w in $store.plugins.writeCaps.filter(w => (pl.capabilities||[]).includes(w))" :key="w">
+                      <label class="remember-row" style="display:inline-flex;margin-left:8px">
+                        <input type="checkbox" class="cbx plug-grant-cbx"
+                               :checked="(pl.granted_capabilities||[]).includes(w)"
+                               @change="$store.plugins.setGrants(pl.id, $event.target.checked ? [w] : [])">
+                        <span x-text="w"></span>
+                      </label>
+                    </template>
+                  </div>
+                  <div x-show="$store.plugins.editingPid===pl.id"
+                       class="plug-settings-editor"
+                       style="margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:8px">
+                    <b style="font-size:13px" x-text="ru('Настройки плагина','Plugin settings')"></b>
+                    <template x-for="s in $store.plugins.schemaOf(pl.id)" :key="s.key">
+                      <label class="field" style="margin:8px 0 0">
+                        <span x-text="I18N.lang==='ru' ? (s.title_ru||s.key) : (s.title_en||s.key)"></span>
+                        <select class="field-input" x-show="s.type==='select'"
+                                x-model="$store.plugins.editValues[s.key]">
+                          <template x-for="o in (s.options||[])" :key="o">
+                            <option :value="o" x-text="o"></option>
+                          </template>
+                        </select>
+                        <input type="text" class="field-input" x-show="s.type==='string'"
+                               x-model="$store.plugins.editValues[s.key]">
+                        <input type="number" class="field-input" x-show="s.type==='number'"
+                               x-model.number="$store.plugins.editValues[s.key]">
+                        <label class="remember-row" x-show="s.type==='boolean'">
+                          <input type="checkbox" class="cbx"
+                                 x-model="$store.plugins.editValues[s.key]">
+                        </label>
+                      </label>
+                    </template>
+                    <div class="modal-foot">
+                      <button class="btn ghost-sm" @click="$store.plugins.editingPid=''"
+                              x-text="ru('Отмена','Cancel')"></button>
+                      <button class="btn primary sm plug-settings-save"
+                              @click="$store.plugins.saveEditing()"
+                              :disabled="$store.plugins.editBusy"
+                              x-text="ru('Сохранить','Save')"></button>
+                    </div>
+                  </div>
                 </div>
-                <button class="btn ghost-sm" @click="$store.plugins.toggle(pl.id)"
-                        x-text="pl.enabled ? ru('Выключить','Disable') : ru('Включить','Enable')"></button>
+                <div style="display:flex;gap:6px;flex:none">
+                  <button class="btn ghost-sm plug-settings-btn"
+                          x-show="$store.plugins.schemaOf(pl.id).length"
+                          @click="$store.plugins.openSettings(pl.id)"
+                          x-text="ru('Настройки','Settings')"></button>
+                  <button class="btn ghost-sm plug-toggle-btn" @click="$store.plugins.toggle(pl.id)"
+                          x-text="pl.enabled ? ru('Выключить','Disable') : ru('Включить','Enable')"></button>
+                </div>
               </div>
             </template>
             <p class="muted" style="font-size:12px;margin-top:10px"
-               x-text="ru('Плагины лежат в папке web/plugins как JSON-манифесты. Скопируйте template.json, чтобы создать свой.', 'Plugins live in web/plugins as JSON manifests. Copy template.json to create your own.')"></p>
+               x-text="ru('Плагины лежат в папке web/plugins как JSON-манифесты v2 (capabilities, settings_schema, min_app_version). Скопируйте template.json, чтобы создать свой.',
+                          'Plugins live in web/plugins as JSON v2 manifests (capabilities, settings_schema, min_app_version). Copy template.json to create your own.')"></p>
           </div>
         </template>
       </div>
@@ -5306,6 +5931,261 @@
   </template>
 </div>
 
+<!-- ═══════════ WORKSPACE SWITCHER (SUOT Next, Блок 1) ═══════════ -->
+<div x-data="wsSwitcher()" x-cloak
+     @suot-ws-state.window="($event.detail && $event.detail.open) ? show() : hide()">
+  <div class="overlay ws-overlay" style="display:none" x-show="open" x-cloak
+       @click.self="hide()"
+       @keydown.escape.window="open && hide()"
+       role="dialog" aria-modal="true" :aria-label="ru('Рабочая область','Workspace')">
+    <div class="ws-panel card anim-in" @click.stop role="document">
+      <div class="ws-search-row">
+        <span class="sb-icon" x-html="icons.layers"></span>
+        <input type="text" class="ws-search" x-ref="wsSearch" x-model="q"
+               :placeholder="ru('Поиск разделов…','Search sections…')"
+               :aria-label="ru('Поиск разделов','Search sections')">
+        <span class="ws-esc muted">Esc</span>
+      </div>
+      <template x-if="store()">
+        <div class="ws-body">
+          <div class="ws-section" x-show="store().pinnedItems().length">
+            <div class="ws-section-head" x-text="ru('Закреплено · Alt+1…9','Pinned · Alt+1…9')"></div>
+            <template x-for="(it, i) in store().pinnedItems()" :key="'pin-'+it.id">
+              <button class="ws-item" :class="{active: store().activeId===it.id}" @click="pick(it.id)">
+                <span class="ws-ic" x-html="iconFor(it)"></span>
+                <span class="ws-label" x-text="store().labelOf(it)"></span>
+                <span class="ws-kbd" x-show="i < 9" x-text="'Alt+' + (i+1)"></span>
+              </button>
+            </template>
+          </div>
+          <div class="ws-section" x-show="store().recentItems().length">
+            <div class="ws-section-head" x-text="ru('Недавние','Recent')"></div>
+            <template x-for="it in store().recentItems()" :key="'rec-'+it.id">
+              <button class="ws-item" :class="{active: store().activeId===it.id}" @click="pick(it.id)">
+                <span class="ws-ic" x-html="iconFor(it)"></span>
+                <span class="ws-label" x-text="store().labelOf(it)"></span>
+                <span class="ws-pinbtn" @click.stop="store().togglePin(it.id)"
+                      :title="ru('Закрепить / открепить','Pin / unpin')"
+                      x-text="store().pinned.includes(it.id) ? '★' : '☆'"></span>
+              </button>
+            </template>
+          </div>
+          <div class="ws-section" x-show="wsCommands().length">
+            <div class="ws-section-head" x-text="ru('Команды','Commands')"></div>
+            <template x-for="c in wsCommands()" :key="'cmd-'+c.id">
+              <button class="ws-item" @click="runCommand(c.id)">
+                <span class="ws-ic" x-html="cmdIcon(c)"></span>
+                <span class="ws-label" x-text="cmdLabel(c)"></span>
+                <span class="ws-kbd" x-show="cmdShortcut(c)" x-text="cmdShortcut(c)"></span>
+              </button>
+            </template>
+          </div>
+          <template x-for="g in store().groups()" :key="'g-'+g.id">
+            <div class="ws-section">
+              <div class="ws-section-head" x-text="store().groupTitle(g.id)"></div>
+              <template x-for="it in store().byGroup(g.id)" :key="it.id">
+                <button class="ws-item" x-show="!q || store().filtered(q).includes(it)"
+                        :class="{active: store().activeId===it.id}" @click="pick(it.id)">
+                  <span class="ws-ic" x-html="iconFor(it)"></span>
+                  <span class="ws-label" x-text="store().labelOf(it)"></span>
+                  <span class="ws-pinbtn" @click.stop="store().togglePin(it.id)"
+                        :title="ru('Закрепить / открепить','Pin / unpin')"
+                        x-text="store().pinned.includes(it.id) ? '★' : '☆'"></span>
+                </button>
+              </template>
+            </div>
+          </template>
+          <div class="ws-empty muted" x-show="!store().filtered(q).length"
+               x-text="ru('Ничего не найдено','No matches')"></div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ DETAIL WORKSPACE / ДОСЬЕ (SUOT Next, Блок 2) ═══════════ -->
+<div x-data="entityDetail()" x-cloak
+     @suot-detail-open.window="show($event.detail)">
+  <div class="overlay dt-overlay" style="display:none" x-show="open" x-cloak
+       @click.self="hide()"
+       @keydown.escape.window="open && hide()"
+       role="dialog" aria-modal="true" :aria-label="ru('Досье записи','Record dossier')">
+    <aside class="dt-panel card" @click.stop role="document">
+      <div class="dt-head">
+        <div class="dt-title">
+          <b x-text="ru('Досье','Dossier')"></b>
+          <span class="muted" x-text="(entLabel() || table) + ' #' + rid"></span>
+        </div>
+        <div class="dt-title-main" x-show="title" x-text="title"></div>
+        <button class="icon-btn" x-ref="dtClose" @click="hide()"
+                :aria-label="ru('Закрыть','Close')" x-text="'×'"></button>
+      </div>
+      <div class="dt-tabs" role="tablist">
+        <button class="dt-tab" :class="{active: tab==='fields'}" @click="tab='fields'"
+                x-text="ru('Поля','Fields')"></button>
+        <button class="dt-tab" x-show="desc && desc.notes" :class="{active: tab==='notes'}" @click="tab='notes'; loadNotes()"
+                x-text="ru('Заметки','Notes')"></button>
+        <button class="dt-tab" x-show="desc && desc.links" :class="{active: tab==='links'}" @click="tab='links'; loadLinks()"
+                x-text="ru('Связи','Links')"></button>
+        <button class="dt-tab" x-show="desc && desc.history" :class="{active: tab==='history'}" @click="tab='history'; loadHistory()"
+                x-text="ru('История','History')"></button>
+      </div>
+      <div class="dt-body">
+        <div class="muted" x-show="loading" x-text="ru('Загружаем…','Loading…')"></div>
+        <div class="dt-error card" x-show="!loading && loadError">
+          <span x-text="loadError"></span>
+          <button class="btn sm" @click="loadAll()"
+                  x-text="ru('Попробовать снова','Try again')"></button>
+        </div>
+        <div x-show="!loading && !loadError && tab==='fields'">
+          <dl class="dt-fields">
+            <template x-for="f in fields" :key="f.name">
+              <div class="dt-field">
+                <dt x-text="f.name"></dt>
+                <dd x-text="fmtVal(f.value)"></dd>
+              </div>
+            </template>
+          </dl>
+          <p class="muted" x-show="!fields.length" x-text="ru('Пока пусто','Nothing here yet')"></p>
+        </div>
+        <div x-show="!loading && !loadError && tab==='notes'">
+          <div class="dt-add">
+            <input type="text" class="field-input" x-model="noteTitle"
+                   :placeholder="ru('Заголовок','Title')">
+            <textarea class="field-input" rows="2" x-model="noteContent"
+                      :placeholder="ru('Текст заметки','Note text')"></textarea>
+            <button class="btn primary sm" @click="addNote()" :disabled="busy"
+                    x-text="ru('Добавить заметку','Add note')"></button>
+          </div>
+          <template x-for="n in notes" :key="n.id">
+            <div class="dt-note">
+              <div class="dt-note-head">
+                <b x-text="n.title || '—'"></b>
+                <span class="muted" x-text="n.created_at || ''"></span>
+                <button class="icon-btn danger" @click="delNote(n.id)"
+                        :aria-label="ru('Удалить заметку','Delete note')"
+                        x-html="icons.trash"></button>
+              </div>
+              <div x-text="n.content"></div>
+            </div>
+          </template>
+          <p class="muted" x-show="!notes.length" x-text="ru('Пока пусто','Nothing here yet')"></p>
+        </div>
+        <div x-show="!loading && !loadError && tab==='links'">
+          <div class="dt-add row">
+            <select class="field-input" x-model="linkTable" style="flex:2">
+              <template x-for="tk in ($store.tabs.TABLE_KEYS || [])" :key="tk">
+                <option :value="tk" x-text="$store.tabs.labelFor(tk)"></option>
+              </template>
+            </select>
+            <input type="number" class="field-input" style="flex:1" x-model="linkId"
+                   :placeholder="ru('ID записи','Record ID')">
+            <button class="btn primary sm" @click="addLink()" :disabled="busy"
+                    x-text="ru('Привязать','Attach')"></button>
+          </div>
+          <template x-for="l in links" :key="l.id">
+            <div class="dt-note">
+              <div class="dt-note-head">
+                <span class="badge b-blue" x-text="$store.tabs.labelFor(l.target_table)"></span>
+                <b x-text="l.target_name || ('#' + l.target_id)"></b>
+                <button class="icon-btn danger" @click="delLink(l.id)"
+                        :aria-label="ru('Удалить связь','Delete link')"
+                        x-html="icons.trash"></button>
+              </div>
+            </div>
+          </template>
+          <p class="muted" x-show="!links.length" x-text="ru('Пока пусто','Nothing here yet')"></p>
+        </div>
+        <div x-show="!loading && !loadError && tab==='history'">
+          <template x-for="h in history" :key="h.id">
+            <div class="dt-hist">
+              <div class="dt-hist-dot"></div>
+              <div class="dt-hist-body">
+                <div><b x-text="h.field"></b>
+                  <span class="muted" x-text="h.username + ' · ' + h.created_at"></span></div>
+                <div class="dt-hist-diff">
+                  <s x-text="h.old_value"></s><span> → </span><b x-text="h.new_value"></b>
+                </div>
+                <button class="btn ghost-sm" @click="rollback(h.id)" :disabled="busy"
+                        x-text="ru('Откатить','Roll back')"></button>
+              </div>
+            </div>
+          </template>
+          <p class="muted" x-show="!history.length" x-text="ru('Пока пусто','Nothing here yet')"></p>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ═══════════ TASK CENTER (SUOT Next, Блок 6) ═══════════ -->
+<div x-data="taskCenter()" x-cloak
+     @suot-tasks-open.window="show()">
+  <div class="overlay tc-overlay" style="display:none" x-show="open" x-cloak
+       @click.self="hide()"
+       @keydown.escape.window="open && hide()"
+       role="dialog" aria-modal="true" :aria-label="ru('Центр задач','Task center')">
+    <div class="tc-panel card anim-in" @click.stop role="document">
+      <div class="tc-head">
+        <b x-text="ru('Центр задач','Task center')"></b>
+        <span class="flex1"></span>
+        <button class="btn ghost-sm" @click="load()"
+                x-text="ru('Обновить','Refresh')"></button>
+        <button class="btn ghost-sm" @click="exportCsv()"
+                x-text="ru('Скачать CSV','Download CSV')"></button>
+        <button class="icon-btn" @click="hide()"
+                :aria-label="ru('Закрыть','Close')" x-text="'×'"></button>
+      </div>
+      <div class="tc-body">
+        <div class="muted" x-show="loading" x-text="ru('Загружаем…','Loading…')"></div>
+        <div class="dt-error card" x-show="!loading && loadError">
+          <span x-text="loadError"></span>
+          <button class="btn sm" @click="load()"
+                  x-text="ru('Попробовать снова','Try again')"></button>
+        </div>
+        <div class="ws-section" x-show="activeJobs().length">
+          <div class="ws-section-head" x-text="ru('Активные','Active')"></div>
+          <template x-for="j in activeJobs()" :key="j.id">
+            <div class="tc-job">
+              <div class="tc-job-head">
+                <b x-text="kindLabel(j.kind)"></b>
+                <span class="muted" x-text="j.target"></span>
+                <span class="badge b-blue" x-text="statusLabel(j.status)"></span>
+                <span class="flex1"></span>
+                <button class="btn ghost-sm" @click="cancelJob(j.id)"
+                        :disabled="busyId===j.id"
+                        x-text="ru('Остановить','Stop')"></button>
+              </div>
+              <div class="progress-track"><i :style="'width:' + pct(j) + '%'"></i></div>
+              <div class="muted tc-progress" x-text="j.done + ' / ' + j.total"></div>
+            </div>
+          </template>
+        </div>
+        <div class="ws-section">
+          <div class="ws-section-head" x-text="ru('Готовые','Done')"></div>
+          <template x-for="j in doneJobs()" :key="j.id">
+            <div class="tc-job">
+              <div class="tc-job-head">
+                <b x-text="kindLabel(j.kind)"></b>
+                <span class="muted" x-text="j.target"></span>
+                <span class="badge" :class="j.status==='completed' ? 'b-green' : (j.status==='failed' ? 'b-red' : '')"
+                      x-text="statusLabel(j.status)"></span>
+                <span class="flex1"></span>
+                <button class="btn ghost-sm" x-show="j.status==='failed' || j.status==='cancelled'"
+                        @click="retryJob(j.id)" :disabled="busyId===j.id"
+                        x-text="ru('Повторить задачу','Retry task')"></button>
+              </div>
+              <div class="muted tc-progress" x-show="j.error" x-text="j.error"></div>
+            </div>
+          </template>
+          <p class="muted" x-show="!doneJobs().length && !loading"
+             x-text="ru('Задач пока нет','No tasks yet')"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════ КОМАНДНАЯ ПАЛИТРА Ctrl+K ═══════════ -->
 <div x-data="cmdPalette()" x-cloak
      @suot-palette-open.window="show($event.detail ? $event.detail.q : '')">
@@ -5321,15 +6201,25 @@
         <input type="text" class="palette-input" x-model="query"
                :placeholder="t('pal.placeholder')"
                @input="idx=0; doSearch(query)">
+        <span class="palette-search-status" x-show="searchBusy"
+              x-text="I18N.lang==='ru' ? 'Поиск…' : 'Searching…'"></span>
       </div>
       <div class="palette-list">
-        <template x-for="(it, i) in filtered" :key="it.id">
-          <button class="palette-item" :class="{active: i===idx}"
-                  @mouseenter="idx=i" @click="runSelected()">
-            <span class="pi-icon" x-html="it.icon"></span>
-            <span class="pi-label" x-text="it.label"></span>
-            <span class="pi-group muted" x-text="it.group"></span>
-          </button>
+        <template x-for="grp in grouped" :key="grp.group">
+          <div class="palette-group">
+            <div class="palette-group-head" x-text="grp.group"></div>
+            <template x-for="(it, i) in grp.items" :key="it.id">
+              <button class="palette-item" :class="{active: filtered.findIndex(x=>x.id===it.id)===idx}"
+                      @mouseenter="idx=filtered.findIndex(x=>x.id===it.id)" @click="runSelected()">
+                <span class="pi-icon" x-html="it.icon"></span>
+                <span class="pi-label">
+                  <b x-text="it.label"></b>
+                  <small x-show="it.hint" x-text="it.hint"></small>
+                </span>
+                <span class="pi-group muted" x-show="!it.hint" x-text="it.group"></span>
+              </button>
+            </template>
+          </div>
         </template>
         <div class="palette-empty muted" x-show="!filtered.length"
              x-text="t('pal.noResults')"></div>

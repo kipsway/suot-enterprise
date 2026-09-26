@@ -160,11 +160,19 @@ try:
         )
 
         # overdue_label через меню «Ещё ▾»
+        # Ждём именно свежий тост (старый copy-тост живёт 3.2с — гонка .last).
         more_btn.click()
         page.locator(".more-pop .more-item", has_text="Просрочка").click()
-        page.wait_for_selector(".toast.success", timeout=6000)
-        lbl_toast = page.locator(".toast.success").last.inner_text()
-        check(f"overdue_label: {lbl_toast}", "Просрочка" in lbl_toast)
+        try:
+            page.wait_for_function(
+                "() => [...document.querySelectorAll('.toast')].some("
+                "e => (e.innerText || '').includes('Просрочка'))",
+                timeout=8000,
+            )
+            lbl_toast = "Просрочка"
+        except Exception:
+            lbl_toast = ""
+        check("overdue_label: тост", bool(lbl_toast), lbl_toast)
         marked = page.locator(
             ".tabpane:visible tbody tr .lbl-red,.tabpane:visible tbody tr[class*='lbl']"
         )

@@ -29,7 +29,18 @@ window.printEditor = function () {
     t: (k) => I18N.t(k),
     ru: (a, b) => I18N.lang === "ru" ? a : b,
 
-    async init() { await this.load(); },
+    async init() {
+      await this.load();
+      /* Deep-link из Documents Center (Блок 7): открыть шаблон сразу. */
+      try {
+        const pid = window.__printEditId || 0;
+        window.__printEditId = 0;
+        if (pid) {
+          const t = (this.templates || []).find((x) => x.id === pid);
+          if (t) await this.openEditor(t);
+        }
+      } catch (_) {}
+    },
 
     /* ── Список шаблонов ── */
     async load() {

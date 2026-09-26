@@ -380,13 +380,17 @@ def undo_import(body: UndoIn, db=Depends(get_db), user=Depends(get_current_user)
     undone = 0
     for cid in details.get("created_ids", []):
         # IDOR-фикс: удаляем только свои/общие записи.
-        if not db.user_can_access(h["table_name"], int(cid), int(user["id"]), is_admin(user)):
+        if not db.user_can_access(
+            h["table_name"], int(cid), int(user["id"]), is_admin(user)
+        ):
             continue
         if db.fetch_one(f"SELECT id FROM {h['table_name']} WHERE id=?", (cid,)):
             db.delete_json_record(h["table_name"], cid)
             undone += 1
     for snap in details.get("updated", []):
-        if not db.user_can_access(h["table_name"], int(snap["id"]), int(user["id"]), is_admin(user)):
+        if not db.user_can_access(
+            h["table_name"], int(snap["id"]), int(user["id"]), is_admin(user)
+        ):
             continue
         db.save_json_record(
             h["table_name"], snap["id"], snap.get("prev", {}), user_id=int(user["id"])
@@ -406,8 +410,15 @@ def history(limit: int = 20, db=Depends(get_db), user=Depends(get_current_user))
     items = [
         {
             k: r.get(k)
-            for k in ("id", "timestamp", "table_name", "source_file",
-                      "imported", "updated", "errors")
+            for k in (
+                "id",
+                "timestamp",
+                "table_name",
+                "source_file",
+                "imported",
+                "updated",
+                "errors",
+            )
         }
         for r in rows
     ]

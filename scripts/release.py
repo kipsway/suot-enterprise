@@ -87,6 +87,12 @@ def main() -> int:
     args = ap.parse_args()
 
     new = next_version()
+    override = os.environ.get("SUOT_RELEASE_VERSION", "").strip()
+    if override:
+        if not re.fullmatch(r"\d+\.\d+\.\d+", override):
+            print("SUOT_RELEASE_VERSION должен быть X.Y.Z:", override)
+            return 1
+        new = override
     print(f"Новая версия: {new}")
     bump_version(new)
 

@@ -9,7 +9,8 @@ window.setupWizard = function () {
 
     f: { org_name: "", username: "", password: "", password2: "",
          full_name: "", sec_question: "Девичья фамилия матери?",
-         sec_answer: "", theme: "dark", lang: "ru", load_demo: false },
+         sec_answer: "", theme: "dark", lang: "ru", load_demo: false,
+         scenario: "today" },
 
     icons: window.ICONS,
     ru: (a, b) => I18N.lang === "ru" ? a : b,
@@ -95,13 +96,14 @@ window.setupWizard = function () {
           theme: this.f.theme,
           lang: I18N.lang || "ru",
           load_demo: this.f.load_demo,
+          scenario: this.f.scenario,
         });
         Sounds.play("success");
         /* finishSetup доступен из родительского scope (app root) */
         this.finishSetup(r.user, r.token);
         if (this.f.load_demo) {
           setTimeout(() => {
-            try { Alpine.store("tabs").open("employees"); }
+            try { Alpine.store("tabs").open(this.f.scenario === "documents" ? "protocols" : "employees"); }
             catch (_) {}
             document.dispatchEvent(new CustomEvent(
               "suot-load-demo", { bubbles: true }));

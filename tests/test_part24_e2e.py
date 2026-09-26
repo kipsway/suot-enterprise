@@ -163,7 +163,7 @@ try:
         page.wait_for_selector(".tabpane:visible .dash-widgets", timeout=10000)
         time.sleep(1.2)
         paneD = page.locator(".tabpane:visible")
-        check("решётка виджетов (7 шт)", paneD.locator(".dash-w").count() == 7)
+        check("решётка виджетов (9 шт)", paneD.locator(".dash-w").count() == 9)
         check("KPI-карточки отображаются", paneD.locator(".dash-kpi").count() >= 5)
         check(
             "панель «Мои задачи сегодня» есть",
@@ -177,9 +177,24 @@ try:
             paneD.locator(".dash-shortcuts .ws-tile").count() >= 5,
         )
 
-        # dnd: перетащить «Ленту» в начало
-        paneD.locator('[data-wid="activity"]').drag_to(
-            paneD.locator('[data-wid="kpi"]')
+        # dnd: перетащить «Ленту» в начало (перед первым виджетом v4).
+        # Playwright drag_to нестабилен на высокой сетке карточек —
+        # диспатчим настоящие DragEvent, обработчики Alpine те же.
+        page.evaluate(
+            """() => {
+              const pane = [...document.querySelectorAll('.tabpane')]
+                .find(el => el.offsetParent !== null);
+              const box = pane.querySelector('.dash-widgets');
+              const src = box.querySelector('[data-wid="activity"]');
+              const tgt = box.querySelector('[data-wid="readiness"]');
+              const dt = new DataTransfer();
+              src.dispatchEvent(new DragEvent('dragstart',
+                {bubbles: true, cancelable: true, dataTransfer: dt}));
+              tgt.dispatchEvent(new DragEvent('dragenter',
+                {bubbles: true, cancelable: true, dataTransfer: dt}));
+              src.dispatchEvent(new DragEvent('dragend',
+                {bubbles: true, cancelable: true, dataTransfer: dt}));
+            }"""
         )
         time.sleep(0.6)
         first_w = page.evaluate(
@@ -210,7 +225,7 @@ try:
               const pane = [...document.querySelectorAll('.tabpane')]
                 .find(el => el.offsetParent !== null);
               const box = pane.querySelector('.dash-widgets');
-              const wids = ['kpi','tasks','activity','overdue','recent','calendar','shortcuts'];
+              const wids = ['readiness','readinessCenter','kpi','tasks','activity','overdue','recent','calendar','shortcuts'];
               wids.forEach((w, i) => {
                 const el = box.querySelector('[data-wid="' + w + '"]');
                 if (el) box.appendChild(el);
@@ -228,7 +243,7 @@ try:
                     return el.dataset.wid;
                   }"""
             )
-            == "kpi",
+            == "readiness",
         )
 
         real_errors = [e for e in errs if "favicon" not in e.lower()]

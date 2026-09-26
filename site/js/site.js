@@ -3,9 +3,81 @@
 (function () {
   "use strict";
 
+  /* ── SVG-иконки Aurora (единый язык с программой, без эмодзи) ── */
+  var IC_OPEN = '<svg viewBox="0 0 24 24" aria-hidden="true">';
+  var IC_CLOSE = "</svg>";
+  var ICONS = {
+    users: IC_OPEN + '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>' +
+      '<circle cx="9" cy="7" r="4"/>' +
+      '<path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>' + IC_CLOSE,
+    hardhat: IC_OPEN + '<path d="M4 18v-4a8 8 0 0 1 5-7.4V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1.6A8 8 0 0 1 20 14v4"/>' +
+      '<line x1="2" y1="18" x2="22" y2="18"/><line x1="12" y1="4" x2="12" y2="9"/>' + IC_CLOSE,
+    cap: IC_OPEN + '<path d="M22 10L12 5 2 10l10 5 10-5z"/>' +
+      '<path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>' + IC_CLOSE,
+    alert: IC_OPEN + '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>' +
+      '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' + IC_CLOSE,
+    chart: IC_OPEN + '<line x1="12" y1="20" x2="12" y2="10"/>' +
+      '<line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>' + IC_CLOSE,
+    calendar: IC_OPEN + '<rect x="3" y="4" width="18" height="18" rx="2"/>' +
+      '<line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>' +
+      '<line x1="3" y1="10" x2="21" y2="10"/>' + IC_CLOSE,
+    printer: IC_OPEN + '<polyline points="6 9 6 2 18 2 18 9"/>' +
+      '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>' +
+      '<rect x="6" y="14" width="12" height="8"/>' + IC_CLOSE,
+    sparkles: IC_OPEN + '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>' +
+      '<path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"/>' + IC_CLOSE,
+    shield: IC_OPEN + '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' +
+      '<polyline points="9 12 11 14 15 10"/>' + IC_CLOSE,
+    zap: IC_OPEN + '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>' + IC_CLOSE,
+    globe: IC_OPEN + '<circle cx="12" cy="12" r="10"/>' +
+      '<line x1="2" y1="12" x2="22" y2="12"/>' +
+      '<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>' + IC_CLOSE,
+    chat: IC_OPEN + '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>' + IC_CLOSE,
+    tool: IC_OPEN + '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>' + IC_CLOSE,
+    package: IC_OPEN + '<path d="M16.5 9.4L7.55 4.24"/>' +
+      '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>' +
+      '<polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>' + IC_CLOSE,
+    monitor: IC_OPEN + '<rect x="2" y="3" width="20" height="14" rx="2"/>' +
+      '<line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>' + IC_CLOSE,
+    rocket: IC_OPEN + '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>' +
+      '<path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>' +
+      '<path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>' + IC_CLOSE,
+    file: IC_OPEN + '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>' +
+      '<polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>' +
+      '<line x1="16" y1="17" x2="8" y2="17"/>' + IC_CLOSE,
+    refresh: IC_OPEN + '<polyline points="23 4 23 10 17 10"/>' +
+      '<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>' + IC_CLOSE,
+    grid: IC_OPEN + '<rect x="3" y="3" width="7" height="7"/>' +
+      '<rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>' +
+      '<rect x="3" y="14" width="7" height="7"/>' + IC_CLOSE,
+    clock: IC_OPEN + '<circle cx="12" cy="12" r="10"/>' +
+      '<polyline points="12 6 12 12 16 14"/>' + IC_CLOSE,
+    edit: IC_OPEN + '<path d="M12 20h9"/>' +
+      '<path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>' + IC_CLOSE,
+    hash: IC_OPEN + '<line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>' +
+      '<line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>' + IC_CLOSE,
+    key: IC_OPEN + '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>' + IC_CLOSE
+  };
+
+  function paintIcons() {
+    var els = document.querySelectorAll("[data-ic]");
+    for (var i = 0; i < els.length; i++) {
+      var name = els[i].getAttribute("data-ic");
+      if (name && ICONS[name] && !els[i].getAttribute("data-ic-done")) {
+        els[i].innerHTML = ICONS[name];
+        els[i].setAttribute("data-ic-done", "1");
+      }
+    }
+  }
+
   var DW = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
   var MONTH = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+  var DW_EN = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+  var MONTH_EN = ["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"];
+  var DW_RU = DW;
+  var MONTH_RU = MONTH;
   var MONTH_Y = ["Января", "Февраля", "Марта", "Апреля", "Мая", "Июня",
     "Июля", "Августа", "Сентября", "Октября", "Ноября", "Декабря"];
 
@@ -181,15 +253,18 @@
     try { localStorage.setItem("suotTheme", cur); } catch (e) { /* нет хранилища */ }
   });
 
+  var siteLangState = "ru";
+  function siteLang() { return siteLangState; }
+  function T(ru, en) { return siteLangState === "en" ? en : ru; }
+
   /* ── данные сборки: версия, размеры, хэши, история (downloads/index.json) ── */
   function fmtSize(mb) {
-    return mb ? ("· " + (String(mb).replace(".", ",")) + "&nbsp;МБ") : "";
+    return mb ? ("· " + (String(mb).replace(".", ",")) + "&nbsp;" + T("МБ", "MB")) : "";
   }
-
-  fetch("downloads/index.json", { cache: "no-store" })
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      var ver = data.version || "2.2.3";
+  var lastDlData = null;
+  function paintDownloads(data) {
+    lastDlData = data;
+    var ver = data.version || "2.3.0";
       var hEl = document.getElementById("heroVer");
       if (hEl) { hEl.textContent = ver; }
       var padV = document.getElementById("siteReady");
@@ -216,28 +291,34 @@
         var sn = document.getElementById("dlSetupNote");
         var ss = document.getElementById("dlSetupSize");
         if (se) { se.style.display = "inline-flex"; }
-        if (sn) { sn.innerHTML = "Мастер установки, ярлыки, удаление через «Программы и компоненты»."; }
+        if (sn) { sn.innerHTML = T("Мастер установки, ярлыки, удаление через «Программы и компоненты».",
+          "Setup wizard, shortcuts, uninstall via “Programs and Features”."); }
         if (ss) { ss.innerHTML = fmtSize(setup.size_mb); }
       }
       var body = document.getElementById("verBody");
       if (body) {
         var hh = data.history || [];
         if (hh.length === 0) {
-          body.innerHTML = "<tr><td colspan='4' class='muted-p'>История пуста</td></tr>";
+          body.innerHTML = "<tr><td colspan='4' class='muted-p'>" +
+            T("История пуста", "No history") + "</td></tr>";
         } else {
           var rows = "";
           for (var k = 0; k < hh.length; k++) {
             rows += "<tr><td>" + (hh[k].version || "") + "</td><td>" +
               (hh[k].date || "") + "</td><td>" + (hh[k].file || "") + "</td><td>" +
-              (hh[k].size_mb ? hh[k].size_mb : "") + " МБ</td></tr>";
+              (hh[k].size_mb ? hh[k].size_mb : "") + " " + T("МБ", "MB") + "</td></tr>";
           }
           body.innerHTML = rows;
         }
       }
-    })
+  }
+
+  fetch("downloads/index.json", { cache: "no-store" })
+    .then(function (r) { return r.json(); })
+    .then(paintDownloads)
     .catch(function () {
       var zh = document.getElementById("dlHashZip");
-      if (zh) { zh.textContent = "SHA-256 недоступен офлайн"; }
+      if (zh) { zh.textContent = T("SHA-256 недоступен офлайн", "SHA-256 unavailable offline"); }
     });
 
   /* ── карусель скриншотов ── */
@@ -269,7 +350,7 @@
       (function (si) {
         var d = document.createElement("button");
         d.className = "car-dot";
-        d.setAttribute("aria-label", "Скриншот " + (si + 1));
+        d.setAttribute("aria-label", T("Скриншот ", "Screenshot ") + (si + 1));
         d.addEventListener("click", function () { go(si); });
         dotsWrap.appendChild(d);
         dots.push(d);
@@ -282,14 +363,16 @@
 
   /* ── командная палитра (Ctrl+K) ── */
   var COMMANDS = [
-    { label: "Скачать программу", g: "Ctrl+N", cat: "Загрузка", href: "#download" },
-    { label: "Скриншоты интерфейса", g: "Ctrl+S", cat: "Навигация", href: "#screens" },
-    { label: "Возможности программы", g: "Ctrl+F", cat: "Навигация", href: "#features" },
-    { label: "Краткий гайд", g: "Ctrl+G", cat: "Навигация", href: "#guide" },
-    { label: "Поддержка", g: "Ctrl+H", cat: "Навигация", href: "#support" },
-    { label: "Живое демо-окно", g: "Ctrl+D", cat: "Навигация", href: "#demo" },
-    { label: "Палитра команд — как в приложении", g: "Ctrl+K", cat: "Фишка", href: "#palette" }
+    { label: "Скачать программу", label_en: "Download the app", g: "Ctrl+N", cat: "Загрузка", cat_en: "Download", href: "#download" },
+    { label: "Скриншоты интерфейса", label_en: "Interface screenshots", g: "Ctrl+S", cat: "Навигация", cat_en: "Navigate", href: "#screens" },
+    { label: "Возможности программы", label_en: "Program features", g: "Ctrl+F", cat: "Навигация", cat_en: "Navigate", href: "#features" },
+    { label: "Краткий гайд", label_en: "Quick guide", g: "Ctrl+G", cat: "Навигация", cat_en: "Navigate", href: "#guide" },
+    { label: "Поддержка", label_en: "Support", g: "Ctrl+H", cat: "Навигация", cat_en: "Navigate", href: "#support" },
+    { label: "Живое демо-окно", label_en: "Live demo window", g: "Ctrl+D", cat: "Навигация", cat_en: "Navigate", href: "#demo" },
+    { label: "Палитра команд — как в приложении", label_en: "Command palette — like in the app", g: "Ctrl+K", cat: "Фишка", cat_en: "Highlight", href: "#palette" }
   ];
+  function cmdLabel(c) { return siteLang() === "en" ? (c.label_en || c.label) : c.label; }
+  function cmdCat(c) { return siteLang() === "en" ? (c.cat_en || c.cat) : c.cat; }
 
   var overlay = document.getElementById("cmdOverlay");
   var cmdInput = document.getElementById("cmdInput");
@@ -309,7 +392,8 @@
     if (items.length === 0) {
       var empty = document.createElement("div");
       empty.className = "cmd-empty";
-      empty.textContent = "Ничего не найдено — попробуйте «Скачать» или «Календарь»";
+      empty.textContent = T("Ничего не найдено — попробуйте «Скачать» или «Календарь»",
+        "Nothing found — try “Download” or “Calendar”");
       container.appendChild(empty);
       return;
     }
@@ -318,8 +402,8 @@
       (function (idx) {
         var it = document.createElement("div");
         it.className = "cmd-item" + (idx === 0 ? " sel" : "");
-        it.innerHTML = "<span>" + items[idx].label + "</span><span class='cat'>" +
-          items[idx].cat + "</span>";
+        it.innerHTML = "<span>" + cmdLabel(items[idx]) + "</span><span class='cat'>" +
+          cmdCat(items[idx]) + "</span>";
         it.addEventListener("click", function () {
           scrollToHref(items[idx].href);
           closeCmd();
@@ -335,8 +419,9 @@
     var need = q ? q.toLowerCase() : "";
     for (var i = 0; i < COMMANDS.length; i++) {
       var c = COMMANDS[i];
-      if (!need || c.label.toLowerCase().indexOf(need) !== -1 ||
-          c.cat.toLowerCase().indexOf(need) !== -1) {
+      var hay = (c.label + " " + (c.label_en || "") + " " + c.cat + " " +
+        (c.cat_en || "")).toLowerCase();
+      if (!need || hay.indexOf(need) !== -1) {
         out.push(c);
       }
     }
@@ -420,7 +505,8 @@
     if (items.length === 0) {
       var h = document.createElement("div");
       h.className = "pp-hint";
-      h.textContent = "Ничего не найдено — попробуйте «календарь» или «скачать»";
+      h.textContent = T("Ничего не найдено — попробуйте «календарь» или «скачать»",
+        "Nothing found — try “calendar” or “download”");
       paletteResults.appendChild(h);
       return;
     }
@@ -430,7 +516,7 @@
         var it = document.createElement("div");
         it.className = "pp-item" + (idx === 0 ? " sel" : "");
         var g = items[idx].g || "";
-        it.innerHTML = "<span>" + items[idx].label + "</span>" +
+        it.innerHTML = "<span>" + cmdLabel(items[idx]) + "</span>" +
           (g ? "<span class='g'>" + g + "</span>" : "");
         it.addEventListener("click", function () { scrollToHref(items[idx].href); });
         paletteResults.appendChild(it);
@@ -458,6 +544,61 @@
   var pad = document.createElement("div");
   pad.id = "siteReady";
   pad.hidden = true;
-  pad.textContent = "v2.2.3";
+  pad.textContent = "v2.3.0";
   document.body.appendChild(pad);
+
+  /* ── RU/EN переключатель: data-en хранит английский текст ── */
+  paintIcons();
+  var langBtn = document.getElementById("langToggle");
+  var curLang = "ru";
+  function applyLang(l) {
+    curLang = l;
+    siteLangState = l;
+    var els = document.querySelectorAll("[data-en]");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (!el.getAttribute("data-ru")) {
+        el.setAttribute("data-ru", el.innerHTML);
+      }
+      var ph = el.getAttribute("data-en-ph");
+      if (ph) {
+        if (!el.getAttribute("data-ru-ph")) {
+          el.setAttribute("data-ru-ph", el.getAttribute("placeholder") || "");
+        }
+        el.setAttribute("placeholder", l === "en" ? ph : el.getAttribute("data-ru-ph"));
+        continue;
+      }
+      el.innerHTML = l === "en" ? el.getAttribute("data-en") : el.getAttribute("data-ru");
+    }
+    document.documentElement.lang = l;
+    if (langBtn) {
+      langBtn.textContent = l === "en" ? "RU" : "EN";
+      langBtn.classList.toggle("on", l === "en");
+    }
+    try { localStorage.setItem("suot_site_lang", l); } catch (_) {}
+    // перерисовка динамического: календарь, палитры, загрузки, точки карусели
+    DW = l === "en" ? DW_EN : DW_RU;
+    MONTH = l === "en" ? MONTH_EN : MONTH_RU;
+    try { renderCal(); } catch (_) {}
+    try {
+      if (paletteInput && paletteResults) {
+        renderPalettePreview(paletteInput.value || "");
+      }
+    } catch (_) {}
+    try { if (lastDlData) { paintDownloads(lastDlData); } } catch (_) {}
+    try {
+      var dots = document.querySelectorAll(".car-dot");
+      for (var di = 0; di < dots.length; di++) {
+        dots[di].setAttribute("aria-label", T("Скриншот ", "Screenshot ") + (di + 1));
+      }
+    } catch (_) {}
+  }
+  try {
+    if (localStorage.getItem("suot_site_lang") === "en") { applyLang("en"); }
+  } catch (_) {}
+  if (langBtn) {
+    langBtn.addEventListener("click", function () {
+      applyLang(curLang === "en" ? "ru" : "en");
+    });
+  }
 })();

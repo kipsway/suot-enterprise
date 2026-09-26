@@ -181,6 +181,7 @@ def main() -> int:
             height=900,
             min_size=(1100, 680),
             background_color="#0F1115",
+            maximized=True,  # Блок 1.5: окно сразу в максимизированном режиме
         )
         _log("Открываю окно приложения…")
         webview.start()

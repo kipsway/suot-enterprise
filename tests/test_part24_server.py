@@ -123,18 +123,13 @@ demo_in_q = any(
 )
 check(
     "поиск q=Смирнов находит свою запись и демо-сид",
-    rq.status_code == 200
-    and jq["total"] >= 2
-    and own_in_q
-    and demo_in_q,
+    rq.status_code == 200 and jq["total"] >= 2 and own_in_q and demo_in_q,
     f"total={jq.get('total')}",
 )
 check(
     "записи имеют section/section_label",
     jq["items"]
-    and all(
-        it.get("section") and it.get("section_label") for it in jq["items"]
-    ),
+    and all(it.get("section") and it.get("section_label") for it in jq["items"]),
 )
 check(
     "колонки содержат ФИО", "ФИО" in jq.get("columns", []), f"cols={jq.get('columns')}"

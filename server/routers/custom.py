@@ -202,6 +202,7 @@ def rec_list(
     sort_by: str = "",
     order: str = "asc",
     order_cast: str = "",
+    smart_filter: str = "",
     db=Depends(get_db),
     user=Depends(get_current_user),
 ):
@@ -221,6 +222,7 @@ def rec_list(
         page=page,
         page_size=page_size,
         order_cast=order_cast,
+        smart_filter=smart_filter.strip(),
     )
     items = [
         {
@@ -422,7 +424,9 @@ def transfer(body: TransferIn, db=Depends(get_db), user=Depends(get_current_user
         else:
             # IDOR-фикс (аудит 7.2 п.4): из системной таблицы переносятся
             # только свои/общие записи.
-            if not db.user_can_access(body.from_key, rid, int(user["id"]), is_admin(user)):
+            if not db.user_can_access(
+                body.from_key, rid, int(user["id"]), is_admin(user)
+            ):
                 continue
             rec = db.get_json_record(body.from_key, rid)
             if not rec:

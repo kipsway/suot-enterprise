@@ -42,6 +42,8 @@ SERVER_SUITES = [
     ("test_search_reports", 300),
     ("test_ai", 300),
     ("test_plugins19", 300),
+    ("test_tasks_server", 600),
+    ("test_views_server", 600),
 ]
 
 # unittest/pytest-наборы без маркера "N OK, N FAIL" — гоняются через pytest.
@@ -54,6 +56,9 @@ UNIT_SUITES = [
 E2E_SMOKE = [
     ("test_wizard_e2e", 900),
     ("test_part29_en_e2e", 900),
+    ("test_ux_focus_e2e", 600),
+    ("test_next_nav_e2e", 600),
+    ("test_nav_parity_e2e", 600),
 ]
 
 # Smoke собранного exe: только если dist\SUOT_Neo\SUOT_Neo.exe существует.
@@ -203,7 +208,9 @@ def main() -> int:
         "--all", action="store_true", help="все наборы, включая полный e2e-цикл"
     )
     ap.add_argument(
-        "--exe", action="store_true", help="плюс smoke собранного dist\\SUOT_Neo\\SUOT_Neo.exe"
+        "--exe",
+        action="store_true",
+        help="плюс smoke собранного dist\\SUOT_Neo\\SUOT_Neo.exe",
     )
     args = ap.parse_args()
 

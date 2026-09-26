@@ -99,7 +99,13 @@ try:
         broken = []
         for label in nav_texts:
             low = label.lower()
-            if not label.strip() or "тем" in low or "выход" in low or "выйти" in low:
+            if (
+                not label.strip()
+                or "тем" in low
+                or "выход" in low
+                or "выйти" in low
+                or "рабочая область" in low
+            ):
                 continue
             el = page.locator(".sidebar .nav-item", has_text=label).first
             try:
@@ -132,7 +138,8 @@ try:
             ("; ".join(js_errs[:2]))[:160],
         )
 
-        # Вкладки помещаются: открыть 8 таблиц, проверить переполнение
+        # Полосы вкладок больше нет (детэбификация): 8 видов открываем
+        # через стор, проверяем journey-состояние и отсутствие tabbar в DOM.
         for key in (
             "employees",
             "violations",
@@ -145,10 +152,20 @@ try:
         ):
             page.evaluate(f"Alpine.store('tabs').open('{key}')")
         time.sleep(0.6)
-        fit = page.evaluate("""(() => {
-          const sc = document.querySelector('.tabs-scroll');
-          return sc ? sc.scrollWidth <= sc.clientWidth + 2 : false; })()""")
-        check(f"вкладки ({len(nav_texts)}+8) не выходят за экран", fit)
+        journey = page.evaluate("""(() => ({
+          active: ((Alpine.store('tabs').active) || {}).key || '',
+          hasBar: !!document.querySelector('.tabbar'),
+          paneVisible: [...document.querySelectorAll('.tabpane')]
+            .some((p) => p.offsetParent !== null
+              && p.querySelector('table.grid')),
+        }))()""")
+        check(
+            "8 видов открыты, активна companies",
+            journey["active"] == "companies",
+            journey["active"],
+        )
+        check("полосы вкладок нет в DOM", journey["hasBar"] is False)
+        check("контент активного вида виден", journey["paneVisible"])
 
         browser.close()
 

@@ -30,6 +30,51 @@ def _template_owner(db, tid: int, user: dict) -> Dict[str, Any]:
     return d
 
 
+def snapshot_version(db, tid: int, user_id: int, max_keep: int = 50) -> int:
+    """Сохранить текущий контент шаблона как новую версию. Возвращает номер."""
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS doc_template_versions ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, template_id INTEGER NOT NULL, "
+        "version INTEGER NOT NULL, name TEXT DEFAULT '', html_content TEXT DEFAULT '', "
+        "page_size TEXT DEFAULT 'A4', orientation TEXT DEFAULT 'portrait', "
+        "margins TEXT DEFAULT '20mm', created_by INTEGER DEFAULT 0, "
+        "created_at TEXT DEFAULT '')"
+    )
+    row = db.fetch_one("SELECT * FROM print_templates WHERE id=?", (tid,))
+    if not row:
+        return 0
+    d = dict(row)
+    cur = db.fetch_one(
+        "SELECT MAX(version) AS mv FROM doc_template_versions WHERE template_id=?",
+        (tid,),
+    )
+    nxt = int((cur["mv"] if cur and cur["mv"] is not None else 0)) + 1
+    db.execute(
+        "INSERT INTO doc_template_versions (template_id, version, name, "
+        "html_content, page_size, orientation, margins, created_by, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            tid,
+            nxt,
+            d.get("name", ""),
+            d.get("html_content", ""),
+            d.get("page_size", "A4"),
+            d.get("orientation", "portrait"),
+            d.get("margins", "20mm"),
+            user_id,
+            datetime_now(),
+        ),
+    )
+    db.execute(
+        "DELETE FROM doc_template_versions WHERE template_id=? AND id NOT IN "
+        "(SELECT id FROM doc_template_versions WHERE template_id=? "
+        "ORDER BY version DESC LIMIT ?)",
+        (tid, tid, max_keep),
+    )
+    db.commit()
+    return nxt
+
+
 class TemplateIn(BaseModel):
     name: str
     category: str = ""
@@ -120,6 +165,12 @@ def update_template(
     d = _template_owner(db, tid, user)
     if int(d.get("created_by") or 0) != int(user["id"]) and not is_admin(user):
         raise HTTPException(403, "Только автор или админ может редактировать")
+    # Версия Documents Center: снапшот контента до изменения (lifecycle).
+    if (body.html_content or "") != (d.get("html_content") or ""):
+        try:
+            snapshot_version(db, tid, int(user["id"]))
+        except Exception:
+            pass
     db.execute(
         "UPDATE print_templates SET name=?, category=?, html_content=?, "
         "page_size=?, orientation=?, margins=?, is_public=?, updated_at=? "

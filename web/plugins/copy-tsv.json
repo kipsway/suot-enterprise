@@ -1,14 +1,46 @@
 {
+  "manifest_version": 2,
   "id": "copy-tsv",
   "name": "Экспорт выбора в буфер",
-  "version": "1.0",
+  "name_en": "Copy selection to clipboard",
+  "version": "2.0.0",
   "author": "SUOT",
-  "description": "Копирует выбранные строки (или всё отфильтрованное) в буфер обмена как TSV — вставляется прямо в Excel.",
+  "description": "Копирует выбранные строки (или всё отфильтрованное) в буфер обмена — вставляется прямо в Excel.",
+  "description_en": "Copies selected rows (or all filtered) to clipboard — pastes straight into Excel.",
+  "min_app_version": "2.2.3",
   "enabled_by_default": true,
+  "capabilities": ["table.read", "clipboard"],
+  "settings_schema": [
+    {
+      "key": "delimiter",
+      "type": "select",
+      "options": ["tab", "semicolon"],
+      "default": "tab",
+      "title_ru": "Разделитель",
+      "title_en": "Delimiter"
+    },
+    {
+      "key": "header",
+      "type": "boolean",
+      "default": true,
+      "title_ru": "Первая строка — заголовки",
+      "title_en": "First row is header"
+    }
+  ],
   "commands": [
-    { "title": "Скопировать таблицу в буфер (TSV)", "behavior": "copy_tsv" }
+    {
+      "title": "Скопировать таблицу в буфер",
+      "title_en": "Copy table to clipboard",
+      "behavior": "copy_tsv"
+    }
   ],
   "toolbar": [
-    { "table": "*", "icon": "copyIc", "tooltip": "В буфер обмена (TSV)", "behavior": "copy_tsv" }
+    {
+      "table": "*",
+      "icon": "copyIc",
+      "tooltip": "В буфер обмена",
+      "tooltip_en": "To clipboard",
+      "behavior": "copy_tsv"
+    }
   ]
 }
